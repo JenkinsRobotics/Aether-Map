@@ -14,7 +14,7 @@
 <p align="center">Projection mapping and unattended show playback on Raspberry Pi players.</p>
 
 <p align="center">
-  <img alt="Alpha 0.1" src="https://img.shields.io/badge/release-Alpha%200.1-d29922">
+  <a href="https://github.com/JenkinsRobotics/Aether-Map/releases/tag/v0.1.0-alpha.1"><img alt="Alpha 0.1" src="https://img.shields.io/badge/release-v0.1.0--alpha.1-d29922"></a>
   <img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-58a6ff">
   <a href="https://jenkinsrobotics.github.io/Aether-Map/"><img alt="Website" src="https://img.shields.io/badge/site-Aether--Map-1f6feb"></a>
 </p>
@@ -35,6 +35,7 @@ Warp video, shaders and effects onto real buildings, sets and props in the brows
 - ✅ **Perform live** — Full-window performance faders with automation takeover, locks and undo, and MIDI controllers with feedback.
 - ✅ **Raspberry Pi players** — A Wi-Fi setup wizard, pairing, authorised deployment and offline playback with atomic, retrying updates.
 - ✅ **Exports** — Show ZIP and wireframe SVG exports with the exact document and referenced media.
+- ✅ **Model Studio interface** — The shared Aether interface: a transparent document header, floating resizable side cards, a separate tool tray, saved layouts and themes — the same in every app.
 
 ### In progress
 
