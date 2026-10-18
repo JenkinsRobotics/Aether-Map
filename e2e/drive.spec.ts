@@ -1,0 +1,156 @@
+import {test,expect} from '@playwright/test';
+import {signIn} from './helpers';
+async function setup(page:any,baseURL:string){await signIn(page,baseURL);await page.request.post('/api/admin/apps',{headers:{Origin:baseURL},data:{id:'drive',enabled:true}});await page.goto('/drive/');await expect(page.getByRole('heading',{name:'Aether Drive',exact:true})).toBeVisible();}
+async function create(page:any,type:string,name:string,text=''){
+  await page.getByRole('button',{name:'Create or upload',exact:true}).click();await page.getByRole('menuitem',{name:type,exact:true}).click();
+  const dialog=page.getByRole('dialog');await dialog.getByLabel('Name',{exact:true}).fill(name);if(type==='Text document')await dialog.getByLabel('Text contents').fill(text);await dialog.getByRole('button',{name:'Create',exact:true}).click();await expect(dialog).toBeHidden();
+}
+async function action(page:any,name:string,command:string){await page.getByRole('button',{name:`Actions for ${name}`,exact:true}).click();await page.getByRole('menuitem',{name:command,exact:true}).click();}
+test('Drive files, previews, folders, sharing and recovery',async({page,baseURL},info)=>{
+  await setup(page,baseURL!);await page.getByRole('button',{name:'My files',exact:true}).click();
+  await create(page,'Folder','Train cart');await create(page,'Text document','Review.txt','Engineering review notes');
+  await expect(page.locator('[data-icon-missing]')).toHaveCount(0);
+  await action(page,'Review.txt','Open');await expect(page.getByRole('dialog')).toHaveCount(1);await expect(page.getByRole('dialog',{name:'Review.txt',exact:true})).toContainText('Engineering review notes');await page.getByRole('button',{name:'Edit text',exact:true}).click();await page.getByLabel('File contents').fill('Engineering review notes updated');await page.getByRole('button',{name:'Save changes',exact:true}).click();await expect(page.getByRole('dialog')).toContainText('Engineering review notes updated');await page.getByRole('dialog').last().getByRole('button',{name:'Close',exact:true}).last().click();
+  await action(page,'Review.txt','Versions and history');
+  await page.getByRole('region',{name:'Versions and history',exact:true}).getByRole('button',{name:'Create branch',exact:true}).click();
+  const branchDialog=page.getByRole('dialog',{name:'Create branch from Main',exact:true});
+  await branchDialog.getByLabel('Name',{exact:true}).fill('Review branch');await branchDialog.getByRole('group',{name:'version action'}).getByRole('button',{name:'Create branch',exact:true}).click();
+  await expect(branchDialog).toBeHidden();await page.getByRole('button',{name:'Workspace Review branch',exact:true}).dblclick();
+  await page.getByRole('region',{name:'Versions and history',exact:true}).getByRole('button',{name:'Create version',exact:true}).click();
+  const versionDialog=page.getByRole('dialog',{name:'Create version from Review branch',exact:true});await expect(versionDialog).toBeVisible();await versionDialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('dialog',{name:'Review.txt',exact:true}).getByRole('button',{name:'Close',exact:true}).last().click();
+  await action(page,'Review.txt','Add to favorites');await page.getByRole('button',{name:'Favorites',exact:true}).click();await expect(page.getByRole('button',{name:'Actions for Review.txt'})).toBeVisible();
+  await action(page,'Review.txt','Copy to');await page.getByRole('dialog').last().getByRole('button',{name:'Copy here'}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button',{name:'My files',exact:true}).click();await expect(page.getByRole('button',{name:'Actions for Copy of Review.txt'})).toBeVisible();
+  await action(page,'Review.txt','Move to');await page.getByRole('dialog').last().getByRole('button',{name:'Train cart',exact:true}).click();await page.getByRole('dialog').last().getByRole('button',{name:'Move here'}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await action(page,'Train cart','Open folder');await expect(page.getByRole('button',{name:'Actions for Review.txt'})).toBeVisible();
+  await action(page,'Review.txt','Document notes');await page.getByRole('dialog').last().getByRole('button',{name:'Edit document notes'}).click();await page.getByLabel('Document notes text').fill('Keep the mounting clear');await page.getByRole('button',{name:'Save notes',exact:true}).click();await expect(page.getByRole('dialog')).toContainText('Keep the mounting clear');await page.getByRole('dialog').last().getByRole('button',{name:'Close',exact:true}).last().click();
+  await action(page,'Review.txt','Move to recycle bin');await page.getByRole('dialog').last().getByRole('button',{name:'Move to recycle bin',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button',{name:'Recycle bin',exact:true}).click();await page.getByRole('button',{name:'Restore Review.txt'}).click();await expect(page.getByRole('button',{name:'Restore Review.txt'})).toHaveCount(0);
+  await page.getByRole('button',{name:'My files',exact:true}).click();await page.getByLabel('Upload files',{exact:true}).setInputFiles({name:'Reference.txt',mimeType:'text/plain',buffer:Buffer.from('Uploaded reference')});await expect(page.getByRole('button',{name:'Actions for Reference.txt'})).toBeVisible();
+  await action(page,'Reference.txt','Share / manage access');await page.getByRole('button',{name:'Create sharing link',exact:true}).click();await expect(page.getByLabel('Sharing link')).toHaveValue(/\/drive\/\?share=/);await page.getByRole('button',{name:'Revoke link'}).click();await expect(page.getByRole('button',{name:'Revoke link'})).toHaveCount(0);await page.getByRole('button',{name:'Done',exact:true}).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);await page.screenshot({path:info.outputPath('drive-files.png'),animations:'disabled'});
+  await page.setViewportSize({width:860,height:900});await page.screenshot({path:info.outputPath('drive-narrow.png'),animations:'disabled'});
+});
+test('Drive organizations, workspaces and Map creation destination',async({page,baseURL})=>{
+  await setup(page,baseURL!);
+  const orgResponse=await page.request.post('/api/drive/organization_create',{headers:{Origin:baseURL!},data:{name:'Robotics'}});
+  const org=await orgResponse.json();
+  await page.request.post('/api/drive/workspace_create',{headers:{Origin:baseURL!},data:{organization:org.id,name:'Map destination team'}});
+  await page.reload();
+  await page.getByRole('button',{name:'Map destination team',exact:true}).click();
+  await create(page,'Folder','Show files');await action(page,'Show files','Open folder');
+  await create(page,'Map show','Workspace show');await expect(page).toHaveURL(/\/drive\//);await page.getByRole('button',{name:'Workspace show.aethermap',exact:true}).dblclick();await expect(page).toHaveURL(/\/map\/index.html/);await expect.poll(()=>new URL(page.url()).searchParams.get('document')).toBeTruthy();
+  const id=new URL(page.url()).searchParams.get('document');const response=await page.request.post('/api/drive/details',{headers:{Origin:baseURL!},data:{id}});expect(response.ok(),await response.text()).toBeTruthy();const file=await response.json();expect(file.workspace).toBeTruthy();expect(file.parent).toBeTruthy();expect(file.organization).not.toBe('default');
+});
+
+test('Drive streams downloads, supports byte ranges, and renders in dark mode',async({page,baseURL},info)=>{
+  await setup(page,baseURL!);
+  await page.request.post('/api/preferences',{headers:{Origin:baseURL!},data:{theme_id:'aether-studio',theme:'dark'}});
+  await page.reload();await expect(page.locator('html')).toHaveClass(/aether-theme-aether-studio/);await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('menuitemradio',{name:'Dark',exact:true}).click();await expect(page.locator('html')).toHaveAttribute('data-appearance','dark');
+  await expect(page.locator('[data-icon-missing]')).toHaveCount(0);
+  await page.screenshot({path:info.outputPath('drive-home-dark.png'),animations:'disabled'});
+  await page.getByRole('button',{name:'Desktop sync',exact:true}).click();await expect(page.getByRole('dialog')).toContainText('python3 -m core.host.drive_sync');await expect(page.getByRole('dialog')).toContainText('--username');await page.getByRole('button',{name:'Done',exact:true}).click();
+  await page.getByRole('button',{name:'My files',exact:true}).click();
+  const payload=Buffer.alloc(1500000,42);await page.getByLabel('Upload files',{exact:true}).setInputFiles({name:'Large reference.bin',mimeType:'application/octet-stream',buffer:payload});await expect(page.getByRole('button',{name:'Actions for Large reference.bin'})).toBeVisible();
+  const listing=await page.request.post('/api/drive/list',{headers:{Origin:baseURL!},data:{view:'personal'}});const file=(await listing.json()).files.find((f:any)=>f.name==='Large reference.bin');expect(file.size).toBe(payload.length);
+  const range=await page.request.get(`/api/drive/download?id=${file.id}`,{headers:{Range:'bytes=1024-2047'}});expect(range.status()).toBe(206);expect(await range.body()).toEqual(payload.subarray(1024,2048));
+  const downloaded=page.waitForEvent('download');await action(page,'Large reference.bin','Download');const download=await downloaded;expect(download.suggestedFilename()).toBe('Large reference.bin');const stream=await download.createReadStream();const chunks:Buffer[]=[];for await(const chunk of stream!)chunks.push(chunk);expect(Buffer.concat(chunks)).toEqual(payload);
+  const replaced=await page.request.post('/api/drive/document',{headers:{Origin:baseURL!},data:{id:file.id,action:'save',expected_revision:1,data_base64:Buffer.from('replacement bytes').toString('base64')}});expect(replaced.ok()).toBeTruthy();
+  await action(page,'Large reference.bin','Versions and history');await page.getByRole('button',{name:'Document Start',exact:true}).click();
+  const snapshotDownload=page.waitForEvent('download');await page.getByRole('button',{name:'More history actions'}).click();await page.getByRole('menuitem',{name:'Download selected entry',exact:true}).click();
+  const historical=await snapshotDownload;const historyStream=await historical.createReadStream();const historicalChunks:Buffer[]=[];for await(const chunk of historyStream!)historicalChunks.push(chunk);expect(Buffer.concat(historicalChunks)).toEqual(payload);
+  await page.getByRole('dialog',{name:'Large reference.bin',exact:true}).getByRole('button',{name:'Close',exact:true}).last().click();
+  await create(page,'Folder','Archive');await action(page,'Archive','Download');
+  await page.getByRole('button',{name:'Home',exact:true}).click();await page.setViewportSize({width:600,height:850});await page.screenshot({path:info.outputPath('drive-mobile-dark.png'),animations:'disabled'});
+});
+
+test('Drive uses the shared home table with filters, selection, views and details', async ({page,baseURL}, info) => {
+  await setup(page,baseURL!);
+  await page.getByRole('button',{name:'My files',exact:true}).click();
+  await create(page,'Text document','Table alpha.txt','alpha');
+  await create(page,'Text document','Table beta.txt','beta');
+  const filter=page.getByRole('textbox',{name:'Search Drive'});
+  await filter.fill('Table ');
+  const table=page.getByRole('table',{name:'Drive files'});
+  await expect(table).toHaveClass('aui-application-file-table');
+  await expect(table.getByRole('columnheader')).toHaveCount(6);
+  for (const name of ['Name','Modified','Modified by','File size','Sharing','Activity']) await expect(table.getByRole('columnheader',{name,exact:true})).toBeVisible();
+  await expect(table.getByRole('row')).toHaveCount(3);
+  await table.getByLabel('Select Table alpha.txt',{exact:true}).check();
+  await expect(table.getByLabel('Select all files')).toHaveJSProperty('indeterminate',true);
+  await table.getByLabel('Select all files').check();
+  await expect(table.locator('tr[data-selected]')).toHaveCount(2);
+  await page.getByRole('button',{name:'Clear selection',exact:true}).click();
+  await table.getByRole('button',{name:'Table alpha.txt',exact:true}).click();
+  await expect(table.locator('tr[data-selected]')).toHaveCount(1);
+  await page.getByRole('button',{name:'Details',exact:true}).click();
+  await expect(page.getByRole('complementary',{name:'File details'})).toContainText('Table alpha.txt');
+  await page.getByRole('button',{name:'Sort',exact:true}).click();
+  await expect(page.locator('[data-icon-missing]')).toHaveCount(0);
+  await page.getByRole('menuitemradio',{name:'Descending',exact:true}).click();
+  await expect(table.locator('tbody tr').first()).toContainText('Table beta.txt');
+  await page.getByRole('button',{name:'File view',exact:true}).click();
+  await page.getByRole('menuitemradio',{name:'Grid view',exact:true}).click();
+  await expect(table).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Actions for Table alpha.txt'})).toBeVisible();
+  await page.getByRole('button',{name:'File view',exact:true}).click();
+  await page.getByRole('menuitemradio',{name:'List view',exact:true}).click();
+  await expect(table).toBeVisible();
+  await page.getByRole('button',{name:'Details',exact:true}).click();
+  await page.getByRole('button',{name:'Clear selection',exact:true}).click();
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('menuitemradio',{name:'Dark',exact:true}).click();
+  await expect(page.locator('[data-icon-missing]')).toHaveCount(0);
+  await page.screenshot({path:info.outputPath('drive-shared-table.png'),animations:'disabled'});
+  await filter.fill('nothing matches this file');
+  await expect(page.getByRole('heading',{name:'No matching files'})).toBeVisible();
+  await filter.fill('Table ');
+  await page.setViewportSize({width:600,height:850});
+  await expect(table.getByRole('button',{name:'Actions for Table alpha.txt'})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('drive-shared-table-narrow.png'),animations:'disabled'});
+});
+
+test('CAD home consumes the same table and preserves keyboard folder navigation', async ({page,baseURL}, info) => {
+  await signIn(page,baseURL!);
+  const created=await page.request.post('/api/library/create',{headers:{Origin:baseURL!},data:{app:'cad',name:'Shared table folder',kind:'folder',scope:'personal',parent:null}});
+  expect(created.ok()).toBe(true);
+  await page.goto('/cad/');
+  await page.getByRole('button',{name:'My files',exact:true}).click();
+  const table=page.getByRole('table',{name:'Files',exact:true});
+  await expect(table).toHaveClass('aui-application-file-table');
+  await page.getByRole('textbox',{name:'Filter by name or person'}).fill('Shared table folder');
+  await expect(table.getByRole('columnheader')).toHaveText(['Name','Opened','Owner']);
+  const folder=table.getByRole('button',{name:'Shared table folder My files',exact:true});
+  await folder.click();
+  await expect(table.locator('tr[data-selected]')).toHaveCount(1);
+  await page.screenshot({path:info.outputPath('cad-shared-table.png'),animations:'disabled'});
+  await folder.press('Enter');
+  await expect(page.locator('.library-breadcrumb')).toContainText('Shared table folder');
+});
+
+test('My files keeps folders first and exposes real metadata and header sorting', async ({page,baseURL},info) => {
+  await setup(page,baseURL!);
+  await page.getByRole('button',{name:'My files',exact:true}).click();
+  await create(page,'Folder','My-files Z folder');
+  await create(page,'Text document','My-files A note.txt','note');
+  await page.getByRole('textbox',{name:'Search Drive'}).fill('My-files ');
+  const table=page.getByRole('table',{name:'Drive files'});
+  await expect(table.locator('tbody tr')).toHaveCount(2);
+  await expect(table.locator('tbody tr').first()).toContainText('My-files Z folder');
+  await expect(table.locator('tbody tr').first()).toContainText('0 items');
+  await expect(table.locator('tbody tr').first()).toContainText('Private');
+  await table.getByRole('button',{name:'Modified',exact:true}).click();
+  await expect(table.getByRole('columnheader',{name:'Modified',exact:true})).toHaveAttribute('aria-sort','ascending');
+  await table.getByRole('button',{name:'Modified',exact:true}).click();
+  await expect(table.getByRole('columnheader',{name:'Modified',exact:true})).toHaveAttribute('aria-sort','descending');
+  await expect(table.locator('tbody tr').first()).toContainText('My-files Z folder');
+  await expect(page.getByRole('button',{name:'More file types',exact:true})).toBeHidden();
+  await page.screenshot({path:info.outputPath('drive-my-files.png'),animations:'disabled'});
+  await table.getByRole('button',{name:'My-files Z folder',exact:true}).press('Enter');
+  await expect(page.getByRole('navigation',{name:'Folder path'})).toContainText('My-files Z folder');
+  await page.getByRole('button',{name:'Create or upload',exact:true}).click();
+  await expect(page.getByRole('menuitem',{name:'Files upload',exact:true})).toBeVisible();
+  await expect(page.getByRole('menuitem',{name:'Folder upload',exact:true})).toBeVisible();
+});

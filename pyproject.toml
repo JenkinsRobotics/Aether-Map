@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "aether-map-service"
+version = "0.2.0a4"
+requires-python = ">=3.11,<3.13"
+dependencies = ["aether-platform>=0.2.0a3"]
+[project.entry-points."aether.products"]
+map = "aether_map_service.service:MapService"
+[tool.setuptools]
+packages = ["aether_map_service", "aether_map_player"]
+
+[tool.setuptools.package-dir]
+aether_map_service = "service/aether_map_service"
+aether_map_player = "player"
+
+[tool.setuptools.package-data]
+aether_map_service = ["runtime/*.mjs", "runtime/*.json", "automation-commands.json", "compatibility.json"]
+aether_map_player = ["install.sh", "README.md", "THIRD_PARTY.md"]

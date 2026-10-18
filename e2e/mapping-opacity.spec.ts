@@ -1,0 +1,44 @@
+import { expect, test } from '@playwright/test';
+import { clickRibbon, openOutput, signIn, solidPng, switchWorkspace } from './helpers';
+
+test('surface alignment opacity reveals the backdrop, persists, and leaves projector output opaque', async ({ page, baseURL }, info) => {
+  await signIn(page, baseURL!);
+  await page.goto('/map/index.html?new=show');
+  const chooser = page.waitForEvent('filechooser');
+  await clickRibbon(page, 'Import backdrop');
+  await (await chooser).setFiles({ name: 'reference.png', mimeType: 'image/png', buffer: solidPng(600, 400, [50, 100, 150]) });
+  await clickRibbon(page, 'New Surface');
+  const inspector = page.getByRole('region', { name: 'Selection properties' });
+  const opacity = inspector.getByRole('slider', { name: 'Mapping opacity', exact: true });
+  await expect(opacity).toHaveValue('100');
+  await opacity.focus();
+  await opacity.press('Home');
+  for (let i = 0; i < 35; i++) await opacity.press('ArrowRight');
+  await expect(opacity).toHaveValue('35');
+  await expect(page.locator('.map-surface').first()).toHaveCSS('opacity', '0.35');
+  await expect(page.getByRole('img', { name: 'Backdrop', exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('mapping-opacity.png'), animations: 'disabled' });
+  await opacity.press('Home');
+  const corner = inspector.getByRole('textbox', { name: 'Top left X', exact: true });
+  await corner.fill('123'); await corner.press('Tab');
+  await expect(page.locator('.map-outline.is-selected')).toBeVisible();
+  await expect(page.locator('.map-surface').first()).toHaveCSS('opacity', '0');
+  await opacity.focus();
+  for (let i = 0; i < 35; i++) await opacity.press('ArrowRight');
+  await clickRibbon(page, 'New Surface');
+  await expect(opacity).toHaveValue('100');
+  const row = page.getByRole('tree', { name: 'Layers', exact: true }).getByRole('treeitem')
+    .filter({ has: page.locator('.aui-tree-label', { hasText: /^Surface 1$/ }) });
+  await row.click();
+  await expect(opacity).toHaveValue('35');
+  await expect(page.locator('.map-save-state')).toHaveText('Saved');
+  await page.reload(); await row.click();
+  await expect(opacity).toHaveValue('35');
+  await expect(corner).toHaveValue('123');
+  await switchWorkspace(page, 'Visualization');
+  await expect(inspector.getByRole('slider', { name: 'Surface opacity', exact: true })).toHaveValue('1');
+  await expect(page.locator('.map-surface').first()).toHaveCSS('opacity', '1');
+  const output = await openOutput(page);
+  await expect(output.locator('.map-surface').first()).toHaveCSS('opacity', '1');
+  await output.close();
+});

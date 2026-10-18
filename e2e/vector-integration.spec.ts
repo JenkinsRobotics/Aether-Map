@@ -1,0 +1,32 @@
+import {expect,test} from '@playwright/test';
+import {signIn,openPanel,clickRibbon,openOutput,switchWorkspace,documentCommand} from './helpers';
+const row=(page:import('@playwright/test').Page,name:string)=>page.getByRole('tree',{name:'Layers',exact:true}).getByRole('treeitem').filter({has:page.locator('.aui-tree-label',{hasText:new RegExp(`^${name}$`)})});
+test('Map retains SVG curves, combines editable holes and preserves output/save/undo',async({page,baseURL},info)=>{
+ await signIn(page,baseURL!);await page.goto('/map/index.html?new=show');
+ await page.locator('input[accept=".svg,image/svg+xml"]').setInputFiles({name:'regions.svg',mimeType:'image/svg+xml',buffer:Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"><rect id="Outer" x="200" y="100" width="800" height="800"/><rect id="Hole" x="400" y="300" width="400" height="400"/></svg>')});
+ await row(page,'Outer').click();await row(page,'Hole').click({modifiers:['Shift']});await openPanel(page,'Properties');
+ await page.getByRole('button',{name:'Subtract front',exact:true}).click();await expect(page.getByRole('region',{name:'Combine vector surfaces'})).toHaveAttribute('aria-busy','false');
+ await expect(row(page,'Outer · difference')).toBeVisible();await expect(row(page,'Hole')).toHaveCount(0);
+ const clip=page.locator('clipPath path[clip-rule="evenodd"]').first();await expect(clip).toHaveCount(1);const outline=await clip.getAttribute('d');expect(outline?.match(/M/g)).toHaveLength(2);
+ await clickRibbon(page,'Node');await expect(page.locator('.map-mask-handle')).toHaveCount(8);
+ const handle=page.locator('.map-mask-handle').nth(4),box=await handle.boundingBox();await page.mouse.move(box!.x+box!.width/2,box!.y+box!.height/2);await page.mouse.down();await page.mouse.move(box!.x+box!.width/2+12,box!.y+box!.height/2+10,{steps:4});await page.mouse.up();
+ expect(await clip.getAttribute('d')).not.toBe(outline);
+ await documentCommand(page,'Undo');await expect(clip).toHaveAttribute('d',outline!);
+ const output=await openOutput(page);await expect(output.locator('clipPath path[clip-rule="evenodd"]')).toHaveAttribute('d',outline!);await output.screenshot({path:info.outputPath('compound-output.png')});await output.close();
+ await switchWorkspace(page,'Mapping');await expect(page.locator('.map-save-state')).toHaveText('Saved');await page.reload();await row(page,'Outer · difference').click();await openPanel(page,'Properties');await expect(clip).toHaveAttribute('d',outline!);
+ await page.screenshot({path:info.outputPath('compound-map.png')});await page.getByRole('button',{name:'Release compound',exact:true}).click();await expect(row(page,'Outer · difference contour 2')).toBeVisible();
+});
+test('CAD launches Vector tools from the shared ribbon and imports retained SVG contours',async({page,baseURL},info)=>{
+ await signIn(page,baseURL!);await page.goto('/cad/index.html?new=part');await page.getByRole('button',{name:'Create Part',exact:true}).click();
+ await page.getByRole('button',{name:'Sketch',exact:true}).first().click();
+ const tree=page.getByRole('tree',{name:'CAD items',exact:true});await tree.getByText('Top Plane',{exact:true}).click();
+ await page.getByRole('button',{name:'Vector tools',exact:true}).click();
+ const units=page.getByRole('spinbutton',{name:'Millimeters per SVG unit',exact:true});await units.fill('1');await units.press('Tab');
+ await page.getByLabel('CAD SVG file',{exact:true}).setInputFiles({name:'profile.svg',mimeType:'image/svg+xml',buffer:Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M0 0h60v40h-60z M10 10h20v20h-20z"/><path d="M70 0 C75 10 80 10 85 0"/></svg>')});
+ await page.getByRole('button',{name:'Insert SVG contours',exact:true}).click();await expect(page.locator('.sketch-contour')).toHaveCount(3);await page.screenshot({path:info.outputPath('cad-vector-import.png')});
+ await page.getByLabel('CAD SVG file',{exact:true}).setInputFiles({name:'operands.svg',mimeType:'image/svg+xml',buffer:Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><rect x="-60" y="-30" width="20" height="20"/><rect x="-50" y="-30" width="20" height="20"/></svg>')});
+ await page.getByRole('button',{name:'Insert SVG contours',exact:true}).click();await expect(page.locator('.sketch-contour')).toHaveCount(5);
+ await page.getByLabel('Contours to combine',{exact:true}).selectOption(['3','4']);await page.getByRole('button',{name:'Union copy',exact:true}).click();await expect(page.locator('.sketch-contour')).toHaveCount(6);
+ await page.keyboard.press('Control+z');await expect(page.locator('.sketch-contour')).toHaveCount(5);await page.keyboard.press('Control+Shift+z');await expect(page.locator('.sketch-contour')).toHaveCount(6);await page.screenshot({path:info.outputPath('cad-vector-boolean.png')});
+ await page.getByRole('button',{name:'Close tool editor',exact:true}).first().click();await page.getByRole('button',{name:'Finish sketch',exact:true}).click();await expect(page.locator('.cad-sketch-workspace')).toHaveCount(0);
+});

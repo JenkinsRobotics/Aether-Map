@@ -1,0 +1,10 @@
+import { beginDraft as begin, penPointerDown as penDown, type SketchTool, type Draft, type Point, type ToolOptions } from '@aether/sketch';
+export { moveDraft, endDraft, finishPen, penCurves, previewShape, isDrawingTool } from '@aether/sketch';
+export type { Draft, DraftStep } from '@aether/sketch';
+export type MaskTool = Exclude<SketchTool, 'line'>;
+import { TOOL_SHORTCUTS as shortcuts } from '@aether/sketch';
+export const TOOL_SHORTCUTS = Object.fromEntries(Object.entries(shortcuts).filter(([, value]) => value !== 'line')) as Record<string, MaskTool>;
+export const CLOSE_TOLERANCE = 12;
+const options: ToolOptions = { coordinateStep: 1, minimumArea: 16, curveTolerance: .25, freehandTolerance: 2.5, closeTolerance: CLOSE_TOLERANCE, dragThreshold: 2, polygonSides: 6, curvedPrimitives: true };
+export const beginDraft = (tool: MaskTool, at: Point, constrained = false) => begin(tool, at, constrained, options);
+export const penPointerDown = (draft: Draft | null, at: Point, tolerance = CLOSE_TOLERANCE, screenScale = 1) => penDown(draft, at, tolerance, { ...options, dragThreshold: 2 / screenScale, curveTolerance: .25 / screenScale });

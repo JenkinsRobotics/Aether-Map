@@ -1,0 +1,5 @@
+/* The canvas fills the center; the shared bottom dock overlays its safe frame. */
+.map-stage { position: relative; }
+.map-stage > .map-preview-panes { height: 100%; }
+/* A framed mapping canvas already excludes the floating tool/dock clearance. */
+.aui-studio-app .aui-shell[data-design="studio"][data-content-presentation="framed"] .map-output-preview [data-workspace-overlay~="bottom"] { bottom: 16px; right: 16px; }

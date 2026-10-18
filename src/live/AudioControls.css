@@ -1,0 +1,4 @@
+.map-audio-meter { display: block; width: 100%; height: 12px; appearance: none; background: transparent; }
+.map-audio-meter::-webkit-meter-bar { border: 0; height: 6px; border-radius: var(--aether-radius-pill); background: var(--aether-color-border-control); }
+.map-audio-meter::-webkit-meter-optimum-value { border-radius: var(--aether-radius-pill); background: var(--aether-color-accent); }
+.map-audio-meter::-moz-meter-bar { border-radius: var(--aether-radius-pill); background: var(--aether-color-accent); }

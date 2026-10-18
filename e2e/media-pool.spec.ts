@@ -1,0 +1,62 @@
+import { expect, test } from '@playwright/test';
+import { emptyShow, newSurface } from '../src/document';
+import { normalizeVisuals } from '../src/visual-document';
+import { normalizeMediaPool, addPoolAsset } from '../src/media-pool';
+import { signIn, switchWorkspace, openBottomDock, openOutput } from './helpers';
+
+test('reusable pool sources create independent clips on Main tracks, layer, save and reload', async ({ page, baseURL }, info) => {
+  await signIn(page, baseURL!);
+  let show = emptyShow();
+  const a = newSurface(show.output, 0), b = newSurface(show.output, 1);
+  a.name = 'Left wall'; b.name = 'Right wall';
+  a.corners = [[0,0],[960,0],[960,1080],[0,1080]]; b.corners = [[960,0],[1920,0],[1920,1080],[960,1080]];
+  show.scenes[0].surfaces = [a,b];
+  show = normalizeMediaPool(normalizeVisuals(show));
+  show = addPoolAsset(show, { mediaId: null, rect: [0,0,1920,1080], fill: '#ff0000' }, 'Reusable red');
+  show = addPoolAsset(show, { mediaId: null, rect: [0,0,1920,1080], fill: '#0000ff' }, 'Reusable blue');
+  const created = await page.request.post('/api/library/create', { headers: { Origin: baseURL! }, data: { app: 'map', scope: 'personal', name: 'Reusable pool.aethermap', data_base64: Buffer.from(JSON.stringify(show)).toString('base64') } });
+  expect(created.ok()).toBe(true);
+  await page.goto(`/map/index.html?document=${(await created.json()).id}`);
+  await switchWorkspace(page, 'Visualization'); await openBottomDock(page, 'Timeline');
+  const pool = page.getByRole('region', { name: 'Media Pool', exact: true });
+  const timeline = page.getByRole('region', { name: 'Main timeline', exact: true });
+  const red = pool.getByRole('button', { name: 'Reusable red', exact: true });
+  const blue = pool.getByRole('button', { name: 'Reusable blue', exact: true });
+  await timeline.getByRole('combobox', { name: 'Timeline mode' }).selectOption('advanced');
+  await red.click(); await pool.getByRole('button', { name: 'Append to track', exact: true }).click();
+  await expect(timeline.locator('.map-clip')).toHaveCount(1);
+  await red.click(); await pool.getByRole('button', { name: 'Append to track', exact: true }).click();
+  await expect(timeline.locator('.map-clip')).toHaveCount(2);
+  const positions = await timeline.locator('.map-clip').evaluateAll(nodes => nodes.map(n => parseFloat((n as HTMLElement).style.left)));
+  expect(positions[1]).toBeGreaterThan(positions[0]);
+  await expect(pool.getByRole('group', { name: 'Pool assets' }).getByRole('button')).toHaveCount(2);
+  await timeline.getByRole('button', { name: 'Add video track' }).click();
+  const lane = timeline.getByLabel('V2 clips');
+  await red.dragTo(lane, { targetPosition: { x: 2, y: 12 } });
+  await expect(timeline.locator('.map-clip')).toHaveCount(3);
+  await timeline.getByRole('button', { name: 'Add video track' }).click();
+  await expect(timeline.locator('.map-lane')).toHaveCount(4);
+  await blue.dragTo(timeline.getByLabel('V3 clips'), { targetPosition: { x: 2, y: 12 } });
+  await expect(timeline.locator('.map-clip')).toHaveCount(4);
+  await expect(pool.getByRole('group', { name: 'Pool assets' }).getByRole('button')).toHaveCount(2);
+  // Hiding a track leaves its sources and clips present while removing output.
+  await timeline.locator('.map-ruler').click({ position: { x: 80, y: 10 } });
+  const output = await openOutput(page);
+  await timeline.getByRole('button', { name: 'Hide V3', exact: true }).click();
+  await expect(output.locator('.map-fill')).toHaveCount(2);
+  await timeline.getByRole('button', { name: 'Show V3', exact: true }).click();
+  await expect(output.locator('.map-fill')).toHaveCount(3);
+  await red.click(); await pool.getByRole('textbox', { name: 'Asset bin' }).fill('Colors');
+  await expect(pool.getByRole('button', { name: 'Remove from pool', exact: true })).toBeDisabled();
+  await expect(page.locator('.map-save-state')).toHaveText('Saved');
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(theme => { document.documentElement.classList.toggle('aether-light-theme', theme === 'light'); document.documentElement.classList.toggle('aether-dark-theme', theme === 'dark'); }, theme);
+    await page.screenshot({ path: info.outputPath(`pool-${theme}.png`) });
+  }
+  await page.reload(); await switchWorkspace(page, 'Visualization'); await openBottomDock(page, 'Timeline');
+  await expect(red).toBeVisible(); await expect(pool.getByRole('navigation', { name: 'Media bins' }).getByRole('button', { name: 'Colors', exact: true })).toBeVisible();
+  await expect(timeline.getByLabel('V1 clips').locator('.map-clip')).toHaveCount(2);
+  await expect(timeline.getByLabel('V2 clips').locator('.map-clip')).toHaveCount(1);
+  await expect(timeline.getByLabel('V3 clips').locator('.map-clip')).toHaveCount(1);
+  await output.close();
+});

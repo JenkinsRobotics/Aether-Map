@@ -1,0 +1,46 @@
+import {expect,test} from '@playwright/test';
+import {signIn,clickRibbon,saveShow,switchWorkspace} from './helpers';
+import {emptyShow} from '../src/document';
+
+test('open-show tabs save before switching, deduplicate, restore, create and close real files',async({page,baseURL},info)=>{
+  await signIn(page,baseURL!);
+  const created=await page.request.post('/api/library/create',{headers:{Origin:baseURL!},data:{app:'map',scope:'personal',name:'Second show.aethermap',data_base64:Buffer.from(JSON.stringify(emptyShow())).toString('base64')}});
+  expect(created.ok()).toBe(true);const second=(await created.json()).id;
+  await page.goto('/map/index.html?new=show');
+  await saveShow(page,'First show');const first=new URL(page.url()).searchParams.get('document');
+  await clickRibbon(page,'Cube');
+  await page.getByRole('button',{name:'Open or create a show'}).click();
+  await page.getByRole('menuitem',{name:'Open show…',exact:true}).click();
+  const picker=page.getByRole('dialog',{name:'Open show',exact:true});
+  await picker.getByText('Second show.aethermap',{exact:true}).click();
+  await expect(page).toHaveURL(new RegExp(`document=${second}`));
+  const tabs=page.getByRole('tablist',{name:'Open shows'});
+  await expect(tabs.getByRole('tab',{name:'Second show',exact:true})).toHaveAttribute('aria-selected','true');
+  await expect(tabs.getByRole('tab')).toHaveCount(2);
+  await expect(page.locator('.map-surface')).toHaveCount(0);
+  await tabs.getByRole('tab',{name:'First show',exact:true}).click();
+  await expect(page).toHaveURL(new RegExp(`document=${first}`));
+  await expect(page.locator('.map-surface')).toHaveCount(3);
+  await switchWorkspace(page,'Visualization');
+  await expect(tabs.getByRole('tab')).toHaveCount(2);
+  await page.screenshot({path:info.outputPath('open-shows.png'),animations:'disabled'});
+  await page.reload();await expect(tabs.getByRole('tab')).toHaveCount(2);
+  // A failed save must not switch files or discard the current document.
+  await page.route('**/api/library/save',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Offline test: retain this show'})}));
+  await clickRibbon(page,'Cube');
+  await tabs.getByRole('tab',{name:/Second show/}).click();
+  await expect(page.locator('.map-file-tabs').getByRole('alert')).toContainText('Offline test');
+  expect(new URL(page.url()).searchParams.get('document')).toBe(first);
+  await expect(page.locator('.map-surface')).toHaveCount(6);
+  await page.unroute('**/api/library/save');
+  await tabs.getByRole('tab',{name:/Second show/}).click();
+  await expect(page).toHaveURL(new RegExp(`document=${second}`));
+  await tabs.getByRole('button',{name:'Close Second show'}).click();
+  await expect(page).toHaveURL(new RegExp(`document=${first}`));
+  await expect(tabs.getByRole('tab')).toHaveCount(1);await expect(page.locator('.map-surface')).toHaveCount(6);
+  await page.getByRole('button',{name:'Open or create a show'}).click();
+  await page.getByRole('menuitem',{name:'New show',exact:true}).click();
+  await expect(tabs.getByRole('tab',{name:'Untitled show',exact:true})).toHaveAttribute('aria-selected','true');
+  await expect(tabs.getByRole('tab')).toHaveCount(2);await expect(page.locator('.map-surface')).toHaveCount(0);
+  await page.screenshot({path:info.outputPath('new-show-tab.png'),animations:'disabled'});
+});

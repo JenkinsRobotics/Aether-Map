@@ -1,0 +1,1589 @@
+/* Aether Map — the output raster and its editing chrome.
+   Everything inside .map-raster is in output-space pixels; only the raster
+   itself is scaled to fit, so no coordinate below knows about the zoom. */
+
+.map-canvas-host {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* No flex/grid centring: the raster is positioned by an explicit transform,
+     because a scaled child still occupies its full unscaled box in layout. */
+  touch-action: none;
+  outline: none;
+  background: var(--aether-color-bg-app);
+  /* A faint grid reads as "this is the projector's raster, not a document". */
+  background-image:
+    linear-gradient(var(--aether-color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--aether-color-border) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: -1px -1px;
+}
+
+.map-canvas-host[data-grid="hidden"] { background-image: none; }
+.map-mapping-controls { border-bottom: 1px solid var(--aether-color-border); }
+.map-mapping-preferences { padding: 4px 0; }
+.map-mapping-preferences[open] { display: grid; gap: 10px; }
+.map-point-controls { display: grid; gap: 8px; padding: 10px 0; }
+
+/* Every scene's artboard, laid out side by side. The pan/zoom transform lives
+   here so each artboard keeps its own untransformed pixel space inside. */
+.map-artboards {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.map-loose-layers {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Ring weights, in screen pixels. Everything inside .map-artboards is drawn
+   through the canvas zoom, so a plain 1px border is 1px × zoom on screen: at a
+   typical zoomed-out working scale it lands well under one device pixel, comes
+   out as partial alpha, and — because opposite edges sit at different subpixel
+   offsets — renders at a different weight on each of the four sides. That is
+   why the active outline read as faint and lopsided. Dividing by the zoom
+   pins each ring to a true screen width, identical on all four edges. */
+.map-raster {
+  --map-hairline: calc(1px / var(--map-zoom, 1));
+  --map-ring: calc(2px / var(--map-zoom, 1));
+  --map-lift: 0 calc(18px / var(--map-zoom, 1)) calc(48px / var(--map-zoom, 1))
+    var(--aether-color-shadow);
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  background: #000; /* literal-ok: unlit raster must emit no light */
+  box-shadow: 0 0 0 var(--map-hairline) var(--aether-color-border), var(--map-lift);
+}
+
+/* An artboard that is not being edited takes no pointer events: the press falls
+   through to the canvas, which focuses the artboard instead of editing it. */
+.map-artboard:not(.is-active) { pointer-events: none; }
+
+.map-artboard.is-active {
+  box-shadow: 0 0 0 var(--map-ring) var(--aether-color-accent), var(--map-lift);
+}
+
+/* Suppressed: on the canvas because you are still authoring it, visibly out of
+   the show because no projector will play it. */
+.map-artboard[data-suppressed] { opacity: 0.45; }
+
+.map-artboard-name {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--aether-color-text-dim);
+  font: inherit;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.map-artboard-name:hover { color: var(--aether-color-text); }
+
+.map-artboard-name[aria-pressed="true"] {
+  color: var(--aether-color-accent);
+  font-weight: 600;
+}
+
+.map-artboard-name[data-suppressed] { text-decoration: line-through; }
+
+.map-artboard-tag {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.8em;
+  opacity: 0.75;
+  text-decoration: none;
+}
+
+/* A scene shows only what it projects, so every layer is clipped to the scene
+   box. The selected layer is the exception: while you are positioning it you
+   need to see the part hanging outside, the way a sketch shows an overflowing
+   image only on the artboard you are editing. */
+/* A crossfade draws two scenes at once. Each is a full-size stack so its own
+   surfaces composite together first and the fader moves the whole scene, not
+   each layer separately — otherwise overlapping surfaces would show through one
+   another halfway across. */
+.map-mix-layer { position: absolute; inset: 0; }
+
+/* The crossfader, in the Program panel. It is an instrument you ride, not a
+   setting you open, so it lives where the selection cannot take it away. */
+.map-mix { flex: none; padding: 10px 0; display: grid; gap: 8px; }
+.map-mix-row { display: flex; gap: 6px; }
+/* A and B named on their own rows, so the fader's two ends are legible before
+   you touch it — the thing an unlabelled slider under the scene tree never was. */
+.map-mix-ab { display: flex; align-items: center; gap: 8px; }
+.map-mix-ab > *:last-child { flex: 1; min-width: 0; }
+.map-mix-key {
+  flex: none;
+  width: 18px;
+  font-size: 11px;
+  font-weight: var(--aether-font-weight-strong);
+  color: var(--aether-color-text-faint);
+}
+.map-mix-scene { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--aether-color-text); }
+.map-mix-fader { width: 100%; accent-color: var(--aether-color-accent); }
+.map-mix-ends { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--aether-color-text-dim); }
+.map-mix-ends > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Ready-made scenes: each row is a name and what it is for, because "Haunted
+   fog" alone does not tell you whether to point it at a door or a bush. */
+.map-preset-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.map-preset-list button { display: grid; gap: 3px; width: 100%; padding: 12px 14px; text-align: left; cursor: pointer;
+  border: 1px solid var(--aether-color-border); border-radius: 10px; background: var(--aether-color-bg-panel); color: var(--aether-color-text); }
+.map-preset-list button:hover { background: var(--aether-color-bg-hover); }
+.map-preset-list small { color: var(--aether-color-text-dim); line-height: 1.5; }
+.map-preset-heading { margin: 16px 0 6px; font-size: var(--aether-font-size-label); font-weight: var(--aether-font-weight-strong);
+  text-transform: uppercase; letter-spacing: var(--aether-font-letter-caps); color: var(--aether-color-text-faint); }
+.map-preset-heading:first-child { margin-top: 4px; }
+
+/* The settings preview draws with the same component the wall gets, so what you
+   are choosing and what you will see cannot drift apart. */
+.map-look-preview {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 200px;
+  margin: 2px 0 14px;
+  padding: 24px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--aether-color-bg-app);
+}
+.map-look-stage { position: relative; }
+.map-look-stage .map-surface-grid { position: absolute; inset: 0; }
+/* Pins overhang the shape's corners, so their layer is larger than the shape
+   and is allowed to spill outside it. */
+.map-look-pins { position: absolute; overflow: visible; pointer-events: none; }
+/* Both switches span the pane with their label above. A SettingsRow's control
+   column is sized for a field, not for three words of segmented control, and
+   "Checkerboard" was being clipped by it. */
+.map-look-choice { display: grid; gap: 6px; margin-bottom: 14px; }
+.map-look-choice-label { font-size: 11px; color: var(--aether-color-text-dim); }
+.map-look-choice .aui-segmented-control { width: 100%; }
+.map-look-choice .aui-segmented-control > * { flex: 1; min-width: 0; }
+
+.map-brush { position: absolute; left: 12px; bottom: 12px; z-index: 6; display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border: 1px solid var(--aether-color-border); border-radius: 999px;
+  background: var(--aether-color-bg-panel); box-shadow: 0 8px 24px var(--aether-color-shadow); font-size: 11px; }
+.map-brush input[type="color"] { width: 26px; height: 26px; padding: 0; border: 0; background: none; cursor: pointer; }
+.map-brush input[type="range"] { width: 120px; accent-color: var(--aether-color-accent); }
+
+.map-surface,
+.map-scene-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.map-surface[data-unclipped],
+.map-scene-clip[data-unclipped] {
+  overflow: visible;
+}
+
+.map-surface > * {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+}
+
+/* Stand-in for unassigned media. The checks make the perspective divide
+   visible, which is what you actually align against on a physical shape. */
+/* The projection grid's colour. White because on a wall it is light, not
+   interface chrome: the old checkerboard's two near-black interface greys were
+   invisible projected. Geometry and line weight live in SurfaceGrid, which
+   needs the surface's own box to size them. */
+.map-surface-grid { color: #ffffff; } /* literal-ok: projected light, not a themed surface */
+
+/* The shader picker reads as a field, not a toolbar glyph: it sits in a
+   FieldRow beside selects and has to line up with them. The menu it opens is
+   the shared one, with its sections and its image markers. */
+.map-shader-picker.aui-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: var(--aether-size-control);
+  padding: 0 9px;
+  border: 1px solid var(--aether-color-border-control);
+  background: var(--aether-color-bg-control);
+  color: var(--aether-color-text);
+  text-align: left;
+}
+.map-shader-picker > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-shader-picker svg { flex: none; color: var(--aether-color-text-faint); }
+
+/* Shader properties: a two-column grid of icon-led fields, because an effect
+   exposes a dozen or more controls and a stack of full-width rows turns into
+   scrolling rather than reading. Each cell is [label] over [icon + control]. */
+.map-shader-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 18px 0 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--aether-color-border);
+  font-size: var(--aether-font-size-label);
+  font-weight: var(--aether-font-weight-strong);
+  text-transform: uppercase;
+  letter-spacing: var(--aether-font-letter-caps);
+  color: var(--aether-color-text-faint);
+}
+.map-shader-sublabel { margin: 10px 0 6px; font-size: 11px; color: var(--aether-color-text-dim); }
+.map-shader-colours { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.map-shader-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 8px; }
+.map-shader-parameter { grid-column: 1 / -1; min-width: 0; }
+.map-shader-field { display: grid; gap: 4px; min-width: 0; }
+.map-shader-field > label { font-size: 11px; color: var(--aether-color-text-dim); }
+.map-shader-modulation { margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--aether-color-accent); }
+.map-shader-animate.aui-menu-trigger { justify-content: flex-start; padding: 0 9px; min-height: var(--aether-size-control); }
+
+.map-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.map-scene-outline,
+.map-outline {
+  pointer-events: none;
+  fill: transparent;
+  stroke: var(--aether-color-text-faint);
+  cursor: pointer;
+}
+
+.map-outline.is-selected {
+  stroke: var(--aether-color-selection-edge);
+}
+
+.map-group-bounds {
+  fill: none;
+  stroke: var(--aether-color-selection-edge);
+  pointer-events: none;
+}
+
+.map-handle {
+  fill: var(--aether-color-bg-panel);
+  stroke: var(--aether-color-selection-edge);
+  cursor: grab;
+}
+
+.map-handle:active {
+  cursor: grabbing;
+  fill: var(--aether-color-selection-edge);
+}
+
+/* Surface list */
+
+.map-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+}
+
+.map-list li {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.map-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--aether-radius-row);
+  background: transparent;
+  color: var(--aether-color-text);
+  font: inherit;
+  font-size: var(--aether-font-size-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.map-row:hover {
+  background: var(--aether-color-bg-row-hover);
+}
+
+.map-row.is-selected {
+  background: var(--aether-color-bg-selected);
+  color: var(--aether-color-text-on-selected);
+}
+
+.map-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-row-toggle {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--aether-radius-row);
+  background: transparent;
+  color: var(--aether-color-text-dim);
+  cursor: pointer;
+}
+
+.map-row-toggle:hover {
+  background: var(--aether-color-bg-hover);
+  color: var(--aether-color-text);
+}
+
+/* Properties */
+
+.map-properties {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+}
+
+.map-section-label {
+  margin: 12px 0 4px;
+  color: var(--aether-color-text-dim);
+  font-size: var(--aether-font-size-label);
+  font-weight: var(--aether-font-weight-strong);
+  letter-spacing: var(--aether-font-letter-caps);
+  text-transform: uppercase;
+}
+
+.map-corner-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.map-properties-footer {
+  margin-top: 16px;
+}
+
+/* Output window — the projector's picture. No chrome, no grid, no handles.
+   Pure black ground so unlit areas emit no light. */
+
+.map-output {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #000; /* literal-ok: unlit projector field must emit no light */
+  cursor: none;
+}
+
+.map-output-raster {
+  box-shadow: none;
+}
+
+.map-output-hint {
+  position: absolute;
+  max-width: 32ch;
+  padding: 20px 24px;
+  border: 1px solid var(--aether-color-border);
+  border-radius: var(--aether-radius-button);
+  background: var(--aether-color-bg-panel);
+  color: var(--aether-color-text);
+  font-family: var(--aether-font-family);
+  font-size: var(--aether-font-size-body);
+  cursor: default;
+}
+
+.map-output-hint p {
+  margin: 8px 0 0;
+  color: var(--aether-color-text-dim);
+}
+
+/* Layers */
+
+.map-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.map-row-badge {
+  flex: none;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--aether-color-bg-inset);
+  color: var(--aether-color-text-dim);
+  font-size: var(--aether-font-size-caption);
+  text-align: center;
+}
+
+.map-row.is-selected .map-row-badge {
+  background: var(--aether-color-accent-strong);
+  color: var(--aether-color-text-on-selected);
+}
+
+/* Timeline */
+
+.map-timeline {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+
+.map-timeline-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--aether-color-border);
+}
+
+.map-timeline-spacer {
+  flex: 1;
+}
+
+.map-time {
+  min-width: 7ch;
+  color: var(--aether-color-text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.map-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--aether-color-text-dim);
+  font-size: var(--aether-font-size-label);
+  text-transform: uppercase;
+  letter-spacing: var(--aether-font-letter-caps);
+}
+
+.map-inline-field > * {
+  max-width: 110px;
+}
+
+.map-cue-list {
+  padding: 8px;
+  border-top: 1px solid var(--aether-color-border);
+}
+
+.map-cue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.map-cue-time {
+  min-width: 7ch;
+  padding: 2px 6px;
+  border: 1px solid var(--aether-color-border-control);
+  border-radius: var(--aether-radius-field);
+  background: var(--aether-color-bg-control);
+  color: var(--aether-color-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.map-cue-action {
+  flex: 1;
+  color: var(--aether-color-text-dim);
+}
+
+/* Devices */
+
+.map-devices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+}
+
+.map-devices-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.map-device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.map-device {
+  padding: 8px 10px;
+  border: 1px solid var(--aether-color-border);
+  border-radius: var(--aether-radius-control);
+  background: var(--aether-color-bg-inset);
+}
+
+.map-device-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-device-head strong {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-device-meta {
+  margin: 2px 0 8px;
+  color: var(--aether-color-text-dim);
+  font-size: var(--aether-font-size-caption);
+}
+
+.map-device-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.map-error {
+  padding: 6px 8px;
+  border-radius: var(--aether-radius-field);
+  background: var(--aether-color-bg-inset);
+  color: var(--aether-color-error, var(--aether-color-text));
+}
+
+.map-dialog-lead {
+  margin: 0 0 10px;
+  color: var(--aether-color-text-soft);
+}
+
+.map-command {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border: 1px solid var(--aether-color-border);
+  border-radius: var(--aether-radius-field);
+  background: var(--aether-color-bg-control);
+  color: var(--aether-color-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  user-select: all;
+}
+
+/* Pairing portal — read across a room, off a projector. */
+
+.map-portal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 5vh 5vw;
+  background: var(--aether-color-bg-app);
+  color: var(--aether-color-text);
+  font-family: var(--aether-font-family);
+  text-align: center;
+}
+
+.map-portal-card h1 {
+  margin: 0 0 8px;
+  font-size: clamp(28px, 5vw, 56px);
+}
+
+.map-portal-card p {
+  margin: 6px 0;
+  color: var(--aether-color-text-dim);
+  font-size: clamp(13px, 1.6vw, 20px);
+}
+
+.map-portal-brand {
+  margin-bottom: 16px;
+  color: var(--aether-color-accent);
+  font-size: clamp(14px, 2vw, 22px);
+  font-weight: var(--aether-font-weight-strong);
+  letter-spacing: var(--aether-font-letter-caps);
+  text-transform: uppercase;
+}
+
+.map-portal-lead {
+  font-size: clamp(14px, 2vw, 24px) !important;
+}
+
+.map-portal-code {
+  margin: 12px 0;
+  color: var(--aether-color-text);
+  font-size: clamp(64px, 18vw, 220px);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--aether-font-weight-strong);
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.map-warning {
+  padding: 8px 10px;
+  border-left: 3px solid var(--aether-color-warn);
+  background: var(--aether-color-bg-inset);
+  color: var(--aether-color-text-soft) !important;
+}
+
+.map-warning code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Masks */
+
+.map-mask-outline {
+  fill: transparent;
+  stroke: var(--aether-color-warn);
+  pointer-events: none;
+}
+
+.map-mask-handle {
+  fill: var(--aether-color-bg-panel);
+  stroke: var(--aether-color-warn);
+  cursor: grab;
+}
+
+.map-mask-handle.is-active,
+.map-handle.is-active {
+  fill: var(--aether-color-accent);
+}
+
+.map-hint {
+  padding: 4px 2px 8px;
+  color: var(--aether-color-text-dim);
+  font-size: var(--aether-font-size-caption);
+}
+
+/* Media panel */
+
+.map-media-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+}
+
+.map-media-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.map-media-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--aether-color-border);
+  border-radius: var(--aether-radius-row);
+  background: var(--aether-color-bg-inset);
+}
+
+.map-media-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.map-media-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-media-meta {
+  color: var(--aether-color-text-dim);
+  font-size: var(--aether-font-size-caption);
+}
+
+.map-media-cleanup {
+  border-top: 1px solid var(--aether-color-border);
+  padding-top: 10px;
+}
+
+/* Text surfaces */
+
+.map-text {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 0 0.2em;
+  font-family: var(--aether-font-family);
+  font-weight: var(--aether-font-weight-strong);
+  line-height: 1.1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Output chooser */
+
+.map-output-choice {
+  padding: 12px 0;
+  border-top: 1px solid var(--aether-color-border);
+}
+
+.map-output-choice:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.map-output-choice-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+/* Scenes */
+
+.map-scenes {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.map-scene-properties {
+  display: grid;
+  gap: 12px;
+}
+
+/* Zoom controls */
+
+.map-zoom {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--aether-color-border);
+  border-radius: var(--aether-radius-control);
+  background: var(--aether-color-bg-panel);
+  font-size: var(--aether-font-size-body);
+}
+
+.map-zoom button {
+  padding: 3px 8px;
+  border: 0;
+  border-radius: var(--aether-radius-row);
+  background: transparent;
+  color: var(--aether-color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.map-zoom button:hover {
+  background: var(--aether-color-bg-hover);
+}
+
+.map-zoom-value {
+  min-width: 5ch;
+  padding-right: 4px;
+  color: var(--aether-color-text-dim);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Canvas / timeline split */
+
+.map-setup-background { position: absolute; left: 0; top: 0; pointer-events: none; user-select: none; }
+
+/* What falls outside the output region is not projected; dimming it says so.
+   When the region is the whole scene the cut-out is the scene and nothing dims. */
+.map-crop-shade { fill: var(--aether-color-shadow); opacity: 0.55; }
+
+.map-stage {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.map-stage > .aui-split-pane {
+  height: 100%;
+}
+
+/* The canvas manages its own scrolling through pan and zoom. */
+.map-stage .aui-split-pane-primary {
+  overflow: hidden;
+}
+
+/* Workspace tray */
+
+.map-tray {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--aether-color-bg-panel);
+}
+
+.map-tray-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* The tray sits under what it switches, so the canvas keeps the top. */
+.map-tray-tabs {
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-top: 1px solid var(--aether-color-border);
+  background: var(--aether-color-bg-bar);
+}
+
+/* Surfaces workspace: the scene's surfaces as one row of pickable cells. */
+
+/* The surfaces tray: a fixed-height bar of tiles with the add button pinned to
+   its right. Height and arrangement never change — an empty scene shows an
+   empty row, not a different panel, because a tray that rearranges itself when
+   the last surface goes is a tray you cannot learn.
+   Every colour here is a token that exists: an earlier pass used bg-field,
+   text-secondary, bg-canvas and radius-panel, which do not, so the cells had no
+   fill and no radius at all. */
+.map-surfaces {
+  display: flex;
+  /* Stretch, not centre: the tiles grow with the tray. Dragging it taller is
+     how you ask to see the room better, and a fixed tile height answered that
+     with more empty space. Their aspect ratio is the artboard's, so height is
+     the only thing to give them — the width follows. */
+  align-items: stretch;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+
+/* The row scrolls, the add button does not: with twenty surfaces the way to
+   add the twenty-first must not be somewhere off to the right. */
+.map-surfaces-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
+/* The add button grows too, or it is left stranded beside a tall tile — but it
+   stops well short: it is a button, not a thumbnail. */
+.map-surfaces-actions { flex: none; display: flex; align-items: stretch; }
+
+.map-surfaces-add {
+  display: grid;
+  place-items: center;
+  align-self: center;
+  width: 34px;
+  height: 100%;
+  min-height: 34px;
+  max-height: 52px;
+  border: 0;
+  border-radius: var(--aether-radius-field);
+  background: var(--aether-color-accent);
+  color: var(--aether-color-text-on-selected);
+  cursor: pointer;
+  transition: background-color var(--aether-motion-fast) var(--aether-motion-ease);
+}
+.map-surfaces-add:hover { background: var(--aether-color-accent-strong); }
+.map-surfaces-add svg { width: 18px; height: 18px; }
+
+/* A raised tile, not a hole: bg-inset is lighter than the panel in dark and
+   darker than it in light, so one rule reads as a tile in both. bg-control is
+   darker than the panel in dark mode, which is what made these look punched
+   out of the tray. The tile's aspect ratio is the artboard's, set inline, so
+   this border *is* the scene's edge — no box inside a box. */
+.map-surface-cell {
+  position: relative;
+  flex: none;
+  /* Fills the tray's height between sensible ends: small enough to stay a strip
+     at the minimum, large enough to be worth enlarging the tray for, and capped
+     before it stops being a strip — at full height two tiles filled the window
+     and the third was off the edge, which is a worse way to find a surface than
+     the small ones were. Past the cap they centre in the extra room. */
+  align-self: center;
+  height: 100%;
+  min-height: 36px;
+  max-height: 160px;
+  width: auto;
+  padding: 3px;
+  box-sizing: border-box;
+  border: 1px solid var(--aether-color-border);
+  border-radius: var(--aether-radius-field);
+  background: var(--aether-color-bg-inset);
+  cursor: pointer;
+  transition: background-color var(--aether-motion-fast) var(--aether-motion-ease), border-color var(--aether-motion-fast) var(--aether-motion-ease);
+}
+
+.map-surface-cell:hover { background: var(--aether-color-bg-hover); }
+
+/* Selection is the accent edge and nothing else — no extra dot to explain. */
+.map-surface-cell.is-selected {
+  border-color: var(--aether-color-accent);
+  box-shadow: inset 0 0 0 1px var(--aether-color-accent);
+}
+
+.map-surface-cell.is-hidden .map-surface-cell-art { opacity: 0.4; }
+
+.map-surface-cell-art { display: block; width: 100%; height: 100%; }
+
+/* Every other surface, for context: the cell has to read as this scene, not as
+   a shape floating in nothing. */
+.map-surface-cell-other {
+  fill: var(--aether-color-text);
+  fill-opacity: 0.1;
+  stroke: var(--aether-color-text);
+  stroke-opacity: 0.3;
+  stroke-width: 1;
+}
+
+/* The subject carries the layer's own colour — the same colour as its dot, its
+   outline and its clips — and has to hold it against a 40px tile, so it is
+   filled properly rather than washed to a tint. */
+.map-surface-cell-subject { fill-opacity: 0.62; stroke-width: 1.5; }
+
+/* The backdrop cell shows the photograph itself. It is the one layer you
+   recognise by sight rather than by shape. */
+.map-surface-cell-photo { border-radius: 2px; }
+.map-surface-cell.is-selected .map-surface-cell-subject { fill-opacity: 0.85; }
+
+.map-surface-cell-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  color: var(--aether-color-text-dim);
+}
+
+.map-surface-cell-badge svg { width: 11px; height: 11px; }
+
+/* Add Shape sheet: primitives as a grid of tiles, then the wider rows for the
+   things you bring in, then the ones that are not built. */
+.map-add-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.map-add-tile {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 18px 10px;
+  border: 1px solid var(--aether-color-border);
+  border-radius: 10px;
+  background: var(--aether-color-bg-inset);
+  color: var(--aether-color-text);
+  font: inherit;
+  cursor: pointer;
+}
+.map-add-tile:hover { background: var(--aether-color-bg-hover); }
+.map-add-tile svg { width: 32px; height: 32px; }
+
+.map-add-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--aether-color-border);
+  border-radius: 10px;
+  background: var(--aether-color-bg-inset);
+  color: var(--aether-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.map-add-row:hover:not(:disabled) { background: var(--aether-color-bg-hover); }
+/* Disabled rows stay legible rather than vanishing: they are telling you the
+   feature exists and is not ready, which is information. */
+.map-add-row:disabled { opacity: 0.55; cursor: default; }
+.map-add-row-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 9px;
+  border: 1px solid var(--aether-color-border);
+  background: var(--aether-color-bg-inset);
+}
+.map-add-row-icon svg { width: 32px; height: 32px; }
+.map-add-row-text { display: grid; gap: 2px; min-width: 0; }
+.map-add-row-text small { color: var(--aether-color-text-dim); }
+.map-add-row-soon {
+  margin-left: auto;
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--aether-color-bg-inset);
+  color: var(--aether-color-text-dim);
+  font-size: var(--aether-font-size-caption);
+}
+.map-add-heading {
+  margin: 16px 0 8px;
+  font-size: var(--aether-font-size-label);
+  font-weight: var(--aether-font-weight-strong);
+  text-transform: uppercase;
+  letter-spacing: var(--aether-font-letter-caps);
+  color: var(--aether-color-text-faint);
+}
+
+/* Export workspace */
+
+.map-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px;
+}
+
+.map-export-item {
+  flex: 1 1 260px;
+  min-width: 240px;
+  max-width: 420px;
+}
+
+.map-export-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.map-export-contents {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  color: var(--aether-color-text-dim);
+  font-size: var(--aether-font-size-caption);
+}
+
+/* Output crop notice — only while windowed; never on the wall */
+
+.map-output-crop {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  max-width: 48ch;
+  padding: 8px 10px;
+  border: 1px solid var(--aether-color-border);
+  border-radius: var(--aether-radius-field);
+  background: var(--aether-color-bg-panel);
+  color: var(--aether-color-text-soft);
+  font-family: var(--aether-font-family);
+  font-size: var(--aether-font-size-body);
+  cursor: default;
+}
+
+.map-device-size {
+  align-self: center;
+  color: var(--aether-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sketch tools on the canvas */
+
+/* While drawing, the overlay must not swallow the gesture or offer handles. */
+.map-canvas-host.is-drawing .map-overlay {
+  pointer-events: none;
+}
+
+.map-draft polygon,
+.map-draft polyline {
+  fill: var(--aether-color-accent);
+  fill-opacity: 0.12;
+  stroke: var(--aether-color-accent);
+  stroke-linejoin: round;
+}
+
+.map-draft polyline {
+  fill: none;
+}
+
+.map-draft circle {
+  fill: var(--aether-color-bg-panel);
+  stroke: var(--aether-color-accent);
+}
+
+.map-canvas-hint {
+  position: absolute;
+  left: 12px;
+  bottom: 52px;
+  max-width: min(640px, calc(100% - 44px));
+  line-height: 1.4;
+  padding: 6px 10px;
+  border: 1px solid var(--aether-color-border);
+  border-radius: var(--aether-radius-field);
+  background: var(--aether-color-bg-panel);
+  color: var(--aether-color-text-soft);
+  font-size: var(--aether-font-size-body);
+  pointer-events: none;
+}
+
+.map-fill {
+  display: block;
+}
+
+.map-shape-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.map-shape-name {
+  flex: 1;
+  color: var(--aether-color-text-soft);
+}
+
+/* Monitor picker */
+
+.map-monitor {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.map-monitor-size { display: grid; gap: var(--aether-space-3); margin-top: var(--aether-space-2); }
+.map-display-options { border-top: 1px solid var(--aether-color-border); padding-top: var(--aether-space-4); }
+.map-display-options > summary { cursor: pointer; color: var(--aether-color-text-dim); }
+
+/* Clip timeline: one track per layer */
+
+.map-tracks {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: start;
+  flex: 1;
+  /* Keep the ruler and at least one complete track usable in short docks. */
+  min-height: 60px;
+  overflow: auto;
+  user-select: none;
+}
+
+.map-track-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-right: 1px solid var(--aether-color-border);
+  border-bottom: 1px solid var(--aether-color-border);
+  background: var(--aether-color-bg-panel);
+  color: var(--aether-color-text);
+  font: inherit;
+  font-size: var(--aether-font-size-body);
+  text-align: left;
+  cursor: pointer;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.map-track-head.is-selected {
+  background: var(--aether-color-bg-selected);
+  color: var(--aether-color-text-on-selected);
+}
+
+.map-track-head--ruler {
+  height: 22px;
+  cursor: default;
+}
+
+.map-ruler {
+  position: relative;
+  height: 22px;
+  border-bottom: 1px solid var(--aether-color-border);
+  background: var(--aether-color-bg-bar);
+  cursor: ew-resize;
+  overflow: hidden;
+}
+
+.map-tick {
+  position: absolute;
+  top: 3px;
+  padding-left: 4px;
+  border-left: 1px solid var(--aether-color-border-control);
+  color: var(--aether-color-text-dim);
+  font-size: var(--aether-font-size-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.map-lane {
+  position: relative;
+  height: 36px;
+  border-bottom: 1px solid var(--aether-color-border);
+  background: var(--aether-color-bg-inset);
+  cursor: ew-resize;
+}
+
+.map-lane.is-selected {
+  background: var(--aether-color-bg-row-hover);
+}
+
+.map-clip {
+  position: absolute;
+  top: 5px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  border-radius: var(--aether-radius-field);
+  color: var(--aether-color-text-on-selected);
+  font-size: var(--aether-font-size-caption);
+  cursor: grab;
+  opacity: 0.85;
+}
+
+.map-clip:hover {
+  opacity: 1;
+}
+
+.map-clip.is-selected {
+  opacity: 1;
+  outline: 2px solid var(--aether-color-text);
+  outline-offset: -2px;
+}
+
+.map-clip-name {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6); /* literal-ok: legible on any layer colour */
+}
+
+.map-clip-edge {
+  flex: none;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+.map-cue-mark {
+  position: absolute;
+  top: 13px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border: 1px solid var(--aether-color-text);
+  background: var(--aether-color-warn);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.map-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--aether-color-accent);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.map-timeline-empty {
+  padding: 12px;
+  color: var(--aether-color-text-dim);
+}
+
+.map-layer-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--aether-color-border);
+}
+
+/* Global navigation beside the active workspace. */
+
+.map-editor {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: clip;
+}
+
+.map-editor-workspace {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.map-wireless { display: grid; gap: 10px; }
+.map-wireless ol { margin: 0; padding-left: 20px; }
+.map-wireless li + li { margin-top: 6px; }
+
+/* Input and output stay inside the measured workspace, even on short displays. */
+.map-preview-panes { display: grid; grid-template-columns: minmax(160px, .75fr) minmax(240px, 1fr); width: 100%; height: 100%; min-height: 0; min-width: 0; overflow: hidden; }
+.map-preview-panes.is-output-only { grid-template-columns: minmax(0, 1fr); }
+.map-input-preview, .map-output-preview { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; position: relative; }
+.map-input-preview { border-right: 1px solid var(--aether-color-border); }
+.map-input-crop { position: absolute; inset: 0; pointer-events: none; }
+.map-preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 12px; background: var(--aether-color-bg-panel); border-bottom: 1px solid var(--aether-color-border); font-size: 11px; flex: 0 0 auto; }
+.map-preview-heading span { color: var(--aether-color-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-input-image { flex: 1; position: relative; min-height: 0; overflow: hidden; background: var(--aether-color-bg-app); }
+.map-input-source { position: absolute; left: 50%; top: 50%; transform-origin: center; overflow: hidden; }
+.map-output-preview > .map-canvas-host { flex: 1; height: auto; min-height: 0; }
+.map-stage { position: relative; }
+.map-feature-fields { display: grid; gap: 10px; padding: 10px; }
+.map-feature-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.map-align-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.map-feature-text { width: 100%; box-sizing: border-box; min-height: 64px; resize: vertical; border: 1px solid var(--aether-color-border); border-radius: 4px; background: var(--aether-color-bg-control); color: var(--aether-color-text); font: inherit; padding: 6px; }
+.map-feature-colours { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.map-source-message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; font-size: 22px; color: var(--aether-color-text-dim); }
+.map-camera, .map-tracker, .map-shader { position: relative; }
+.map-crop-overlay { color: var(--aether-color-accent); }
+.map-crop-overlay[data-live] { color: var(--aether-color-ok); }
+.map-crop-label { fill: var(--aether-color-text-on-selected); }
+.map-animation-fields { margin: 0; min-width: 0; border: 0; display: grid; grid-template-columns: 100px 140px 80px 80px auto 100px auto; flex-shrink: 0; min-height: 44px; overflow-x: auto; align-items: center; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--aether-color-border); flex-wrap: wrap; font-size: 11px; }
+.map-animation-fields > strong { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-static-span { position: absolute; inset: 5px 0; opacity: .4; padding: 2px 8px; font-size: 10px; border-radius: 3px; cursor: pointer; }
+.map-static-span[aria-pressed="true"] { opacity: 1; outline: 2px solid var(--aether-color-accent); outline-offset: -2px; }
+.map-animation-track-label { padding-left: 24px; color: var(--aether-color-text-dim); }
+.map-animation-lane { min-height: 24px; }
+.map-keyframe { position: absolute; top: 7px; width: 11px; height: 11px; padding: 0; border: 1px solid var(--aether-color-border-focus); transform: translateX(-50%) rotate(45deg); cursor: ew-resize; }
+@media (max-width: 1000px) { .map-preview-panes { grid-template-columns: minmax(100px, .55fr) minmax(180px, 1fr); } }
+
+.map-transform-box, .map-rotation-stem { fill: none; stroke: var(--aether-color-selection-edge); pointer-events: none; }
+.map-resize-handle, .map-rotate-handle { fill: var(--aether-color-bg-panel); stroke: var(--aether-color-selection-edge); pointer-events: all; }
+.map-resize-handle:hover, .map-rotate-handle:hover { fill: var(--aether-color-selection-edge); }
+.map-snap-guide { stroke: var(--aether-color-accent); stroke-dasharray: 4 2; pointer-events: none; }
+.map-transform-panel fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 8px; }
+.map-transform-panel .map-transform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.map-color-swatches { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
+.map-color-swatches button { min-width: 0; aspect-ratio: 1; border: 1px solid var(--aether-color-border); border-radius: 50%; cursor: pointer; }
+.map-color-swatches button:hover { outline: 2px solid var(--aether-color-selection-edge); }
+.map-color-preview { height: 54px; border-radius: 6px; border: 1px solid var(--aether-color-border); }
+
+.map-rotate-handle { cursor: grab; }
+.map-rotate-handle:active { cursor: grabbing; }
+/* Asset timing belongs to content clips, alongside the selected source editor. */
+.map-asset-fields { margin: 0; padding: 0; border: 0; min-width: 0; }
+.map-asset-timing { display: flex; flex-wrap: wrap; align-items: center; gap: var(--aether-space-2); }
+.map-asset-timing > * { flex: 1 1 120px; min-width: 0; }
+.map-asset-editor { min-width: 0; }
+
+/* An output that has lost its editor says so rather than projecting on in
+   silence. Warm border so it reads as a warning, not a failure. */
+.map-output-unlinked {
+  border-color: var(--aether-color-warn);
+}
+
+/* --- Tablet -------------------------------------------------------------
+   A projector gets carried outside, and the thing you carry with it is a
+   tablet. The canvas is already touch-driven — the whole interaction runs on
+   pointer events with `touch-action: none`, so dragging a corner with a finger
+   already works. What does not fit is the furniture: two side rails, a ribbon
+   and a timeline leave a landscape tablet with no canvas at all.
+
+   So below 1100px the rails narrow and the timeline shortens, and below 820px
+   the rails become overlays above the canvas rather than columns beside it.
+   Phone widths are deliberately not covered: mapping a building through a
+   4-inch viewport is a different product, not a smaller stylesheet. */
+@media (max-width: 1100px) {
+  .map-stage .aui-shell-rail { width: 210px; }
+  .map-preview-panes { grid-template-columns: minmax(0, 1fr); }
+  .map-input-preview { display: none; }
+  .map-brush { left: 8px; bottom: 8px; padding: 6px 10px; }
+  .map-brush input[type="range"] { width: 84px; }
+}
+
+/* 900, not 820: an iPad Pro 11" in portrait is 834px wide and was
+   falling through to the desktop layout. */
+@media (max-width: 900px) {
+  /* Panels float over the canvas: at this width a column steals the picture,
+     and the picture is the thing being aligned. */
+  .map-stage .aui-shell-panel-host,
+  .map-stage .aui-shell-stack {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 30;
+    width: min(320px, 80vw);
+    background: var(--aether-color-bg-panel);
+    box-shadow: 0 0 40px var(--aether-color-shadow);
+  }
+  /* Touch targets: a 24px row is a mouse target, not a finger one. */
+  .map-stage .aui-tree-row:not(.aui-tree-row--divider) { min-height: 34px; }
+  .map-zoom button,
+  .map-brush { min-height: 38px; }
+  .map-mix-fader { height: 34px; }
+}
+
+/* The seven day toggles of an output's schedule, on one line so "which nights"
+   is answered at a glance. */
+.map-schedule-days {
+  display: flex;
+  gap: 4px;
+}
+
+.map-schedule-days .aui-button {
+  flex: 1;
+  min-width: 0;
+  padding-inline: 0;
+  justify-content: center;
+}
+
+/* The Assets tab: what you can bring in, then what this show already has. */
+.map-assets { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.map-asset-browser { display: flex; flex-direction: column; gap: 8px; padding: 10px; min-height: 0; overflow: auto; }
+/* A flex column shrinks its children below their content by default, which let
+   the empty state and the sources list draw on top of each other. */
+.map-asset-browser > * { flex: none; }
+.map-asset-search { display: flex; gap: 6px; align-items: center; }
+.map-asset-search > *:first-child { flex: 1; min-width: 0; }
+.map-asset-count { font-size: 11px; color: var(--aether-color-text-dim); }
+.map-asset-problem {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--aether-radius-field);
+  background: color-mix(in srgb, var(--aether-color-danger, #ff5c8a) 12%, transparent);
+  color: var(--aether-color-text);
+  font-size: 12px;
+}
+
+/* Auto-fill rather than a fixed count: this panel is docked, floating or wide,
+   and a grid that only looks right at one width is a grid that usually does not. */
+.map-asset-grid {
+  display: grid;
+  /* Small enough that the narrow docked panel still gets two columns; a
+     one-column grid of square tiles is a very long scroll for a browser. */
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.map-asset-tile { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.map-asset-tile > button {
+  position: relative;
+  padding: 0;
+  border: 1px solid var(--aether-color-border);
+  border-radius: var(--aether-radius-field);
+  background: var(--aether-color-bg-panel);
+  cursor: pointer;
+  overflow: hidden;
+  /* A consistent box whatever the source aspect: a ragged grid is harder to
+     scan than a cropped one, and you are choosing a texture, not framing it. */
+  aspect-ratio: 1;
+}
+.map-asset-tile > button:hover { border-color: var(--aether-color-accent); }
+.map-asset-tile > button:disabled { cursor: progress; opacity: 0.6; }
+.map-asset-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.map-asset-importing {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 3px 6px;
+  background: color-mix(in srgb, var(--aether-color-bg-panel) 85%, transparent);
+  color: var(--aether-color-text);
+  font-size: 11px;
+}
+
+.map-asset-meta { display: grid; gap: 1px; min-width: 0; font-size: 11px; }
+.map-asset-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--aether-color-text); }
+.map-asset-license {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--aether-color-text-dim);
+  text-decoration: none;
+}
+.map-asset-license:hover { color: var(--aether-color-accent); text-decoration: underline; }
+
+/* Sources Map cannot search yet. Folded away: a fallback, not the tab's
+   purpose, and an open list would push the search results below the fold. */
+.map-asset-sources { border-top: 1px solid var(--aether-color-border); padding-top: 8px; }
+.map-asset-sources > summary { cursor: pointer; font-size: 12px; color: var(--aether-color-text-dim); }
+.map-asset-sources > summary:hover { color: var(--aether-color-text); }
+
+/* Auto-fill, because this panel is docked, floating or wide. One column in the
+   narrow rail is correct here — a card is a paragraph, not a thumbnail. */
+.map-source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.map-source-card {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--aether-color-border);
+  /* The cost is the first thing you want and the last thing you should have to
+     hunt for, so it is also a stripe down the edge of the card. */
+  border-left-width: 3px;
+  border-radius: var(--aether-radius-field);
+  background: var(--aether-color-bg-panel);
+  color: var(--aether-color-text);
+  text-decoration: none;
+}
+.map-source-card:hover { background: var(--aether-color-bg-hover); border-color: var(--aether-color-accent); }
+.map-source-card[data-access="free"] { border-left-color: var(--aether-color-ok); }
+.map-source-card[data-access="mixed"] { border-left-color: var(--aether-color-warning, #e7a843); }
+.map-source-card[data-access="paid"] { border-left-color: var(--aether-color-text-faint); }
+
+.map-source-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.map-source-name { font-size: 12px; font-weight: var(--aether-font-weight-strong); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-source-access { flex: none; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--aether-color-text-dim); }
+.map-source-note { font-size: 11px; line-height: 1.45; color: var(--aether-color-text-dim); }
+.map-source-api { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--aether-color-accent); }
+.map-source-api svg { width: 11px; height: 11px; }
+
+.map-media-assignment { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 0; }
+.map-media-assignment .map-hint { flex-basis: 100%; margin: 0; }
+.map-curve-control { cursor: crosshair; pointer-events: all; }
+
+/* Coarse pointer: Map's own controls and, more importantly, its timeline
+   handles. Clip trim was an 8px edge and a keyframe an 11px diamond, so both
+   gestures were effectively mouse-only. */
+@media (pointer: coarse) {
+  .map-row-toggle,
+  .map-zoom button,
+  .map-cue-time,
+  .map-surfaces-add,
+  .map-brush input[type="color"],
+  .map-color-swatches button { min-width: 44px; min-height: 44px; }
+  .map-row,
+  .map-surface-cell,
+  .map-artboard-name,
+  .map-display-options > summary,
+  .map-asset-sources > summary { min-height: 44px; }
+  .map-clip-edge { width: 20px; }
+  .map-keyframe { width: 18px; height: 18px; }
+  .map-cue-mark { width: 20px; height: 20px; }
+  .map-lane,
+  .map-track-head { min-height: 44px; }
+}

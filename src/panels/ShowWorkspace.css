@@ -1,0 +1,23 @@
+.map-show-workspace { height:100%; min-height:0; display:flex; flex-direction:column; container:map-show / inline-size; background:var(--aether-color-bg-panel); }
+.map-show-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px; border-bottom:1px solid var(--aether-color-border); }
+.map-show-heading h2 { margin:0 0 4px; font-size:16px; }
+.map-show-heading span, .map-show-output-row small { color:var(--aether-color-text-dim); font-size:11px; }
+.map-show-body { flex:1; min-height:0; overflow:auto; padding:16px; }
+.map-show-overview { display:grid; grid-template-columns:minmax(280px,1fr) minmax(240px,300px); gap:20px; }
+.map-show-program { min-width:0; }
+.map-show-preview { position:relative; overflow:hidden; aspect-ratio:16/9; background:#000; /* literal-ok: unlit projector output */ }
+.map-show-raster { position:absolute; transform-origin:0 0; }
+.map-show-transport, .map-show-actions { display:flex; align-items:center; gap:8px; padding:8px 0; }
+.map-show-transport span { font-size:11px; font-variant-numeric:tabular-nums; }
+.map-show-section-heading { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.map-show-section-heading h3, .map-show-body > h3 { font-size:13px; }
+.map-show-output-row { display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--aether-color-border); padding:8px; }
+.map-show-output-row[data-selected="true"] { background:var(--aether-color-bg-selected); }
+.map-show-output-select { display:flex; flex:1; align-items:center; gap:10px; min-width:0; text-align:left; background:transparent; color:var(--aether-color-text); border:0; font:inherit; cursor:pointer; }
+.map-show-output-select > svg { width:20px; height:20px; flex-shrink:0; }
+.map-show-output-select strong, .map-show-output-select small { display:block; }
+@container map-show (max-width:750px) { .map-show-overview { grid-template-columns:minmax(0,1fr); } }
+
+.map-show-output-row[data-selected="true"] .map-show-output-select,
+.map-show-output-row[data-selected="true"] small { color:var(--aether-color-text-on-selected); }
+.map-show-transport .aui-slider { flex:1; min-width:60px; }

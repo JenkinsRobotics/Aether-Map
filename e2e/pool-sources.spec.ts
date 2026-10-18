@@ -1,0 +1,64 @@
+import { expect, test } from '@playwright/test';
+import { emptyShow } from '../src/document';
+import { normalizeMediaPool } from '../src/media-pool';
+import { signIn, switchWorkspace, openBottomDock, solidPng } from './helpers';
+
+test('source tools create reusable assets; paint edits the source; online imports stay in the pool', async ({page,baseURL},info) => {
+  await signIn(page,baseURL!);
+  const show = normalizeMediaPool(emptyShow()); show.timelineMode='advanced';
+  const response = await page.request.post('/api/library/create',{headers:{Origin:baseURL!},data:{app:'map',scope:'personal',name:'Pool sources.aethermap',data_base64:Buffer.from(JSON.stringify(show)).toString('base64')}});
+  await page.goto(`/map/index.html?document=${(await response.json()).id}`);
+  await switchWorkspace(page,'Visualization'); await openBottomDock(page,'Timeline');
+  const pool=page.getByRole('region',{name:'Media Pool',exact:true});
+  const timeline=page.getByRole('region',{name:'Main timeline',exact:true});
+  const ribbon=page.getByRole('region',{name:'Map tools'});
+  for(const label of ['Text','Shader','Webcam','Tracker','Paint','Add Media']) await expect(ribbon.getByRole('button',{name:label,exact:true})).toHaveCount(0);
+  for(const label of ['Text','Shader','Webcam','Tracker','Test pattern','Colour']) {
+    await pool.getByRole('tab',{name:'Generators',exact:true}).click();
+    await pool.getByRole('button',{name:`New ${label.toLowerCase()}`,exact:true}).click();
+    await expect(pool.getByRole('button',{name:label,exact:true})).toBeVisible();
+    await expect(page.getByRole('region',{name:'Pool asset properties'}).getByRole('textbox',{name:'Pool asset name'})).toHaveValue(label);
+    await expect(timeline.locator('.map-clip')).toHaveCount(0);
+  }
+  await pool.getByRole('tab',{name:'Generators',exact:true}).click();
+  await pool.getByRole('button',{name:'New paint',exact:true}).click();
+  const paint=page.getByLabel('Paint source canvas',{exact:true}); await expect(paint).toBeVisible();
+  const box=(await paint.boundingBox())!;
+  await page.mouse.move(box.x+box.width*.2,box.y+box.height*.3); await page.mouse.down();
+  await page.mouse.move(box.x+box.width*.7,box.y+box.height*.6,{steps:12}); await page.mouse.up();
+  await page.getByRole('button',{name:'Done painting',exact:true}).click();
+  await expect(page.getByRole('region',{name:'Input preview'}).locator('.map-drawn polyline')).toHaveCount(1);
+  await expect(timeline.locator('.map-clip')).toHaveCount(0);
+  await pool.getByRole('button',{name:'Append to track',exact:true}).click();
+  await expect(timeline.locator('.map-clip')).toHaveCount(1);
+  await timeline.getByRole('button',{name:'Go to start',exact:true}).click();
+  await expect(page.locator('.map-output-preview .map-drawn polyline')).toHaveCount(1);
+  await pool.getByRole('tab',{name:'Effects',exact:true}).click();
+  await pool.getByRole('button',{name:'Blur',exact:true}).click();
+  await page.getByRole('region',{name:'Asset properties'}).getByRole('tab',{name:'Effects',exact:true}).click();
+  await expect(page.getByRole('region',{name:'Asset properties'}).getByRole('combobox',{name:'Effect type'}).first()).toHaveValue('blur');
+  // Existing provider contract, deterministic fixture; no real vendor download.
+  await page.route('**/api/map/assets/search**',route=>route.fulfill({json:{results:[{id:'cloud',title:'Cloud texture',url:`${baseURL}/test-red.png`,thumbnail:`${baseURL}/test-red.png`,creator:'Fixture artist',license:'cc0',license_version:'1.0',foreign_landing_url:'https://example.com/cloud',attribution:'Fixture credit',width:32,height:32}],result_count:1,page:1,page_count:1}}));
+  await page.route('**/test-red.png',route=>route.fulfill({contentType:'image/png',body:solidPng(32,32,[120,180,250])}));
+  await pool.getByRole('tab',{name:'Online Library',exact:true}).click();
+  await pool.getByRole('searchbox',{name:'Search open-licensed assets'}).fill('cloud');
+  await pool.getByRole('button',{name:'Search',exact:true}).click();
+  await pool.getByRole('button',{name:/Import Cloud texture/}).click();
+  await pool.getByText('More places to find content',{exact:true}).click();
+  await expect(pool.getByRole('link',{name:/^Pixabay/})).toBeVisible();
+  await expect(pool.getByRole('link',{name:/^Pexels/})).toBeVisible();
+  await page.screenshot({path:info.outputPath('online-library.png')});
+  await pool.getByRole('tab',{name:'Media Pool',exact:true}).click();
+  await expect(pool.getByRole('button',{name:/Cloud-texture/}).first()).toBeVisible();
+  await expect(timeline.locator('.map-clip')).toHaveCount(1);
+  await expect(page.getByText('Saved',{exact:true}).first()).toBeVisible();
+  await page.reload(); await switchWorkspace(page,'Visualization'); await openBottomDock(page,'Timeline');
+  await expect(pool.getByRole('button',{name:'Paint',exact:true})).toBeVisible();
+  await expect(pool.getByRole('button',{name:/Cloud-texture/}).first()).toBeVisible();
+  await pool.getByRole('tab',{name:'Generators',exact:true}).click();
+  await expect(pool.locator('[data-icon-missing]')).toHaveCount(0);
+  await page.screenshot({path:info.outputPath('generators.png')});
+  await page.locator('.aui-application-account').getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('menuitemradio',{name:'Dark',exact:true}).click();
+  await page.screenshot({path:info.outputPath('generators-dark.png'),animations:'disabled'});
+});

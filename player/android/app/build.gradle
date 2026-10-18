@@ -1,0 +1,25 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.aether.map.receiver'
+    compileSdk 36
+    defaultConfig { applicationId 'com.aether.map.receiver'; minSdk 26; targetSdk 36; versionCode 1; versionName '0.1.0' }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    buildTypes { release { minifyEnabled false } }
+    testOptions { unitTests.returnDefaultValues = true }
+    sourceSets { main.res.srcDir layout.buildDirectory.dir('generated/branding') }
+}
+dependencies {
+    implementation 'io.github.webrtc-sdk:android:150.7871.01'
+    implementation 'com.google.zxing:core:3.5.3'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+}
+dependencyLocking { lockAllConfigurations() }
+// Consume shared artwork from the pinned npm package; never maintain a copied icon.
+tasks.register('prepareBranding', Copy) {
+    from '../../../node_modules/@aether/assets/branding/apps/map.png'
+    into layout.buildDirectory.dir('generated/branding/drawable-nodpi')
+    rename { 'aether_map.png' }
+    doFirst { if (!file('../../../node_modules/@aether/assets/branding/apps/map.png').isFile()) throw new GradleException('Run npm ci in Aether-Map before building the receiver.') }
+}
+tasks.named('preBuild').configure { dependsOn 'prepareBranding' }

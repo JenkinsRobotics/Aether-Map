@@ -1,0 +1,4 @@
+.map-layer-workspace { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.map-layer-workspace > .aui-tree-panel-split { flex: 1; min-height: 0; }
+.map-mapping-tools { padding: 4px; border-bottom: 1px solid var(--aether-color-border); flex: 0 0 auto; }
+.map-mapping-tool-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0; }

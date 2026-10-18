@@ -1,0 +1,43 @@
+// @vitest-environment jsdom
+import {act,cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
+import {afterEach,beforeEach,expect,test,vi} from 'vitest';
+import App from './App';
+import {installPointerEvents} from './test-pointer';
+import {configureMidi,midiState,setMidiAssignments,stopMidi} from './live/midi';
+vi.mock('./features/ShaderMedia',()=>({ShaderMedia:()=> <span/>}));
+vi.mock('./features/ShaderThumbnail',()=>({ShaderThumbnail:()=> <span/>}));
+const originalMidiRequest=Object.getOwnPropertyDescriptor(navigator,'requestMIDIAccess');
+afterEach(()=>{cleanup();stopMidi();vi.restoreAllMocks();vi.unstubAllGlobals();localStorage.clear();
+ if(originalMidiRequest)Object.defineProperty(navigator,'requestMIDIAccess',originalMidiRequest);else Reflect.deleteProperty(navigator,'requestMIDIAccess');
+});
+beforeEach(()=>{
+ localStorage.clear();installPointerEvents();stopMidi();configureMidi({inputId:'',outputId:'',channel:0});setMidiAssignments([]);
+ vi.stubGlobal('ResizeObserver',class{observe(){}unobserve(){}disconnect(){}});
+ vi.stubGlobal('BroadcastChannel',class{onmessage=null;postMessage(){}close(){}});
+ window.matchMedia??=(()=>({matches:false,addEventListener(){},removeEventListener(){}})) as unknown as typeof window.matchMedia;
+});
+test('actual App routes canonical MIDI motion to Performance and LED feedback; manual takeover/undo and unmount clean up',async()=>{
+ const input={id:'input',name:'Launch Control XL',onmidimessage:null as ((event:{data:Uint8Array})=>void)|null};
+ const output={id:'output',name:'Launch Control XL',send:vi.fn(),close:vi.fn().mockResolvedValue(undefined)};
+ Object.defineProperty(navigator,'requestMIDIAccess',{configurable:true,value:vi.fn().mockResolvedValue({inputs:new Map([[input.id,input]]),outputs:new Map([[output.id,output]]),onstatechange:null})});
+ const view=render(<App/>);fireEvent.click(screen.getByRole('button',{name:/Workspace:/}));fireEvent.click(screen.getByRole('menuitemradio',{name:'Visualization'}));
+ fireEvent.click(screen.getByRole('button',{name:'Browse visual gallery'}));fireEvent.click(screen.getByRole('button',{name:'Solid color'}));
+ fireEvent.click(screen.getByRole('button',{name:'Performance'}));const performance=screen.getByRole('dialog',{name:'Performance'});
+ fireEvent.click(within(performance).getByRole('button',{name:'Opacity motion'}));fireEvent.click(within(performance).getByRole('button',{name:'Add modulation'}));
+ fireEvent.change(within(performance).getByRole('combobox',{name:'Opacity source'}),{target:{value:'midi'}});
+ const field=within(performance).getByRole('textbox',{name:'Opacity controller'});fireEvent.change(field,{target:{value:'13'}});fireEvent.blur(field);
+ expect(midiState().assigned).toEqual([13]);expect(midiState().focused).toEqual([13]);
+ fireEvent.click(within(performance).getByRole('button',{name:'MIDI'}));const setup=screen.getByRole('dialog',{name:'MIDI controllers'});
+ fireEvent.click(within(setup).getByRole('button',{name:'Start MIDI'}));await waitFor(()=>expect(midiState().connected).toBe(true));
+ fireEvent.change(within(setup).getByRole('combobox',{name:'MIDI feedback output'}),{target:{value:'output'}});
+ fireEvent.click(within(setup).getByRole('button',{name:'Enable controller lights'}));expect(output.send).toHaveBeenLastCalledWith([144,13,29]);
+ fireEvent.click(within(setup).getByRole('button',{name:'Close'}));
+ act(()=>input.onmidimessage?.({data:new Uint8Array([176,13,127])}));
+ expect((within(performance).getByRole('slider',{name:'Opacity fader'}) as HTMLInputElement).value).toBe('100');
+ await waitFor(()=>expect(output.send).toHaveBeenLastCalledWith([144,13,63]));
+ fireEvent.click(within(performance).getByRole('button',{name:'Use manual control'}));expect(midiState().assigned).toEqual([]);
+ await waitFor(()=>expect(output.send).toHaveBeenLastCalledWith([144,13,12]));
+ fireEvent.click(within(performance).getByRole('button',{name:'Undo'}));expect(midiState().assigned).toEqual([13]);
+ await waitFor(()=>expect(output.send).toHaveBeenLastCalledWith([144,13,63]));
+ view.unmount();expect(midiState().connected).toBe(false);expect(input.onmidimessage).toBeNull();expect(output.send).toHaveBeenLastCalledWith([144,13,12]);
+},15000);

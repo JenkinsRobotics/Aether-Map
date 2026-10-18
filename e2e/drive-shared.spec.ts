@@ -1,0 +1,75 @@
+import {test,expect} from '@playwright/test';
+import {signIn} from './helpers';
+
+test('Shared has scoped tabs, real attribution, filters, sorting and inherited folder access', async ({page,baseURL,browser},info) => {
+  await signIn(page,baseURL!);
+  const post=async(path:string,data:object)=>{
+    const response=await page.request.post(path,{headers:{Origin:baseURL!},data});
+    expect(response.ok(),await response.text()).toBe(true);return response.json();
+  };
+  await post('/api/admin/apps',{id:'drive',enabled:true});
+  const username=`shared-${Date.now()}`,password='shared-test-password-2026';
+  await post('/api/admin/users',{username,password,role:'member',full_name:'Shared Teammate',email:`${username}@example.test`});
+  const members=await post('/api/drive/members',{});
+  const teammate=members.members.find((member:any)=>member.username===username || member.name==='Shared Teammate').id;
+  const create=async(name:string,kind='file',parent?:string)=>post('/api/drive/create',{name,kind,parent,data_base64:Buffer.from('shared reference').toString('base64')});
+  const folder=await create('Shared project','folder');
+  const pdf=await create('Review.pdf');
+  await create('Private reference.txt');
+  await create('Project notes.txt','file',folder.id);
+  for(const id of [folder.id,pdf.id]) await post('/api/drive/grant',{id,user:teammate,role:'viewer'});
+  await page.goto('/drive/');
+  await page.getByRole('button',{name:'Shared',exact:true}).click();
+  await expect(page.getByRole('tab',{name:'With you'})).toHaveAttribute('aria-selected','true');
+  // Keyboard interaction uses the existing universal tab strip.
+  await page.getByRole('tab',{name:'With you'}).press('ArrowRight');
+  await expect(page.getByRole('tab',{name:'By you'})).toHaveAttribute('aria-selected','true');
+  const table=page.getByRole('table',{name:'Drive files'});
+  await expect(table.locator('tbody tr')).toHaveCount(3);
+  for(const name of ['Name','Date shared','Shared by','Activity']) await expect(table.getByRole('columnheader',{name,exact:true})).toBeVisible();
+  await expect(table).not.toContainText('Private reference');
+  await expect(table.getByRole('row').filter({hasText:'Review.pdf'})).toContainText('End to End');
+  await expect(table.getByRole('columnheader',{name:'Date shared'})).toHaveAttribute('aria-sort','descending');
+  await table.getByRole('button',{name:'Date shared',exact:true}).click();
+  await expect(table.getByRole('columnheader',{name:'Date shared'})).toHaveAttribute('aria-sort','ascending');
+  await page.getByRole('button',{name:'Folders',exact:true}).click();
+  await expect(table.locator('tbody tr')).toHaveCount(1);
+  await expect(table).toContainText('Shared project');
+  await page.getByRole('button',{name:'All',exact:true}).click();
+  await page.getByRole('textbox',{name:'Filter by name or person'}).fill('End to End');
+  await expect(table.locator('tbody tr')).toHaveCount(3);
+  await page.getByRole('textbox',{name:'Filter by name or person'}).fill('missing person');
+  await expect(page.getByRole('heading',{name:'No matching files'})).toBeVisible();
+  await page.getByRole('textbox',{name:'Filter by name or person'}).fill('');
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('menuitemradio',{name:'Dark',exact:true}).click();
+  await page.screenshot({path:info.outputPath('drive-shared-by-you.png'),animations:'disabled'});
+  await page.setViewportSize({width:600,height:850});
+  await expect(page.getByRole('tab',{name:'By you'})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await expect(page.locator('[data-icon-missing]')).toHaveCount(0);
+  await page.screenshot({path:info.outputPath('drive-shared-narrow.png'),animations:'disabled'});
+  const recipient=await browser.newContext();
+  try {
+    const response=await recipient.request.post(`${baseURL}/api/login`,{headers:{Origin:baseURL!},data:{username,password}});
+    expect(response.ok()).toBe(true);
+    const changed=await recipient.request.post(`${baseURL}/api/password`,{headers:{Origin:baseURL!},data:{current_password:password,password:`${password}-changed`}});
+    expect(changed.ok()).toBe(true);
+    expect((await recipient.request.post(`${baseURL}/api/login`,{headers:{Origin:baseURL!},data:{username,password:`${password}-changed`}})).ok()).toBe(true);
+    const received=await recipient.newPage();
+    await received.goto(`${baseURL}/drive/`);
+    await received.getByRole('button',{name:'Shared',exact:true}).click();
+    const shared=received.getByRole('table',{name:'Drive files'});
+    await expect(shared.locator('tbody tr')).toHaveCount(3);
+    await expect(shared).toContainText('End to End');
+    await shared.getByRole('button',{name:'Shared project End to End’s files',exact:true}).press('Enter');
+    await expect(received.getByRole('navigation',{name:'Folder path'})).toContainText('Shared project');
+    await expect(shared.locator('tbody tr')).toHaveCount(1);
+    await received.getByRole('tab',{name:'By you'}).click();
+    await expect(received.getByRole('heading',{name:'You haven’t shared any files yet'})).toBeVisible();
+    await post('/api/drive/grant',{id:folder.id,user:teammate,role:'remove'});
+    await post('/api/drive/grant',{id:pdf.id,user:teammate,role:'remove'});
+    await received.getByRole('tab',{name:'With you'}).click();
+    await expect(received.getByRole('heading',{name:'No files shared with you yet'})).toBeVisible();
+  } finally { await recipient.close(); }
+});

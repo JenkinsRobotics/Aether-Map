@@ -1,0 +1,56 @@
+import { expect, test } from '@playwright/test';
+import { emptyShow, newSurface } from '../src/document';
+import { addPoolAsset, normalizeMediaPool } from '../src/media-pool';
+import { signIn, switchWorkspace } from './helpers';
+
+test('Main composes one timeline per surface; drops, sequential uses, nested edits and reload stay connected', async ({page,baseURL},info) => {
+  await signIn(page,baseURL!);
+  let show=emptyShow(); show.scenes[0].surfaces=[newSurface(show.output,0),newSurface(show.output,1),newSurface(show.output,2)];
+  show=addPoolAsset(normalizeMediaPool(show),{mediaId:null,rect:[0,0,1920,1080],fill:'#ff0066'},'Pink');
+  const response=await page.request.post('/api/library/create',{headers:{Origin:baseURL!},data:{app:'map',scope:'personal',name:'Surface composition.aethermap',data_base64:Buffer.from(JSON.stringify(show)).toString('base64')}});
+  expect(response.ok()).toBe(true);
+  await page.goto(`/map/index.html?document=${(await response.json()).id}`); await switchWorkspace(page,'Visualization');
+  const main=page.getByRole('region',{name:'Main timeline',exact:true}), tabs=page.getByRole('tablist',{name:'Timelines',exact:true});
+  await expect(main.locator('.map-lane')).toHaveCount(4); await expect(main.locator('.map-clip')).toHaveCount(3);
+  await expect(tabs.getByRole('tab')).toHaveCount(4);
+  await expect(page.getByRole('button',{name:'Add video track',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'New timeline',exact:true})).toHaveCount(0);
+  await main.getByLabel('A1 clips').click({button:'right',position:{x:10,y:10}});
+  await expect(page.getByRole('menuitem',{name:'Add video track',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('menuitem',{name:'Add audio track',exact:true})).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  const pool=page.getByRole('region',{name:'Media Pool',exact:true});
+  await pool.getByRole('button',{name:'Pink',exact:true}).dragTo(main.getByLabel('Surface 1 clips'),{targetPosition:{x:3,y:14}});
+  const child=page.getByRole('region',{name:'Surface 1 timeline',exact:true});
+  await expect(child).toBeVisible(); await expect(child.locator('.map-lane')).toHaveCount(2);
+  await expect(child.locator('.map-clip')).toHaveCount(1);
+  await expect(page.getByRole('combobox',{name:'Timeline mode'})).toHaveValue('standard');
+  await pool.getByRole('button',{name:'Pink',exact:true}).click(); await pool.getByRole('button',{name:'Append to track',exact:true}).click();
+  await expect(child.getByLabel('V1 clips').locator('.map-clip')).toHaveCount(2);
+  const clips=child.locator('.map-clip'), a=(await clips.nth(0).boundingBox())!, b=(await clips.nth(1).boundingBox())!;
+  expect(b.x).toBeCloseTo(a.x+a.width,0);
+  await clips.first().click();
+  await expect(page.getByRole('group',{name:'Asset surface assignments'}).getByRole('button',{name:'Assign to Surface 1',exact:true})).toHaveAttribute('aria-pressed','true');
+  await tabs.getByRole('tab',{name:'Main',exact:true}).click();
+  await expect(main.locator('.map-clip')).toHaveCount(3);
+  await main.locator('.map-ruler').click({position:{x:45,y:8}});
+  await expect(page.locator('.map-output-preview .map-fill')).toHaveCount(1);
+  await main.getByLabel('Surface 1 clips').locator('.map-clip').dblclick();
+  await expect(child.locator('.map-clip')).toHaveCount(2);
+  await tabs.getByRole('tab',{name:'Main',exact:true}).click();
+  await page.screenshot({path:info.outputPath('surface-main-standard.png'),animations:'disabled'});
+  await page.getByRole('combobox',{name:'Timeline mode'}).selectOption('advanced');
+  await expect(main.getByRole('button',{name:'Add video track',exact:true})).toBeVisible();
+  await main.getByLabel('A1 clips').click({button:'right',position:{x:10,y:10}});
+  await expect(page.getByRole('menuitem',{name:'Add audio track',exact:true})).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await expect(main.locator('.map-lane')).toHaveCount(4);
+  await page.screenshot({path:info.outputPath('surface-main-advanced.png'),animations:'disabled'});
+  await expect(page.locator('.map-save-state')).toHaveText('Saved'); await page.reload(); await switchWorkspace(page,'Visualization');
+  await expect(main.locator('.map-clip')).toHaveCount(3);
+  await tabs.getByRole('tab',{name:'Surface 1',exact:true}).click();
+  await expect(child.getByLabel('V1 clips').locator('.map-clip')).toHaveCount(2);
+  await expect(pool.getByRole('button',{name:'Pink',exact:true})).toHaveCount(1);
+});

@@ -1,0 +1,61 @@
+import {test, expect} from '@playwright/test';
+import {signIn} from './helpers';
+
+test('organization setup lives in Admin Center while Drive stays personal', async ({page, baseURL, browser}, info) => {
+  await signIn(page, baseURL!);
+  const post = async(path: string, data: object) => {
+    const r = await page.request.post(path, {headers: {Origin: baseURL!}, data});
+    expect(r.ok(), await r.text()).toBe(true); return r.json();
+  };
+  await post('/api/admin/apps', {id: 'drive', enabled: true});
+  await page.goto('/?workspace=admin&section=organizations');
+  await expect(page.getByRole('heading', {name: 'Organizations & workspaces'})).toBeVisible();
+  await page.getByRole('button', {name: 'New organization', exact: true}).click();
+  let dialog = page.getByRole('dialog', {name: 'New organization', exact: true});
+  await dialog.getByRole('textbox', {name: 'Name', exact: true}).fill('Portal Robotics');
+  await dialog.getByRole('button', {name: 'Create', exact: true}).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('combobox', {name: 'Organization', exact: true}).locator('option:checked')).toHaveText('Portal Robotics');
+  await page.getByRole('button', {name: 'Create workspace', exact: true}).click();
+  dialog = page.getByRole('dialog', {name: 'New workspace', exact: true});
+  await dialog.getByRole('textbox', {name: 'Name', exact: true}).fill('Portal Workshop');
+  await dialog.getByRole('button', {name: 'Create', exact: true}).click();
+  await expect(dialog).toBeHidden();
+  const context = await post('/api/drive/context', {});
+  const org = context.organizations.find((o: any) => o.name === 'Portal Robotics');
+  const username = `portal-${Date.now()}`, password = 'portal-password-2026';
+  await post('/api/admin/users', {username, password, role: 'member', full_name: 'Portal Member', email: `${username}@example.test`});
+  await page.getByRole('button', {name: 'Organization members', exact: true}).click();
+  dialog = page.getByRole('dialog', {name: 'Organization members', exact: true});
+  await dialog.getByRole('textbox', {name: 'Username', exact: true}).fill(username);
+  await dialog.getByRole('button', {name: 'Apply access', exact: true}).click();
+  await expect(dialog).toContainText('Portal Member');
+  await dialog.getByRole('button', {name: 'Done', exact: true}).click();
+  await page.screenshot({path: info.outputPath('drive-admin-center.png'), animations: 'disabled'});
+  await page.goto('/drive/');
+  await expect(page.getByRole('combobox', {name: 'Organization', exact: true})).toHaveCount(0);
+  for (const name of ['Organization members', 'New organization', 'New workspace']) await expect(page.getByRole('button', {name, exact: true})).toHaveCount(0);
+  await page.getByRole('button', {name: 'Portal Workshop', exact: true}).click();
+  await expect(page.getByRole('navigation', {name: 'Folder path'})).toContainText('Portal Robotics');
+  await expect(page.getByRole('button', {name: 'Manage members', exact: true})).toHaveCount(0);
+  await page.screenshot({path: info.outputPath('drive-personal-navigation.png'), animations: 'disabled'});
+  const memberContext = await browser.newContext();
+  const member = await memberContext.newPage();
+  try {
+    const login = await member.request.post(`${baseURL}/api/login`, {headers: {Origin: baseURL!}, data: {username, password}});
+    expect(login.ok()).toBe(true);
+    const rotate = await member.request.post(`${baseURL}/api/password`, {headers: {Origin: baseURL!}, data: {current_password: password, password: password + '-changed'}});
+    expect(rotate.ok(), await rotate.text()).toBe(true);
+    expect((await member.request.post(`${baseURL}/api/login`, {headers: {Origin: baseURL!}, data: {username, password: password + '-changed'}})).ok()).toBe(true);
+    await member.goto(`${baseURL}/?workspace=admin&section=organizations`);
+    await expect(member.getByRole('heading', {name: 'Administration access required'})).toBeVisible();
+    const denied = await member.request.post(`${baseURL}/api/drive/administration`, {headers: {Origin: baseURL!}, data: {}});
+    expect(denied.status()).toBe(403);
+    await member.goto(`${baseURL}/drive/`);
+    await member.getByRole('button', {name: 'Workspaces', exact: true}).click();
+    await expect(member.getByRole('article', {name: 'Portal Robotics', exact: true})).toBeVisible();
+    await expect(member.getByRole('article', {name: 'Portal Workshop', exact: true})).toHaveCount(0);
+    await expect(member.getByRole('combobox', {name: 'Organization', exact: true})).toHaveCount(0);
+    expect(org.id).toBeTruthy();
+  } finally {await memberContext.close();}
+});

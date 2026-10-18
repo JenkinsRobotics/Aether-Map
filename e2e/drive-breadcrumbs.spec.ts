@@ -1,0 +1,47 @@
+import {test, expect} from '@playwright/test';
+import {signIn} from './helpers';
+
+test('Workspace addresses retain organization and navigate real folder ancestors', async ({page, baseURL}, info) => {
+  await signIn(page, baseURL!);
+  const post = async (path: string, data: object) => {
+    const response = await page.request.post(path, {headers: {Origin: baseURL!}, data});
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
+  };
+  await post('/api/admin/apps', {id: 'drive', enabled: true});
+  const org = await post('/api/drive/organization_create', {name: 'Address Lab'});
+  const workspace = await post('/api/drive/workspace_create', {organization: org.id, name: 'Engineering'});
+  const dest = {organization: org.id, workspace: workspace.id, kind: 'folder'};
+  const top = await post('/api/drive/create', {...dest, name: 'Projects'});
+  const child = await post('/api/drive/create', {...dest, parent: top.id, name: 'Train'});
+  await post('/api/drive/create', {...dest, parent: child.id, name: 'Components'});
+  await page.goto('/drive/');
+  await page.getByRole('button', {name: 'Engineering', exact: true}).click();
+  const address = page.getByRole('navigation', {name: 'Folder path'});
+  await expect(address).toContainText('Address Lab');
+  await expect(address.locator('[aria-current="page"]')).toHaveText('Engineering');
+  const table = page.getByRole('table', {name: 'Drive files'});
+  await table.getByRole('button', {name: 'Projects', exact: true}).dblclick();
+  await expect(address.locator('[aria-current="page"]')).toHaveText('Projects');
+  await table.getByRole('button', {name: 'Train', exact: true}).dblclick();
+  await expect(address.locator('[aria-current="page"]')).toHaveText('Train');
+  await table.getByRole('checkbox', {name: 'Select Components', exact: true}).check();
+  await address.getByRole('button', {name: 'Projects', exact: true}).click();
+  await expect(table.getByRole('button', {name: 'Train', exact: true})).toBeVisible();
+  await expect(table.locator('tr[data-selected]')).toHaveCount(0);
+  await address.getByRole('button', {name: 'Engineering', exact: true}).click();
+  await expect(table.getByRole('button', {name: 'Projects', exact: true})).toBeVisible();
+  await expect(address.locator('[aria-current="page"]')).toHaveText('Engineering');
+  await page.screenshot({path: info.outputPath('workspace-address.png'), animations: 'disabled'});
+  await page.setViewportSize({width: 600, height: 850});
+  await table.getByRole('button', {name: 'Projects', exact: true}).dblclick();
+  await expect(address.locator('[aria-current="page"]')).toHaveText('Projects');
+  await table.getByRole('button', {name: 'Train', exact: true}).dblclick();
+  await expect(address.locator('[aria-current="page"]')).toHaveText('Train');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path: info.outputPath('workspace-address-narrow.png'), animations: 'disabled'});
+  await address.getByRole('button', {name: 'Address Lab', exact: true}).click();
+  await expect(page.getByRole('region', {name: 'Organization workspaces'})).toBeVisible();
+  await expect(page.getByRole('combobox', {name: 'Organization', exact: true})).toHaveCount(0);
+  await expect(page.getByRole('region', {name: 'Organization workspaces'}).getByRole('article', {name: 'Address Lab', exact: true})).toBeVisible();
+});

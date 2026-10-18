@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "product": "map",
+  "platform_api": 1,
+  "service": {
+    "distribution": "aether-map-service",
+    "version": "0.2.0a4"
+  },
+  "frontend": {
+    "name": "aether-map",
+    "version": "0.1.0-alpha.1"
+  },
+  "shared_packages": {
+    "@aether/assets": {
+      "archive": "vendor/aether-assets-0.2.0-alpha.27.tgz",
+      "sha256": "4da03e06909bd6b4a8a3d6f5241995ae9e0fd959d0e71496f26798a7c5e989e0"
+    },
+    "@aether/session": {
+      "archive": "vendor/aether-session-0.2.0-alpha.152.tgz",
+      "sha256": "89d0a24725cd54b8330d2c2c569a99c04dd16660a8de6fcfe55c7d003c017732"
+    },
+    "@aether/sketch": {
+      "archive": "vendor/aether-sketch-0.2.0-alpha.4.tgz",
+      "sha256": "415e31e86ec14315f010727510eaa8b0f980ce3a235c4f15722104542fd7f32e"
+    },
+    "@aether/ui": {
+      "archive": "vendor/aether-ui-0.2.0-alpha.145.tgz",
+      "sha256": "d95a543d1590117d6aadd82788b5576397497c6d04fdac3e68e3d88c93636055"
+    }
+  }
+}

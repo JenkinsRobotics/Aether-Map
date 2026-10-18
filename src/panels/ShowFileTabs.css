@@ -1,0 +1,9 @@
+.map-file-tabs { flex: none; min-width: 0; }
+.map-file-tabs-row { display: flex; align-items: stretch; min-width: 0; background: var(--aether-color-bg-bar); }
+.map-file-tabs-row > .aui-document-tabs { flex: 1; min-width: 0; }
+.map-file-tabs-row > .aui-menu-button { flex: none; }
+.map-file-tabs-error { padding: 6px 12px; font-size: var(--aether-font-size-body); color: var(--aether-color-error); background: var(--aether-color-bg-panel); }
+.map-editor-content { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
+
+
+.map-file-save { display: flex; align-items: center; gap: 8px; padding: 0 12px; flex: none; }

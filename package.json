@@ -1,0 +1,43 @@
+{
+  "name": "aether-map",
+  "private": true,
+  "version": "0.1.0-alpha.1",
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/prepare-vendor.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/prepare-vendor.mjs",
+    "build": "tsc -b && vite build && npm run build:automation",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "build:automation": "node scripts/build-automation.mjs"
+  },
+  "dependencies": {
+    "@aether/assets": "file:vendor/aether-assets-0.2.0-alpha.27.tgz",
+    "@aether/session": "file:vendor/aether-session-0.2.0-alpha.152.tgz",
+    "@aether/sketch": "file:vendor/aether-sketch-0.2.0-alpha.4.tgz",
+    "@aether/ui": "file:vendor/aether-ui-0.2.0-alpha.145.tgz",
+    "@mediapipe/tasks-vision": "1.0.1",
+    "@paper-design/shaders": "0.0.80",
+    "@paper-design/shaders-react": "0.0.80",
+    "onnxruntime-web": "1.30.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "^25.0.1",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^3.2.4"
+  }
+}

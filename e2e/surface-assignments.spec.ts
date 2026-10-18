@@ -1,0 +1,86 @@
+import { expect, test } from '@playwright/test';
+import { emptyShow, newSurface } from '../src/document';
+import { newVisual } from '../src/visual-document';
+import { signIn, switchWorkspace, openBottomDock } from './helpers';
+
+test('timeline and surface assignments stay visible together; selection, inspector, undo and reload agree', async ({ page, baseURL }, info) => {
+  await signIn(page, baseURL!);
+  const show = emptyShow(), scene = show.scenes[0];
+  const a = newSurface(show.output, 0), b = newSurface(show.output, 1);
+  a.name = 'Left face'; b.name = 'Right face';
+  a.corners = [[100,100],[500,100],[500,500],[100,500]];
+  b.corners = [[500,100],[900,100],[900,500],[500,500]];
+  scene.surfaces = [a,b];
+  const visual = newVisual(show, { ...a.source, fill: '#ff0000' }, [{ sceneID: scene.id, surfaceID: a.id }]);
+  visual.name = 'Shared red';
+  const other = newVisual(show, { ...b.source, fill: '#0000ff' }, [{ sceneID: scene.id, surfaceID: b.id }]);
+  other.name = 'Later blue'; other.startS = 30; other.continuous = false;
+  show.visuals = [visual, other];
+  const created = await page.request.post('/api/library/create', { headers: { Origin: baseURL! }, data: {
+    app: 'map', scope: 'personal', name: 'Tray assignments.aethermap', data_base64: Buffer.from(JSON.stringify(show)).toString('base64'),
+  } });
+  expect(created.ok()).toBe(true);
+  await page.goto(`/map/index.html?document=${(await created.json()).id}`);
+  await switchWorkspace(page, 'Visualization');
+  await openBottomDock(page, 'Timeline');
+  const timeline = page.getByRole('region', { name: 'Main timeline', exact: true });
+  const asset = timeline.locator('.map-clip').filter({ hasText: /^Shared red$/ });
+  await asset.click();
+  const tray = page.getByRole('group', { name: 'Asset surface assignments' });
+  const left = tray.getByRole('button', { name: 'Assign to Left face', exact: true });
+  const right = tray.getByRole('button', { name: 'Assign to Right face', exact: true });
+  const properties = page.getByRole('region', { name: 'Asset properties' });
+  await expect(timeline).toBeVisible();
+  await expect(tray).toBeVisible();
+  const tilesBox = (await tray.boundingBox())!, timelineBox = (await timeline.boundingBox())!;
+  expect(tilesBox.y + tilesBox.height).toBeLessThanOrEqual(timelineBox.y);
+  await expect(left).toHaveAttribute('aria-pressed', 'true');
+  await right.click();
+  await expect(left).toHaveAttribute('aria-pressed', 'true'); await expect(right).toHaveAttribute('aria-pressed', 'true');
+  await expect(properties.getByRole('textbox', { name: 'Asset name' })).toHaveValue('Shared red');
+  await expect(page.locator('.map-output-preview .map-fill')).toHaveCount(2);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(right).toHaveAttribute('aria-pressed', 'false');
+  await right.dblclick();
+  await expect(right).toHaveAttribute('aria-pressed', 'true');
+  await expect(properties).toBeVisible(); await expect(page.locator('.aui-feature-window')).toHaveCount(0);
+  await properties.getByRole('tab', { name: 'Targets', exact: true }).click();
+  await expect(properties.getByRole('checkbox', { name: 'Right face', exact: true })).toBeChecked();
+  await properties.getByRole('checkbox', { name: 'Left face', exact: true }).uncheck();
+  await expect(left).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: 'Assign to all surfaces', exact: true }).click();
+  await expect(left).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('combobox', { name: 'Surface assignment mapping' }).selectOption('span');
+  await expect(properties.getByRole('combobox', { name: 'Visual mapping' })).toHaveValue('span');
+  const entire = tray.getByRole('button', { name: `Assign to entire ${scene.name}` });
+  await entire.click(); await expect(entire).toHaveAttribute('aria-pressed', 'true');
+  // Changing the selected use changes the targets, without switching bottom tabs.
+  await timeline.locator('.map-clip').filter({ hasText: /^Later blue$/ }).click();
+  await expect(left).toHaveAttribute('aria-pressed', 'false');
+  await expect(right).toHaveAttribute('aria-pressed', 'true');
+  await expect(entire).toHaveAttribute('aria-pressed', 'false');
+  await expect(properties.getByRole('textbox', { name: 'Asset name' })).toHaveValue('Later blue');
+  await asset.click();
+  await expect(left).toHaveAttribute('aria-pressed', 'true');
+  await expect(entire).toHaveAttribute('aria-pressed', 'true');
+  await timeline.getByRole('combobox', { name: 'Timeline mode' }).selectOption('advanced');
+  await expect(tray).toBeVisible();
+  await right.click(); await expect(right).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('ControlOrMeta+z'); await expect(right).toHaveAttribute('aria-pressed', 'true');
+  await expect(timeline).toBeVisible();
+  for (const theme of ['light','dark']) {
+    await page.evaluate(theme => { document.documentElement.classList.toggle('aether-light-theme', theme === 'light'); document.documentElement.classList.toggle('aether-dark-theme', theme === 'dark'); }, theme);
+    await page.screenshot({ path: info.outputPath(`assignments-${theme}.png`) });
+  }
+  await expect(page.getByText('Saved', { exact: true }).first()).toBeVisible();
+  await page.reload(); await switchWorkspace(page, 'Visualization'); await openBottomDock(page, 'Timeline'); await asset.click();
+  await expect(timeline).toBeVisible(); await expect(tray).toBeVisible();
+  await expect(left).toHaveAttribute('aria-pressed', 'true'); await expect(right).toHaveAttribute('aria-pressed', 'true');
+  await expect(entire).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('combobox', { name: 'Surface assignment mapping' })).toHaveValue('span');
+  await switchWorkspace(page, 'Mapping');
+  await openBottomDock(page, 'Surfaces');
+  await expect(tray).toHaveCount(0);
+  await page.getByRole('group', { name: 'Surfaces', exact: true }).getByRole('button', { name: 'Right face', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Asset properties' })).toHaveCount(0);
+});

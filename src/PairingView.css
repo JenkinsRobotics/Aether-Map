@@ -1,0 +1,12 @@
+.map-pairing-page { height: 100%; overflow: auto; display: flex; flex-direction: column; align-items: center; font-family: var(--aether-font-family); padding: 24px; box-sizing: border-box; background: var(--aether-color-bg-app); color: var(--aether-color-text); }
+.map-pairing-card { margin: auto 0; width: min(100%, 420px); padding: 28px; border-radius: 16px; border: 1px solid var(--aether-color-border); background: var(--aether-color-bg-panel); box-sizing: border-box; }
+.map-pairing-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.map-pairing-brand svg { width: 24px; height: 24px; }
+.map-pairing-card h1 { margin-bottom: 8px; font-size: 26px; }
+.map-pairing-host { opacity: .7; overflow-wrap: anywhere; font-size: 14px; margin-top: 0; }
+.map-pairing-card p { line-height: 1.5; }
+.map-pairing-card .map-device-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.map-pairing-card input { font-size: 24px; letter-spacing: .2em; }
+.map-pairing-card .map-error { color: var(--aether-color-error); }
+.map-pairing-card a { color: var(--aether-color-accent); }
+@media (max-width: 420px) { .map-pairing-page { padding: 12px; } .map-pairing-card { padding: 20px; } }
