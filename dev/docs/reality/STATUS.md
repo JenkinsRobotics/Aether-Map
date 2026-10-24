@@ -1,5 +1,15 @@
 # Aether Map status
 
+## Installed release — 2026-10-23 (r23)
+
+`map-visualizer-20261023-r23`. Since r20:
+- **r21:** Scene's Add tools are standard tool bar commands; the surface row is
+  an independent, toggled panel.
+- **r22:** a Render view picker (whole scene, or one surface straight-on) and
+  on-canvas placement handles (move, resize from centre).
+- **r23:** nested scenes applied to surfaces project their whole picture onto
+  each surface, like a generator. Only the outermost hosting nest applies.
+
 ## Installed release — 2026-10-23 (r20)
 
 `map-visualizer-20261023-r20` builds on r19's Scene fixes (backdrop toggle,
