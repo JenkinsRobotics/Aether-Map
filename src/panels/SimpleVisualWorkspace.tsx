@@ -2,6 +2,7 @@ import { DrawnMedia } from '../features/DrawnMedia';
 import { useState } from 'react';
 import { AetherIcon, Button, IconButton, Slider } from '@aether/ui';
 import { TransportLength } from './TransportLength';
+import type { VisualPlacement } from '../visual-placement';
 import type { MapShow, Surface } from '../document';
 import type { Visual } from '../visual-model';
 import { visualSource } from '../media-pool';
@@ -27,6 +28,10 @@ export interface SimpleVisualWorkspaceProps {
   onLength?: (durationS: number) => void;
   /** Below the transport: Scene's surface row, when shown. */
   footer?: import('react').ReactNode;
+  /** Render this surface straight-on instead of the whole scene. */
+  renderSurface?: Surface;
+  /** Drag placement of the selected visual on the render. */
+  onPlacement?: (visual: Visual, placement: VisualPlacement) => void;
   /** Opens the app's visual gallery (the empty state's call to action). */
   onBrowse: () => void;
   /** Loop on: the play bar repeats the scene's duration (default one minute). */
@@ -35,12 +40,13 @@ export interface SimpleVisualWorkspaceProps {
 
 /** The simple editor's center workspace: input pane, scene render and
  * transport. The list, Properties and gallery are the shared frame's. */
-export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, onPlay, onSeek, onChange, onBrowse, onPlayback, showInput, onLength, footer }: SimpleVisualWorkspaceProps) {
+export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, onPlay, onSeek, onChange, onBrowse, onPlayback, showInput, onLength, footer, renderSurface, onPlacement }: SimpleVisualWorkspaceProps) {
   const looping = show.playback.mode === 'loop', duration = timelineDuration(show);
   const [painting, setPainting] = useState(false);
   const [paintColor, setPaintColor] = useState('#ffffff'), [paintWidth, setPaintWidth] = useState(12);
   const visuals = simpleVisuals(show);
-  const visual = show.visuals?.find(v => v.id === selectedID && !v.mask) ?? visuals.at(-1);
+  const picked = show.visuals?.find(v => v.id === selectedID && !v.mask);
+  const visual = picked ?? visuals.at(-1);
   const source = visual ? visualSource(show, visual) : null;
   const locked = !!visual && visualIsLocked(show, visual);
   const nested = !!visual?.timelineRefID;
@@ -57,7 +63,8 @@ export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, 
         {source.drawing && <div className="map-simple-source-actions"><Button appearance="flat" disabled={locked} onClick={() => setPainting(v => !v)}>{painting ? 'Finish drawing' : 'Draw on visual'}</Button></div>}
       </section>}
       <section className="map-simple-preview" aria-label="Scene preview">
-        <ShowPreview scenePreview show={show} urls={urls} timeS={timeS} playing={playing} />
+        <ShowPreview scenePreview show={show} urls={urls} timeS={timeS} playing={playing} focus={renderSurface}
+          placement={picked && onPlacement && !locked && !nested ? { visual: picked, onChange: placement => onPlacement(picked, placement) } : undefined} />
         {!visuals.length && <div className="map-simple-empty"><AetherIcon name="palette" /><h2>Your surfaces, brought to life</h2><p>Add a visual from the gallery, create a color or text, or import your own image or video.</p><Button appearance="flat" onClick={onBrowse}>Browse visual gallery</Button></div>}
       </section>
       </div>

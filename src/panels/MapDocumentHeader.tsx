@@ -150,10 +150,14 @@ export function MapDocumentHeader({ fileMenuTarget, file, onWorkspace, preset, p
 }
 
 /** Workspace choices stay over the canvas, separate from document identity. */
-export function MapWorkspaceControls({ workspace, onWorkspace, visualEditor, onVisualEditor }: Pick<MapDocumentHeaderProps, 'workspace' | 'onWorkspace' | 'visualEditor' | 'onVisualEditor'>) {
+export function MapWorkspaceControls({ workspace, onWorkspace, visualEditor, onVisualEditor, renderView }: Pick<MapDocumentHeaderProps, 'workspace' | 'onWorkspace' | 'visualEditor' | 'onVisualEditor'> & {
+  /** Scene: render the whole scene, or one surface straight-on. */
+  renderView?: { value: string; options: { value: string; label: string }[]; onChange: (value: string) => void };
+}) {
   return <><WorkspaceSwitcher workspaces={MAP_WORKSPACES} workspaceID={workspace} onSelect={id=>onWorkspace(id as MapWorkspace)}/>
     {workspace === 'visualization' && visualEditor === 'advanced' && onVisualEditor && <Button aria-label="Switch to simple editor" onClick={() => onVisualEditor('simple')}>Simple</Button>}
     {workspace === 'visualization' && visualEditor === 'simple' && onVisualEditor && <Button aria-label="Advanced editor" onClick={() => onVisualEditor('advanced')}>Advanced</Button>}
+    {workspace === 'visualization' && renderView && <SelectField aria-label="Render view" value={renderView.value} options={renderView.options} onChange={e => renderView.onChange(e.target.value)} />}
     {/* Rooms switch from the workspace dropdown; no duplicate jump buttons. */}
     <BodyTrackingStatus/><MidiControlsButton/>
   </>;

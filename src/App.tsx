@@ -1,3 +1,4 @@
+import { setVisualMotionBase } from "./visual-motion";
 import { useMidiAssignments } from './live/midi-assignments';
 import { CubePosePanel } from './panels/CubePosePanel';
 import { applyCubeGeometry } from './cube-pose';
@@ -214,6 +215,8 @@ export default function App() {
     try { return localStorage.getItem(INPUT_PREVIEW_KEY) !== "hidden"; }
     catch { return true; }
   });
+  // Scene's render view: '' is the whole scene, else a surface id shown straight-on.
+  const [renderSurfaceID, setRenderSurfaceID] = useState("");
   // Scene's surface row (Apply to surfaces) is its own panel, shown or hidden from the view tools.
   const [showSurfaceRow, setShowSurfaceRow] = useState(() => { try { return localStorage.getItem("aether-map.surface-row") !== "hidden"; } catch { return true; } });
   const toggleSurfaceRow = () => setShowSurfaceRow(shown => { try { localStorage.setItem("aether-map.surface-row", shown ? "hidden" : "shown"); } catch { /* Storage is optional. */ } return !shown; });
@@ -1310,6 +1313,8 @@ export default function App() {
               onNewFolder={newFolder}
             />;
   const showScenes = layersPanel("scene-picker");
+  const viewableSurfaces = (scene?.surfaces ?? []).filter(s => !s.sceneCanvas && s.kind !== "mask");
+  const renderSurface = viewableSurfaces.find(s => s.id === renderSurfaceID);
   // The one file row's entries for this document: its Shows and Scenes.
   // Canvases are not files: they live in Mapping's layer tree (artboards).
   const documentEntries: DocumentEntry[] = [
@@ -1334,7 +1339,9 @@ export default function App() {
       <div className="map-editor-content">
       <div className="map-editor-workspace">
     <WorkspaceShell pinnedPanels={[mode === "show" ? "show-outputs" : "layers"]}
-      workspaceControls={<MapWorkspaceControls workspace={mode} onWorkspace={enterMode} visualEditor={visualEditor} onVisualEditor={changeVisualEditor}/>}
+      workspaceControls={<MapWorkspaceControls workspace={mode} onWorkspace={enterMode} visualEditor={visualEditor} onVisualEditor={changeVisualEditor}
+        renderView={{ value: renderSurface ? renderSurfaceID : "", onChange: setRenderSurfaceID,
+          options: [{ value: "", label: "Whole scene" }, ...viewableSurfaces.map(s => ({ value: s.id, label: `Surface · ${s.name}` }))] }}/>}
       controllerRef={workspaceShell} toolbarSpan="center" frameToolbar={false} centerBottom={undefined}
       contentPresentation="framed"
       sideBottom={{ right: <MapViewTools workspace={mode} onPerformance={() => setPerformanceOpen(true)} showInput={showInput} onInput={toggleInput} surfaceRow={showSurfaceRow} onSurfaceRow={toggleSurfaceRow}
@@ -1584,6 +1591,8 @@ export default function App() {
             fills the space, input side by side; advanced adds the timeline. */}
         {mode === 'visualization' ? <SimpleVisualWorkspace showInput={showInput} show={show} urls={urls} selectedID={selectedClipID} timeS={timeS} playing={transport.playing}
           onPlay={togglePlay} onSeek={seek} onBrowse={addVisual} onPlayback={mode => edit(current => ({ ...current, playback: { mode } }))} onChange={(visual, key) => assets.change(visual.id, visual, key)} onLength={v => edit(current => withTimelineDuration(current, v), 'scene-length')}
+          renderSurface={renderSurface}
+          onPlacement={(visual, placement) => assets.change(visual.id, setVisualMotionBase(visual, placement, true), 'placement-drag')}
           footer={showSurfaceRow ? <section className="map-apply-surfaces" aria-label="Apply to surfaces">
             <div className="map-apply-surfaces-title"><strong>Apply to surfaces</strong><span>Click a surface to turn this visual on or off.</span></div>
             {surfaceStrip}

@@ -32,3 +32,10 @@
   border:1px solid color-mix(in srgb, var(--aether-color-accent) 60%, transparent); border-radius:4px; background:color-mix(in srgb, var(--aether-color-accent) 28%, transparent); cursor:grab; }
 .map-show-clip[aria-pressed="true"] { background:var(--aether-color-accent); color:var(--aether-color-accent-contrast, #fff); }
 .map-show-audio-clip { background:color-mix(in srgb, #32cf84 26%, transparent); border-color:color-mix(in srgb, #32cf84 60%, transparent); } /* literal-ok: audio track colour */
+/* A surface shown straight-on: its frame, scaled to fit; the raster inside is un-warped to it. */
+.map-show-flat { position: absolute; overflow: hidden; transform-origin: 0 0; }
+.map-show-flat > .map-show-raster { transform-origin: 0 0; }
+/* On-canvas placement handles for the selected visual. */
+.map-placement-handles { overflow: visible; pointer-events: none; }
+.map-placement-box { fill: transparent; stroke: var(--aether-color-accent); vector-effect: non-scaling-stroke; pointer-events: all; cursor: move; }
+.map-placement-handle { fill: var(--aether-color-bg-panel); stroke: var(--aether-color-accent); pointer-events: all; cursor: nwse-resize; }
