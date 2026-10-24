@@ -1,6 +1,6 @@
 import { DrawnMedia } from '../features/DrawnMedia';
 import { useState } from 'react';
-import { AetherIcon, Button, IconButton, Slider } from '@aether/ui';
+import { AetherIcon, Button, IconButton, NumberField, Slider } from '@aether/ui';
 import type { MapShow, Surface } from '../document';
 import type { Visual } from '../visual-model';
 import { visualSource } from '../media-pool';
@@ -22,6 +22,8 @@ export interface SimpleVisualWorkspaceProps {
   timeS: number; playing: boolean; onPlay: () => void; onSeek: (time: number) => void;
   /** Paint strokes on a drawing visual go through the editor's undo path. */
   onChange: (visual: Visual, key?: string | null) => void;
+  /** Sets this scene's length (the transport's end time). */
+  onLength?: (durationS: number) => void;
   /** Opens the app's visual gallery (the empty state's call to action). */
   onBrowse: () => void;
   /** Loop on: the play bar repeats the scene's duration (default one minute). */
@@ -30,7 +32,7 @@ export interface SimpleVisualWorkspaceProps {
 
 /** The simple editor's center workspace: input pane, scene render and
  * transport. The list, Properties and gallery are the shared frame's. */
-export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, onPlay, onSeek, onChange, onBrowse, onPlayback, showInput }: SimpleVisualWorkspaceProps) {
+export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, onPlay, onSeek, onChange, onBrowse, onPlayback, showInput, onLength }: SimpleVisualWorkspaceProps) {
   const looping = show.playback.mode === 'loop', duration = timelineDuration(show);
   const [painting, setPainting] = useState(false);
   const [paintColor, setPaintColor] = useState('#ffffff'), [paintWidth, setPaintWidth] = useState(12);
@@ -60,7 +62,7 @@ export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, 
         <IconButton appearance="plain" label="Restart preview" onClick={() => onSeek(0)}><AetherIcon name="undo" /></IconButton>
         <IconButton appearance="plain" label={playing ? 'Pause preview' : 'Play preview'} onClick={onPlay}><AetherIcon name={playing ? 'pause' : 'play'} /></IconButton>
         <span>{formatTime(timeS)}</span><Slider className="map-simple-seek" showValue={false} ariaLabel="Preview position" min={0} max={show.playback.mode === 'continuous' ? Math.max(duration, Math.ceil(timeS)) : duration} step={.1} value={timeS} onChange={onSeek} />
-        <span>{formatTime(duration)}</span>
+        {onLength ? <NumberField className="map-transport-length" aria-label="Scene duration" value={duration} min={1} max={86400} unit="s" precision={1} onValueChange={v => v !== null && onLength(v)} /> : <span>{formatTime(duration)}</span>}
         {onPlayback && <IconButton appearance="plain" label="Loop" aria-pressed={looping} onClick={() => onPlayback(looping ? 'continuous' : 'loop')}><AetherIcon name="refresh" /></IconButton>}
       </div>
       {!!show.output.blackout && <p className="map-simple-notice">Output is blacked out. Turn off Blackout in the Show workspace to see visuals.</p>}

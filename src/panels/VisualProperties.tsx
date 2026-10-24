@@ -22,6 +22,7 @@ import { SourceCropFields } from '../features/SourceCropFields';
 import { AssetTiming } from './AssetTiming';
 import { PlacementFields } from './PlacementFields';
 import { readVisualPlacement, visualPlacementFrame } from '../visual-placement';
+import { VISUAL_FIT } from '../visual-render';
 
 export function VisualProperties({ visual, show, placementFrame, onChange, onPickMedia, onDuplicate, onMove, simple, actions, activeTab, onTabChange, onPerformance, only, timing }: {
   visual: Visual; show: MapShow; onChange: (visual: Visual,key?:string|null) => void; onPickMedia: () => void;
@@ -77,7 +78,7 @@ export function VisualProperties({ visual, show, placementFrame, onChange, onPic
       </>)}
       {tab === 'adjust' && <>
         {/* The source's own controls first (a generator's colors, speed…). */}
-        {shown('source') && (simple && source.shader ? <SimpleShaderFields showPresets={false} part={only === 'source' ? 'controls' : undefined} keyframes={timed} shader={source.shader} onChange={shader => patch({ source: { ...source, shader } })} /> : <SourceFields showPresets={false} allowTypeChange={false} showFit={false} surface={view} show={show} onPatch={(_, values) => values.source && patch({ source: values.source })} onPickMedia={onPickMedia} />)}
+        {shown('source') && (simple && source.shader ? <SimpleShaderFields showPresets={false} part={only === 'source' ? 'controls' : undefined} keyframes={timed} shader={source.shader} onChange={shader => patch({ source: { ...source, shader } })} /> : <SourceFields showPresets={false} allowTypeChange={false} showFit={Boolean(source.mediaId && !source.shader)} surface={{ ...view, source: { ...view.source, fit: view.source.fit ?? VISUAL_FIT } }} show={show} onPatch={(_, values) => values.source && patch({ source: values.source })} onPickMedia={onPickMedia} />)}
         {/* Appearance: how it looks wherever it lands — opacity, then a generator's palette. */}
         {shown('appearance') && <ParameterRow label="Opacity" ariaLabel="Visual opacity" value={visual.opacity * 100} min={0} max={100} sliderRange={{ min: 0, max: 100 }} unit="%" onChange={v => onChange(setVisualMotionBase(visual,{opacityPercent:v},true))} />}
         {only === 'appearance' && source.shader && <InspectorSection title="Palette"><SimpleShaderFields showPresets={false} part="colors" shader={source.shader} onChange={shader => patch({ source: { ...source, shader } })} /></InspectorSection>}
@@ -91,7 +92,7 @@ export function VisualProperties({ visual, show, placementFrame, onChange, onPic
         <PlacementFields value={visual.placement} frame={placementFrame ?? visualPlacementFrame(show,visual)} bounds={contentBounds(source,placementFrame ?? visualPlacementFrame(show,visual),measureTextBounds(source))} onChange={placement=>{const base=readVisualPlacement(visual.placement);onChange(setVisualMotionBase(visual,Object.fromEntries(Object.entries(readVisualPlacement(placement)).filter(([key,value])=>placement===undefined||base[key as keyof typeof base]!==value)),true));}}/>
         {timed && <InspectorSection title="Placement motion" defaultOpen={false}><VisualAutomationFields show={show} visual={visual} onChange={onChange} scope="placement"/></InspectorSection>}
         <InspectorSection title="Fit & crop">
-        <FieldRow label="Content placement"><SelectField aria-label="Content placement" value={source.fit ?? 'stretch'} options={[{ value: 'stretch', label: 'Stretch' }, { value: 'contain', label: 'Fit · keep whole input' }, { value: 'cover', label: 'Fill · crop' }]} onChange={e => patch({ source: { ...source, fit: e.target.value as NonNullable<Visual['source']>['fit'] } })} /></FieldRow>
+        <FieldRow label="Content placement"><SelectField aria-label="Content placement" value={source.fit ?? VISUAL_FIT} options={[{ value: 'stretch', label: 'Stretch' }, { value: 'contain', label: 'Fit · keep whole input' }, { value: 'cover', label: 'Fill · crop' }]} onChange={e => patch({ source: { ...source, fit: e.target.value as NonNullable<Visual['source']>['fit'] } })} /></FieldRow>
         {media && <SourceCropFields media={media} rect={source.rect} onChange={rect => patch({ source: { ...source, rect } })} />}
         </InspectorSection>
       </>}

@@ -52,3 +52,31 @@ test('a timeline is added from the gallery like any asset and listed with the me
  fireEvent.click(screen.getByRole('button',{name:'Add visual to scene'}));
  expect(order()).toEqual(['Select Scene 1']);
 },15000);
+test('Scene tool row adds visuals beside the surface row; several files import at once; Add to project only pools them',async()=>{
+ begin();
+ const tools=screen.getByRole('toolbar',{name:'Add visual'});
+ expect(within(tools).getAllByRole('button').map(b=>b.textContent?.trim())).toEqual(['Image','Video','Camera','Colour','Text','Drawing','Generator']);
+ expect(screen.getByRole('region',{name:'Apply to surfaces'})).toBeTruthy();
+ fireEvent.click(within(tools).getByRole('button',{name:'Camera'}));
+ expect(order()).toEqual(['Select Webcam']);
+ const picker=document.querySelector<HTMLInputElement>('input[type=file][multiple]')!;
+ const click=vi.spyOn(picker,'click').mockImplementation(()=>{});
+ fireEvent.click(within(tools).getByRole('button',{name:'Image'}));
+ expect(click).toHaveBeenCalled();expect(picker.accept).toBe('image/*');
+ fireEvent.change(picker,{target:{files:[new File(['a'],'a.png',{type:'image/png'}),new File(['b'],'b.png',{type:'image/png'})]}});
+ await waitFor(()=>expect(order()).toEqual(['Select b.png','Select a.png','Select Webcam']));
+ fireEvent.click(within(tools).getByRole('button',{name:'Generator'}));
+ fireEvent.click(within(screen.getByRole('dialog',{name:'Visual gallery'})).getByRole('button',{name:'Add to project'}));
+ fireEvent.change(picker,{target:{files:[new File(['c'],'c.png',{type:'image/png'})]}});
+ fireEvent.click(within(tools).getByRole('button',{name:'Generator'}));
+ fireEvent.click(within(screen.getByRole('dialog',{name:'Visual gallery'})).getByRole('button',{name:'In this show'}));
+ await waitFor(()=>expect(within(screen.getByRole('dialog',{name:'Visual gallery'})).getByText('c.png')).toBeTruthy());
+ expect(order()).toEqual(['Select b.png','Select a.png','Select Webcam']); // pooled, not applied
+},20000);
+test('the Scene transport end time sets the scene length',()=>{
+ begin();
+ const length=screen.getByRole('textbox',{name:'Scene duration'});
+ fireEvent.change(length,{target:{value:'45'}});fireEvent.blur(length);
+ expect((screen.getByRole('textbox',{name:'Scene duration'}) as HTMLInputElement).value).toMatch(/^45/);
+ expect(screen.getByRole('slider',{name:'Preview position'}).outerHTML).toMatch(/max="45"|valuemax="45"/);
+});

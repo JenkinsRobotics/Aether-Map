@@ -9,6 +9,11 @@ import { normalizeVisuals } from './visual-document';
 import { clipShapes } from './mask/clip';
 import { mediaTime } from './clips';
 
+/** A scene visual fills each surface it lands on without distorting the picture
+ * (cropping the overflow) unless its Content placement says otherwise. Mapping's
+ * own surface media keeps its authored stretch (Jonathan, 2026-10-23). */
+export const VISUAL_FIT = 'cover' as const;
+
 /** Shared projection for the authoring canvas and every physical output. */
 export function sceneVisuals(input: MapShow, scene: Scene, timeS: number, placeholders = false, onlySurfaceID?: string, inputs:VisualMotionInputs={}, calibration = false): ResolvedSurface[] {
   const show = normalizeVisuals(input);
@@ -35,7 +40,7 @@ export function sceneVisuals(input: MapShow, scene: Scene, timeS: number, placeh
     const clock = visual.continuous ? timeS : mediaTime(visual, media, timeS);
     const pictures: ResolvedSurface[] = targets.filter(t => t.enabled && t.opacity > 0 && (!onlySurfaceID || t.id === onlySurfaceID)).map(target => ({ ...target, id: `${visual.id}:${target.id}`, name: visual.name,
       ...(visual.placement ? {visualPlacement:visual.placement, contentFrame:visual.mapping === 'span' ? [0,0,right-left,bottom-top] as Surface['source']['rect'] : target.source.rect} : {}),
-      source: { ...source, effects: visual.effects }, clips: [], sequence: false,
+      source: { ...source, fit: source.fit ?? VISUAL_FIT, effects: visual.effects }, clips: [], sequence: false,
       opacity: target.opacity * visual.opacity, mediaTimeS: clock, mediaLoop: Boolean(visual.continuous),
       ...(visual.mapping === 'span' ? { ...(target.alphaMask ? { alphaProjection: { corners: target.corners, rect: target.source.rect } } : {}), corners: window, masks: targetShapes(target), shape: undefined, radiusPx: undefined, maskCurves: undefined, bend: undefined } : {}),
     }));

@@ -1607,3 +1607,8 @@
 .map-apply-surfaces .map-surface-cell { flex: 0 0 92px; width: 92px; height: 56px; }
 
 /* The layers panel's list/cards view switch. */
+/* Scene's tool row: one button per source kind, above the surface row. */
+.map-scene-tool-row { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.map-scene-tools { display: flex; flex-wrap: wrap; gap: 4px; }
+/* A transport's end time doubles as its length field. */
+.map-transport-length { width: 88px; flex: none; }

@@ -20,8 +20,10 @@ const clipName = (show: MapShow, clip: SceneClip) => clip.showID ? `Show · ${sh
 
 /** The Show workspace center: every canvas rendering live at the show
  * playhead (Mapping's layout, Scene's render), with the show transport. */
-export function ShowWorkspace({ show, urls, timeS, playing, onPlay, onSeek, onGo, selectedCanvasID, onSelectCanvas }: {
+export function ShowWorkspace({ show, urls, timeS, playing, onPlay, onSeek, onGo, selectedCanvasID, onSelectCanvas, onLength }: {
   show: MapShow; urls: Record<string, string>; timeS: number; playing: boolean;
+  /** Sets the show's length (the transport's end time). */
+  onLength?: (durationS: number) => void;
   onPlay: () => void; onSeek: (time: number) => void; onGo: () => void;
   selectedCanvasID?: string | null; onSelectCanvas: (id: string) => void;
 }) {
@@ -50,7 +52,7 @@ export function ShowWorkspace({ show, urls, timeS, playing, onPlay, onSeek, onGo
       <IconButton label={playing ? 'Pause show' : 'Play show'} onClick={onPlay}><AetherIcon name={playing ? 'pause' : 'play'} /></IconButton>
       <span>{formatTime(timeS)}</span>
       <Slider ariaLabel="Show position" min={0} max={duration} step={.1} value={Math.min(timeS, duration)} onChange={onSeek} />
-      <span>{formatTime(duration)}</span>
+      {onLength ? <NumberField className="map-transport-length" aria-label="Show duration" value={duration} min={1} unit="s" precision={1} onValueChange={v => v !== null && onLength(v)} /> : <span>{formatTime(duration)}</span>}
       <Button primary disabled={!goCues.length} onClick={onGo} title={goCues.length ? 'Run the next manual cue' : 'Add a GO cue to use this'}>GO</Button>
     </div>
   </section>;

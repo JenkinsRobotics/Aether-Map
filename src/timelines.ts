@@ -16,6 +16,12 @@ export function timelineName(show: MapShow): string { return show.timelines?.fin
 export function timelineDuration(show: MapShow, id = currentTimelineID(show)): number {
   return show.timelines?.find(t => t.id === id)?.durationS ?? activeScene(show)?.durationS ?? 60;
 }
+/** Sets a scene's length: its timeline's, or the canvas's when the scene has no timeline record. */
+export function withTimelineDuration(show: MapShow, durationS: number, id = currentTimelineID(show)): MapShow {
+  const length = Math.max(1, durationS);
+  return show.timelines?.some(t => t.id === id) ? { ...show, timelines: show.timelines.map(t => t.id === id ? { ...t, durationS: length } : t) }
+    : { ...show, scenes: show.scenes.map(s => s.id === show.activeSceneId ? { ...s, durationS: length } : s) };
+}
 export function timelineTracks(show: MapShow, id = currentTimelineID(show)): VisualTrack[] {
   return (show.tracks ?? []).filter(t => (t.timelineID ?? MAIN_TIMELINE) === id);
 }

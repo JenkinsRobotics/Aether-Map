@@ -16,7 +16,7 @@ import { readTrayPanels, trayHeightKind, TRAY_KEY } from './tray-panels';
 import { TimelineMixer } from './panels/TimelineMixer';
 import { poolSource, POOL_SOURCES } from './pool-sources';
 import { AssetBrowser } from './panels/AssetBrowser';
-import { currentTimelineID, timelineName, createTimeline, removeTimeline, timelineTracks, timelineVisuals, MAIN_TIMELINE, TIMELINE_DRAG_PREFIX, placeTimeline, canNestTimeline } from './timelines';
+import { currentTimelineID, timelineName, createTimeline, removeTimeline, timelineTracks, timelineVisuals, MAIN_TIMELINE, TIMELINE_DRAG_PREFIX, placeTimeline, canNestTimeline, withTimelineDuration } from './timelines';
 import { useContextCommands } from '@aether/ui';
 import { TimelineAudioProvider } from './live/TimelineAudioContext';
 import { TimelineAudio } from './panels/TimelineAudio';
@@ -24,7 +24,7 @@ import { newScene, newSurface, showForOutput } from './document';
 import { PoolProperties } from './panels/MediaPool';
 import { TimelineTree, type TimelinePoolActions } from './panels/TimelinePool';
 import { CompositionTimeline } from './panels/CompositionTimeline';
-import { visualSource, addVisualTrack, placePoolAsset, removePoolAsset, type PoolAsset } from './media-pool';
+import { visualSource, addPoolAsset, addVisualTrack, placePoolAsset, removePoolAsset, type PoolAsset } from './media-pool';
 import { SurfaceAnimationProperties } from './panels/SurfaceAnimationProperties';
 import { ModulationContext } from "./features/ModulationContext";
 import { DEFAULT_LFOS } from "./features/types";
@@ -53,6 +53,7 @@ import { ColorPanel } from "./panels/ColorPanel";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AetherIcon,
+  type AetherIconName,
   Inspector,
   InspectorSection,
   ToolIcon,
@@ -353,6 +354,21 @@ export default function App() {
   const chooseVisual = (source: Surface["source"], name: string, poolID?: string) => {
     if (gallery && gallery !== 'add') edit(current => replaceSimpleVisual(current, gallery, source, name)); else addSceneVisual(source, name, poolID);
   };
+  /** Opens the shared media picker for `intent`, filtered to `accept`. */
+  const openMediaPicker = (intent: typeof mediaIntent.current, accept = "image/*,video/*") => {
+    mediaIntent.current = intent;
+    if (fileRef.current) { fileRef.current.accept = accept; fileRef.current.click(); }
+  };
+  // Scene's tool row: make a visual from each kind of source, then apply it with the surface row.
+  const sceneTools: { id: string; label: string; icon: AetherIconName; run: () => void }[] = [
+    { id: 'image', label: 'Image', icon: 'image', run: () => openMediaPicker({ kind: 'simple' }, 'image/*') },
+    { id: 'video', label: 'Video', icon: 'file-video', run: () => openMediaPicker({ kind: 'simple' }, 'video/*') },
+    { id: 'camera', label: 'Camera', icon: 'webcam', run: () => addSceneVisual(poolSource('webcam', sceneSize(show)), 'Webcam') },
+    { id: 'colour', label: 'Colour', icon: 'palette', run: () => addSceneVisual(poolSource('colour', sceneSize(show)), 'Colour') },
+    { id: 'text', label: 'Text', icon: 'text', run: () => addSceneVisual(poolSource('text', sceneSize(show)), 'Text') },
+    { id: 'drawing', label: 'Drawing', icon: 'brush', run: () => addSceneVisual(poolSource('paint', sceneSize(show)), 'Paint') },
+    { id: 'generator', label: 'Generator', icon: 'sparkles', run: addVisual },
+  ];
   const galleryIntent = () => gallery && gallery !== 'add' ? { kind: 'replace-visual' as const, targetID: gallery } : { kind: 'simple' as const };
   const workspaceShell = useRef<WorkspaceShellHandle>(null);
   /**
@@ -398,7 +414,7 @@ export default function App() {
     }
   }, [timelineHeight, workspace]);
   const fileRef = useRef<HTMLInputElement>(null);
-  const mediaIntent = useRef<{ kind: "layer" | "new-layer" | "library" | "assign" | "scene" | "simple" | "replace-visual"; targetID?: string; clipID?: string; pngOnly?: boolean }>({ kind: "layer" });
+  const mediaIntent = useRef<{ kind: "layer" | "new-layer" | "library" | "pool" | "assign" | "scene" | "simple" | "replace-visual"; targetID?: string; clipID?: string; pngOnly?: boolean }>({ kind: "layer" });
   const pickMedia = (kind: "layer" | "new-layer" | "library" | "assign", targetID?: string, pngOnly = false) => {
     mediaIntent.current = { kind: kind === "layer" && mode === "visualization" && focus === "scene" ? "scene" : kind, targetID, clipID: selectedClipID ?? undefined, pngOnly };
     if (fileRef.current) {
@@ -976,10 +992,12 @@ export default function App() {
             ? { ...scene, setupBackground: { mediaId: media.id, visible: true, opacity: 0.6 } }
             : scene),
         };
-        if (intent.kind === 'simple') return addSimpleVisual({ ...next, activeSceneId: sceneID }, { mediaId: media.id, rect: [0, 0, size.width, size.height] }, media.name, undefined, clipID);
+        if (intent.kind === 'simple') return addSimpleVisual({ ...next, activeSceneId: sceneID }, { mediaId: media.id, rect: [0, 0, size.width, size.height]}, media.name, undefined, clipID);
         if (intent.kind === 'replace-visual') return replaceSimpleVisual(next, intent.targetID!, { mediaId: media.id, rect: [0, 0, size.width, size.height] }, media.name);
         if (intent.kind === "library" || kind === "audio") return next;
-        if (intent.kind === "scene") return { ...next, visuals: [...(next.visuals ?? []), { ...newVisual(next, { mediaId: media.id, rect: [0, 0, size.width, size.height] }, [{ sceneID }], timeS), id: clipID }] };
+        // Added to the project only: it waits in the pool until someone applies it.
+        if (intent.kind === "pool") return addPoolAsset(next, { mediaId: media.id, rect: [0, 0, size.width, size.height]}, media.name);
+        if (intent.kind === "scene") return { ...next, visuals: [...(next.visuals ?? []), { ...newVisual(next, { mediaId: media.id, rect: [0, 0, size.width, size.height]}, [{ sceneID }], timeS), id: clipID }] };
         if (created) return { ...next, scenes: next.scenes.map(item => {
           if (item.id !== sceneID) return item;
             const board = sceneSize(next, item);
@@ -1539,10 +1557,14 @@ export default function App() {
       // Visualization: the standard command field stays; its icon row is the
       // surface strip — pick a visual, click surfaces to apply it.
       toolbar={
-        <MapRibbon onGo={runNextGo} toolRow={mode === 'visualization' ? <section className="map-apply-surfaces" aria-label="Apply to surfaces">
+        <MapRibbon onGo={runNextGo} toolRow={mode === 'visualization' ? <div className="map-scene-tool-row">
+          <div className="map-scene-tools" role="toolbar" aria-label="Add visual">
+            {sceneTools.map(tool => <Button key={tool.id} appearance="flat" onClick={tool.run}><AetherIcon name={tool.icon} />{tool.label}</Button>)}
+          </div>
+          <section className="map-apply-surfaces" aria-label="Apply to surfaces">
           <div className="map-apply-surfaces-title"><strong>Apply to surfaces</strong><span>Click a surface to turn this visual on or off.</span></div>
           {surfaceStrip}
-        </section> : undefined} docked={layout === 'docked'} workspace={mode} onWorkspace={enterMode}
+        </section></div> : undefined} docked={layout === 'docked'} workspace={mode} onWorkspace={enterMode}
         onSave={save} onOutput={()=>setChoosingOutput(true)} playing={transport.playing} onPlay={togglePlay}
         canUndo={document_.canUndo} canRedo={document_.canRedo} onUndo={undo} onRedo={redo}
         tool={tool} onTool={next=>{setTool(next);stageRef.current?.querySelector<HTMLElement>('.map-canvas-host')?.focus({preventScroll:true});}}
@@ -1564,8 +1586,8 @@ export default function App() {
         {/* Visualization's center, both editors: the selected scene's render
             fills the space, input side by side; advanced adds the timeline. */}
         {mode === 'visualization' ? <SimpleVisualWorkspace showInput={showInput} show={show} urls={urls} selectedID={selectedClipID} timeS={timeS} playing={transport.playing}
-          onPlay={togglePlay} onSeek={seek} onBrowse={addVisual} onPlayback={mode => edit(current => ({ ...current, playback: { mode } }))} onChange={(visual, key) => assets.change(visual.id, visual, key)} />
-        : mode === 'show' ? <ShowWorkspace show={show} urls={urls} timeS={timeS} playing={transport.playing} onPlay={togglePlay} onSeek={t=>{if(t===0){cueRuns.current.clear();goIndex.current=0;}seek(t);}} onGo={runNextGo} selectedCanvasID={show.activeSceneId} onSelectCanvas={selectScene}/>
+          onPlay={togglePlay} onSeek={seek} onBrowse={addVisual} onPlayback={mode => edit(current => ({ ...current, playback: { mode } }))} onChange={(visual, key) => assets.change(visual.id, visual, key)} onLength={v => edit(current => withTimelineDuration(current, v), 'scene-length')} />
+        : mode === 'show' ? <ShowWorkspace show={show} urls={urls} timeS={timeS} playing={transport.playing} onPlay={togglePlay} onSeek={t=>{if(t===0){cueRuns.current.clear();goIndex.current=0;}seek(t);}} onGo={runNextGo} selectedCanvasID={show.activeSceneId} onSelectCanvas={selectScene} onLength={v => editShowTimeline(t => ({ ...t, durationS: Math.max(1, v) }))}/>
         : <>
           <div style={{ width: "100%", height: "100%" }}>
             <div className="map-preview-panes is-output-only">
@@ -1646,10 +1668,12 @@ export default function App() {
         ref={fileRef}
         type="file"
         accept="image/*,video/*,audio/*"
+        multiple
         hidden
         onChange={(event) => {
-          const picked = event.target.files?.[0];
-          if (picked) void addMedia(picked);
+          // Several files import one after another, each as its own media.
+          const picked = [...event.target.files ?? []];
+          void picked.reduce((done, file) => done.then(() => addMedia(file)), Promise.resolve<unknown>(undefined));
           event.target.value = "";
         }}
       />
@@ -1694,7 +1718,7 @@ export default function App() {
         onChoose={visual => chooseVisual({ mediaId: null, rect: [0, 0, sceneSize(show).width, sceneSize(show).height], shader: visual.shader }, visual.name)}
         onCreate={kind => chooseVisual(poolSource(kind, sceneSize(show)), POOL_SOURCES.find(s => s.id === kind)!.label)}
         onChooseLoop={async picked => { mediaIntent.current = galleryIntent(); return !!await addMedia(picked, undefined, loopCredit); }}
-        onImport={() => { mediaIntent.current = galleryIntent(); fileRef.current?.click(); }} />}
+        onImport={() => openMediaPicker(galleryIntent())} onImportToProject={() => openMediaPicker({ kind: 'pool' }, 'image/*,video/*,audio/*')} />}
       {pickingPreset && <VisualGallery onClose={() => setPickingPreset(false)} actionLabel="Add as a new scene" onChoose={visual => {
         const scene = newScene(visual.name, { widthPx: show.output.width, heightPx: show.output.height });
         const surface = newSurface(show.output, 0);

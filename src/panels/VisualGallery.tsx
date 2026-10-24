@@ -24,10 +24,12 @@ function LivePreview({visual,playing}: {visual:GalleryVisual;playing:boolean}) {
  },[playing,visual.id]);
  return <PreviewQuality.Provider value={quality}><ShaderMedia key={visual.id} shader={visual.shader} timeS={time} placeholder style={{position:'absolute',inset:0}} /></PreviewQuality.Provider>;
 }
-export function VisualGallery({onClose,onChoose,actionLabel='Add to Media Pool',onCreate,onImport,onChooseLoop,onlineLibrary,pool,timelines}: {
+export function VisualGallery({onClose,onChoose,actionLabel='Add to Media Pool',onCreate,onImport,onImportToProject,onChooseLoop,onlineLibrary,pool,timelines}: {
  onClose:()=>void;onChoose:(visual:GalleryVisual)=>void;actionLabel?:string;
  onChooseLoop?:(file:File,loop:BundledLoop)=>Promise<boolean>;
  onCreate?:(kind:PoolSourceKind)=>void;onImport?:()=>void;
+ /** Imports files into the show's pool without applying them to anything. */
+ onImportToProject?:()=>void;
  /** Online stock media (Pixabay/Openverse), a source like Import and Live camera. */
  onlineLibrary?:import('react').ReactNode;
  /** The show's own media pool ("In this show"), for reuse and removal. */
@@ -78,6 +80,7 @@ export function VisualGallery({onClose,onChoose,actionLabel='Add to Media Pool',
      <Button disabled={busy} onClick={()=>{onClose();onCreate('text');}}><AetherIcon name="text"/>Text</Button>
     </>}
     {onImport && <Button disabled={busy} onClick={()=>{onClose();onImport();}}><AetherIcon name="import"/>Import image or video</Button>}
+    {onImportToProject && <Button disabled={busy} onClick={()=>{onClose();onImportToProject();}}><AetherIcon name="folder"/>Add to project</Button>}
     {onCreate && <Button disabled={busy} onClick={()=>{onClose();onCreate('webcam');}}><AetherIcon name="camera"/>Live camera</Button>}
     {onlineLibrary && <Button disabled={busy} aria-pressed={source==='online'} onClick={()=>setSource(v=>v==='online'?'gallery':'online')}><AetherIcon name="search"/>Online media</Button>}
     {(onCreate || pool || timelines) && <>
