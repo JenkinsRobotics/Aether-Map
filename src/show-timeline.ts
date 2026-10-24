@@ -203,3 +203,34 @@ export function cueAllowed(cue: ShowCue, controls: Record<number, number>, fired
   if (cue.when && !((controls[cue.when.control] ?? 0) > cue.when.above)) return false;
   return !(cue.action === 'jump' && cue.times !== undefined && (fired.get(cue.id) ?? 0) >= cue.times);
 }
+
+/** A show running on its own (a deployed player): the show clock with its
+ * timeline cues applied. No operator, so GO cues never fire; MIDI cues and
+ * conditions read whatever `controls` the device has. */
+export interface ShowRun { rawS: number; showS: number; fired: Map<string, number>; paused: boolean; blackout: boolean }
+export const startRun = (rawS = 0): ShowRun => ({ rawS, showS: rawS, fired: new Map(), paused: false, blackout: false });
+
+/** Advances `run` to device time `rawS`. A clock that goes backwards (a
+ * redeploy, a schedule window reopening) starts a new run. */
+export function advanceShow(run: ShowRun, program: ShowTimeline | undefined, rawS: number, mode: string, controls: Record<number, number> = {}): ShowRun {
+  if (rawS < run.rawS) return startRun(rawS);
+  if (run.paused || !program) return { ...run, rawS };
+  const length = Math.max(program.durationS, .001);
+  let next = run.showS + (rawS - run.rawS), paused: boolean = run.paused, blackout: boolean = run.blackout;
+  const fired = new Map(run.fired);
+  const crossed = program.cues.filter(c => c.trigger === 'timeline' && c.atS !== undefined && c.atS > run.showS && c.atS <= Math.min(next, length)).sort((a, b) => a.atS! - b.atS!);
+  for (const cue of crossed) {
+    if (!cueAllowed(cue, controls, fired)) continue;
+    fired.set(cue.id, (fired.get(cue.id) ?? 0) + 1);
+    if (cue.action === 'play') continue;
+    if (cue.action === 'blackout-on' || cue.action === 'blackout-off') { blackout = cue.action === 'blackout-on'; continue; }
+    // ponytail: time past a jump/pause within the same frame (< 1 frame) is dropped.
+    if (cue.action === 'jump') next = cue.toS ?? 0;
+    else if (cue.action === 'pause') { next = cue.atS!; paused = true; }
+    else if (cue.action === 'stop') { next = 0; paused = true; fired.clear(); }
+    break;
+  }
+  if (mode === 'once') next = Math.min(next, length);
+  else if (mode !== 'continuous' && next >= length) { next %= length; fired.clear(); }
+  return { rawS, showS: next, fired, paused, blackout };
+}

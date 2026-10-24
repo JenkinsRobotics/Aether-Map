@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { emptyShow, newScene, newSurface, type MapShow } from './document';
 import { normalizeDocument } from './normalize-document';
 import { parseShow, serializeShow } from './show-file';
-import { activeShow, clipAt, crossedCues, newShowProgram, normalizeShowTimeline, playerShow, showForClip, surfaceRole, withActiveShow } from './show-timeline';
+import { activeShow, advanceShow, clipAt, crossedCues, newShowProgram, normalizeShowTimeline, playerShow, showForClip, startRun, surfaceRole, withActiveShow } from './show-timeline';
 import { createTimeline } from './timelines';
 
 const twoCanvases = () => {
@@ -96,4 +96,26 @@ it('plays another show as a sequence on the same canvas, and goes dark on a loop
   expect(at.localS).toBe(5);
   const looped = { ...show, shows: show.shows!.map(p => p.id === intro.id ? { ...p, tracks: p.tracks.map(t => ({ ...t, clips: [{ id: 'self', sceneID: 'main', showID: intro.id, startS: 0, durationS: 20, inS: 0 }] })) } : p) };
   expect(clipAt(looped, house, 30)).toBeNull();
+});
+
+it('a deployed player runs timeline cues on its own: loops, blackout, stop, schedule restart', () => {
+  const program = { tracks: [], durationS: 30, cues: [
+    { id: 'loop', name: 'Loop', trigger: 'timeline' as const, action: 'jump' as const, atS: 10, toS: 2, times: 1 },
+    { id: 'dark', name: 'Dark', trigger: 'timeline' as const, action: 'blackout-on' as const, atS: 20 },
+    { id: 'go', name: 'GO', trigger: 'go' as const, action: 'stop' as const },
+    { id: 'end', name: 'End', trigger: 'timeline' as const, action: 'stop' as const, atS: 25 } ] };
+  let run = advanceShow(startRun(), program, 9, 'loop');
+  expect(run.showS).toBe(9);
+  run = advanceShow(run, program, 11, 'loop');
+  expect(run.showS).toBe(2); // first pass jumps back
+  run = advanceShow(run, program, 19, 'loop');
+  expect(run.showS).toBe(10); // the loop is used up
+  run = advanceShow(run, program, 35, 'loop');
+  expect(run).toMatchObject({ showS: 0, paused: true, blackout: true }); // GO never fires; End stops
+  expect(advanceShow(run, program, 45, 'loop')).toMatchObject({ showS: 0, paused: true });
+  expect(advanceShow(run, program, 1, 'loop')).toMatchObject({ showS: 1, paused: false, blackout: false });
+  // Without cues, loop wraps (a new run) and once holds the end.
+  const plain = { ...program, cues: [] };
+  expect(advanceShow(startRun(28), plain, 33, 'loop').showS).toBeCloseTo(3);
+  expect(advanceShow(startRun(28), plain, 33, 'once').showS).toBe(30);
 });

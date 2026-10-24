@@ -1,5 +1,13 @@
 # Aether Map status
 
+## Installed release — 2026-10-23 (r18)
+
+`map-visualizer-20261023-r18`: a deployed player now runs the show's timeline
+cues itself (`advanceShow` in `src/show-timeline.ts`). That covers loops (a jump
+with a repeat count), pause, stop and blackout, so a Pi plays the whole show
+logic with no editor attached. GO cues are operator-only. Cue conditions need
+MIDI, which a player lacks, so a conditional cue stays off on a Pi.
+
 ## Installed host release — 2026-10-23 (aether-network-r1)
 
 Generation `aether-network-20261023-r1` carries the current Map frontend,
