@@ -1,0 +1,1095 @@
+[
+  {
+    "id": "map.show.inspect",
+    "title": "Inspect Map show",
+    "description": "Read saved scenes, surfaces, timelines, tracks, reusable assets and clip assignments. Does not inspect unsaved editor state.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "app",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "writes": false,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "action": "inspect"
+  },
+  {
+    "id": "map.show.evaluate",
+    "title": "Evaluate Map scene",
+    "description": "Evaluate a saved scene's Main composition at a time in seconds using the player evaluator. Returns geometry and audio state, not a pixel image or live camera data. Does not play or deploy anything.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scene_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "time_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 604800
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "scene_id",
+        "time_s"
+      ],
+      "additionalProperties": false
+    },
+    "writes": false,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "action": "evaluate"
+  },
+  {
+    "id": "map.clip.move",
+    "title": "Move Map clip",
+    "description": "Move a saved clip to an existing compatible track and start time. Keeps surface assignments and source identity. Respects locks and nesting rules. Requires latest revision and records recoverable file history; open editors must reload.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "clip_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "track_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "start_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 604800
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "clip_id",
+        "track_id",
+        "start_s",
+        "expected_revision"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "move"
+  },
+  {
+    "id": "map.clip.edit",
+    "title": "Edit Map clip",
+    "description": "Duplicate, delete, split or trim a saved clip using Map's timeline commands. Split/trim require time_s in timeline seconds. Respects locks; requires latest revision and records recoverable file history. Open editors must reload.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "clip_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "enum": [
+            "duplicate",
+            "delete",
+            "split",
+            "trim-start",
+            "trim-end"
+          ]
+        },
+        "time_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 604800
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "clip_id",
+        "action",
+        "expected_revision"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "edit"
+  },
+  {
+    "id": "map.scene.create",
+    "title": "Create Map scene",
+    "description": "Add a named scene with explicit pixel artboard dimensions to an existing saved show. Preserves editor focus and output bindings. Maximum 256 scenes. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "width_px": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16384
+        },
+        "height_px": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16384
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "name",
+        "width_px",
+        "height_px"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "create"
+  },
+  {
+    "id": "map.surface.create",
+    "title": "Create Map surface",
+    "description": "Add a named rectangle (default), three-face cube or five-face box to a scene. Compound names must be unique folders. Returns created.surface_id and surface_ids; preserves focus and output bindings. Maximum 1024 surfaces per scene. Requires latest revision and records recoverable history; open editors must reload. Does not play outputs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scene_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "rectangle",
+            "cube",
+            "box"
+          ]
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "scene_id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "create"
+  },
+  {
+    "id": "map.surface.bounds",
+    "title": "Set Map surface bounds",
+    "description": "Set the visible axis-aligned bounding box at mapping time zero in scene pixels. Preserves warped shape, masks, curves and animation keys; respects aspect-ratio locks. Welded corners update atomically; locked neighbours refuse the edit. Returns changed_surface_ids. Requires latest revision/content-edit permission; open editors must reload. Does not play outputs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scene_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "surface_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "x_px": {
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000
+        },
+        "y_px": {
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000
+        },
+        "width_px": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 32768
+        },
+        "height_px": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 32768
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "scene_id",
+        "surface_id",
+        "x_px",
+        "y_px",
+        "width_px",
+        "height_px"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "edit"
+  },
+  {
+    "id": "map.surface.rotate",
+    "title": "Rotate Map surface",
+    "description": "Rotate by delta_degrees around the visible bounding-box center at mapping time zero. Preserves masks, curves and animation keys. Welded corners update atomically; locked neighbours refuse the edit. Returns changed_surface_ids. Requires latest revision/content-edit permission; open editors must reload. Does not play outputs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scene_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "surface_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "delta_degrees": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "scene_id",
+        "surface_id",
+        "delta_degrees"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "edit"
+  },
+  {
+    "id": "map.cube.pose",
+    "title": "Pose Map cube",
+    "description": "Turn a complete three-face cube in 3D using relative x_degrees/y_degrees/z_degrees, or mode inside-out for the opposite room corner. surface_id identifies any cube face in scene_id. Geometry at time zero remains canonical; preserves face IDs, content, masks and animation keys. Rejects locked, separated, degenerate, folded or hidden faces. Angles are applied X then Y then Z. Inside-out takes no angles. Requires latest revision; open editors must reload.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scene_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "surface_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "rotate",
+            "inside-out"
+          ]
+        },
+        "x_degrees": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "y_degrees": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "z_degrees": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "scene_id",
+        "surface_id",
+        "mode"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "edit"
+  },
+  {
+    "id": "map.asset.place",
+    "title": "Place Map asset",
+    "description": "Place an existing saved media-pool asset on a track at start_s using editor timing and targets. Returns created.clip_id. Refuses locked or incompatible tracks and clips ending beyond seven days. Requires latest revision and content-edit permission. Does not upload media, change live editors or play outputs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "asset_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "track_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "start_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 604800
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "asset_id",
+        "track_id",
+        "start_s"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "edit"
+  },
+  {
+    "id": "map.agent.docs",
+    "title": "Map agent knowledge",
+    "description": "Discover executable command schemas, gallery sources and a working program recipe. Use topic tools, gallery, sources or recipes; query filters tools/gallery; name returns an exact command. Read-only.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "topic": {
+          "type": "string",
+          "enum": [
+            "tools",
+            "gallery",
+            "sources",
+            "recipes"
+          ]
+        },
+        "query": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        }
+      },
+      "required": [
+        "app",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "writes": false,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "action": "inspect"
+  },
+  {
+    "id": "map.visual.create",
+    "title": "Create Map visual",
+    "description": "Create a reusable source and continuous visual on its own track, using the same simple editor operation. source_json is a JSON object: gallery {kind,id}, color {kind,color}, text {kind,text,color?,size?}, or existing media {kind,media_id}. Defaults to all mapped surfaces of scene_id. Inspect created clip/asset/track IDs. No media upload or device playback.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scene_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "source_json": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 65536
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "scene_id",
+        "name",
+        "source_json"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "edit"
+  },
+  {
+    "id": "map.surface.animate",
+    "title": "Animate Map surface",
+    "description": "Edit surface bases, animation and modulation with changes_json. Supports opacity, xPx, yPx, scaleX, scaleY, rotationDeg, radiusPx and bendAngleDeg, plus bend_axis horizontal/vertical. Maps merge; null clears a channel or assignment map. Keys use surface timeline seconds; LFO and scene clock use Main scene time. Inspect surface_parameter_specs for bounds. Locked surfaces refuse. No camera, audio, MIDI or output activation.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "changes_json": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 65536
+        },
+        "scene_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "surface_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "scene_id",
+        "surface_id",
+        "changes_json"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "edit"
+  },
+  {
+    "id": "map.visual.edit",
+    "title": "Configure Map visual",
+    "description": "Edit a visual using changes_json. Supports name, opacity, enabled, mapping repeat/span, continuous, loop, start_s, duration_s, source (same specification as create), targets [{scene_id,surface_id?}], placement {xPercent,yPercent,widthPercent,heightPercent,rotationDeg}, effects [{kind,amount,enabled?}], shader {colors?,speed?,scale?,density?,glow?}. Also supports source_parameters, source_motion and motion; discover bounds with inspection. preset {action:store|recall|clear,slot:A|B|C,from_clip_id?} captures full appearance, or {action:random,seed:integer}. Locked clips/tracks refuse; timing and targets remain unchanged unless specified. No device playback.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "clip_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "changes_json": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 65536
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "clip_id",
+        "changes_json"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "edit"
+  },
+  {
+    "id": "map.show.runprogram",
+    "title": "Build Map program",
+    "description": "Run a version 1 JSON program containing 1\u201332 steps atomically. Each step has id, command, arguments. References {$ref:\"earlier.scene_id\"} resolve created scene/surface/clip/asset/track IDs. Optional assertions [{scene_id,time_s,layer_count}] must match actual Main composition before one commit. Failure saves nothing. Discover recipes and tools first. No arbitrary code or device playback.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "program_json": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 65536
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "program_json"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "edit"
+  },
+  {
+    "id": "map.show.verify",
+    "title": "Verify Map composition",
+    "description": "Round-trip the show through the canonical parser and evaluate Main at time_s in scene_id. Reports active layer counts, source kinds, opacity, target geometry and missing references. Returns structural/composition evidence, not rendered pixels or media availability. No document changes.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scene_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "time_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 604800
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "scene_id",
+        "time_s"
+      ],
+      "additionalProperties": false
+    },
+    "writes": false,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "action": "inspect"
+  },
+  {
+    "id": "map.show.clip.add",
+    "title": "Add Map scene clip",
+    "description": "Place a scene on a canvas track of the show timeline. scene_id is a timeline id from inspect, or 'main' for the canvas's own Main. Scenes reuse across canvases by surface role. Requires latest revision and records recoverable file history; open editors must reload. Does not play or deploy.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "canvas_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scene_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "start_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 604800
+        },
+        "duration_s": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 604800
+        },
+        "loop": {
+          "type": "string",
+          "enum": [
+            "yes",
+            "no"
+          ]
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "canvas_id",
+        "scene_id",
+        "start_s",
+        "duration_s"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "create"
+  },
+  {
+    "id": "map.show.cue.add",
+    "title": "Add Map show cue",
+    "description": "Add a show-control cue: trigger 'timeline' (fires at at_s), 'go' (operator GO, in order) or 'midi' (fires when MIDI CC control rises above zero); action play, pause, stop, jump (to to_s), blackout-on or blackout-off. Requires latest revision and records recoverable file history; open editors must reload. Optional times makes a jump cue a loop that repeats at most that many times per run; condition_control/condition_above make the cue fire only while that MIDI control is above the value.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "trigger": {
+          "type": "string",
+          "enum": [
+            "timeline",
+            "go",
+            "midi"
+          ]
+        },
+        "cue_action": {
+          "type": "string",
+          "enum": [
+            "play",
+            "pause",
+            "stop",
+            "jump",
+            "blackout-on",
+            "blackout-off"
+          ]
+        },
+        "at_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 604800
+        },
+        "to_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 604800
+        },
+        "control": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "times": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "condition_control": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "condition_above": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "name",
+        "trigger",
+        "cue_action"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "action": "create"
+  }
+]

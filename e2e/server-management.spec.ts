@@ -1,0 +1,32 @@
+import { test, expect } from '@playwright/test';
+import { signIn } from './helpers';
+
+test('administration exposes diagnostics and local maintenance without executing uninstall', async ({ page, baseURL }, info) => {
+  await signIn(page, baseURL!);
+  await page.goto('/?workspace=admin&section=server');
+  await expect(page.getByRole('heading', { name: 'Server management', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'This server', exact: true })).toBeVisible();
+  await expect(page.locator('[data-icon-missing]')).toHaveCount(0);
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download diagnostics', exact: true }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe('aether-studio-diagnostics.json');
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = []; for await (const chunk of stream!) chunks.push(chunk);
+  const report = JSON.parse(Buffer.concat(chunks).toString());
+  expect(report.counts.users).toBeGreaterThan(0);
+  expect(JSON.stringify(report)).not.toContain('end-to-end-password-2026');
+  await page.getByRole('button', { name: 'Prepare uninstall', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Uninstall service and shortcuts', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copy maintenance command', exact: true })).toHaveCount(0);
+  await page.getByRole('checkbox', { name: 'I understand this stops the server and have saved open work.' }).check();
+  await expect(page.getByRole('button', { name: 'Copy maintenance command', exact: true })).toBeVisible();
+  expect((await page.request.get('/api/status')).ok()).toBeTruthy();
+  await page.screenshot({ path: info.outputPath('server-management.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Close maintenance instructions', exact: true }).click();
+  await page.getByRole('button', { name: 'Prepare repair / reinstall', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Repair / reinstall this installation', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copy maintenance command', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Backups & restore', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Backups', exact: true })).toBeVisible();
+});

@@ -1,0 +1,17 @@
+.map-bottom-panels { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.map-bottom-surfaces { flex: 1; min-height: 72px; overflow: auto; }
+.map-bottom-panels.has-editors > .map-bottom-surfaces { flex: 0 0 80px; border-bottom: 1px solid var(--aether-color-border); }
+.map-bottom-surfaces > .map-surfaces { height: 100%; box-sizing: border-box; }
+.map-bottom-editors { display: flex; flex: 1; min-height: 0; overflow: auto; }
+.map-bottom-timeline { flex: 1; min-width: 280px; min-height: 0; }
+.map-bottom-audio { flex: 1; min-width: 220px; min-height: 0; }
+.map-bottom-editors.is-split > .map-bottom-audio { flex: 0 0 clamp(240px, 24%, 340px); }
+.map-bottom-audio > .map-timeline-mixer { width: 100%; height: 100%; box-sizing: border-box; }
+.map-bottom-timeline-content { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.map-bottom-timeline-content > .map-composition-timeline { flex: 1; min-height: 0; }
+.map-mixer-input { padding: 8px; border-top: 1px solid var(--aether-color-border); flex-shrink: 0; }
+
+/* Footer-docked timeline: flush like Open files, a fixed working height.
+   ponytail: fixed 300px; restore drag-to-resize if the height needs tuning. */
+.map-footer-timeline { display: flex; flex-direction: column; height: 300px; min-height: 0; border-top: 1px solid var(--aether-color-border); background: var(--aether-color-bg-panel); }
+.map-footer-timeline > .map-bottom-editors { flex: 1; }

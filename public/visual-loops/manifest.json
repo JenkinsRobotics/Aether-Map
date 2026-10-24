@@ -1,0 +1,80 @@
+[
+  {
+    "id": "prismatic-flow",
+    "name": "Prismatic Flow",
+    "description": "Soft violet and turquoise ribbons flow in a seamless loop.",
+    "file": "prismatic-flow.mp4",
+    "poster": "prismatic-flow.jpg",
+    "width": 1280,
+    "height": 720,
+    "duration": 8,
+    "fps": 24,
+    "bytes": 902140,
+    "sha256": "28ce4b1ea2cbc7495d4e5bcf164e1a18dfe25ca101527cfecec5c2a7ff151e04"
+  },
+  {
+    "id": "orbital-lights",
+    "name": "Orbital Lights",
+    "description": "Luminous points orbit and breathe against a dark field.",
+    "file": "orbital-lights.mp4",
+    "poster": "orbital-lights.jpg",
+    "width": 1280,
+    "height": 720,
+    "duration": 8,
+    "fps": 24,
+    "bytes": 396291,
+    "sha256": "a07362976bf1f6bed358835d47f9bd63234bf80e91534fed354ee0e6fd4066e9"
+  },
+  {
+    "id": "liquid-caustics",
+    "name": "Liquid Caustics",
+    "description": "Blue rippling highlights resembling light under water.",
+    "file": "liquid-caustics.mp4",
+    "poster": "liquid-caustics.jpg",
+    "width": 1280,
+    "height": 720,
+    "duration": 8,
+    "fps": 24,
+    "bytes": 1503008,
+    "sha256": "3b3bdd98b56c780b6c973ff9e43d6cd515f6e561018d3c87065e1fd9076eb78d"
+  },
+  {
+    "id": "golden-confetti",
+    "name": "Golden Confetti",
+    "description": "Warm tumbling confetti for celebrations and layered scenes.",
+    "file": "golden-confetti.mp4",
+    "poster": "golden-confetti.jpg",
+    "width": 1280,
+    "height": 720,
+    "duration": 8,
+    "fps": 24,
+    "bytes": 424608,
+    "sha256": "2ce7102214e42b7780262868bac6bdd509ebffe365b57650a854ba4534f49aa2"
+  },
+  {
+    "id": "ribbon-vortex",
+    "name": "Ribbon Vortex",
+    "description": "Five magenta ribbons spiral around a dark center.",
+    "file": "ribbon-vortex.mp4",
+    "poster": "ribbon-vortex.jpg",
+    "width": 1280,
+    "height": 720,
+    "duration": 8,
+    "fps": 24,
+    "bytes": 403419,
+    "sha256": "c9ddf4c8bc249f7ce1f5305fdcf37414440cf6db310596acb06f3ed4a6f255f2"
+  },
+  {
+    "id": "neon-horizon",
+    "name": "Neon Horizon",
+    "description": "A luminous moving perspective grid beneath a warm horizon.",
+    "file": "neon-horizon.mp4",
+    "poster": "neon-horizon.jpg",
+    "width": 1280,
+    "height": 720,
+    "duration": 8,
+    "fps": 24,
+    "bytes": 281915,
+    "sha256": "cd1d0158abd4f0f453e12e2e873dddc03eef09ef4e9d4186545ec8ac589ea72a"
+  }
+]

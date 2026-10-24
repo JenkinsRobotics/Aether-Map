@@ -1,0 +1,11 @@
+.map-visual-targets,
+.map-visual-effect {
+  display: grid;
+  gap: 8px;
+  padding-block: 8px;
+}
+.map-visual-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

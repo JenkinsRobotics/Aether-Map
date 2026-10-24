@@ -1,0 +1,38 @@
+/* The center workspace is already the shell's frame: the render and input
+   fill it edge to edge, with no inner cards, radii or padding. */
+.map-simple { height:100%; min-height:0; display:flex; flex-direction:column; background:var(--aether-color-bg-base); color:var(--aether-color-text); }
+.map-simple-stage { flex:1; min-height:0; min-width:0; display:flex; flex-direction:column; }
+.map-simple-panes { flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(200px, .6fr) minmax(0, 1fr); }
+.map-simple-panes.is-render-only { grid-template-columns:minmax(0, 1fr); }
+.map-simple-preview { position:relative; min-height:0; overflow:hidden; background:#000; /* literal-ok: unlit projector */ }
+.map-simple-preview .map-show-preview { width:100%; height:100%; aspect-ratio:auto; }
+.map-simple-source { position:relative; min-width:0; min-height:0; display:flex; flex-direction:column; overflow:hidden; border-right:1px solid var(--aether-color-border); }
+.map-simple-source > .map-input-preview { height:100%; min-height:0; border:0; }
+.map-simple-source-actions { position:absolute; right:8px; bottom:8px; display:flex; gap:6px; }
+.map-simple-source .map-pool-paint-tools { gap:8px; }
+.map-simple-source .map-pool-paint-tools > :nth-child(2) { max-width:90px; }
+.map-simple-empty { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; color:#eee; background:#11121b; /* literal-ok: preview empty state */ }
+.map-simple-empty h2 { font-size:19px; font-weight:500; margin:14px 0 4px; }
+.map-simple-empty p { max-width:370px; line-height:1.6; font-size:12px; color:#aeb0c6; margin:0 0 20px; }
+.map-simple-transport { display:flex; gap:8px; align-items:center; padding:6px 10px; font-size:11px; font-variant-numeric:tabular-nums; color:var(--aether-color-text-dim); }
+.map-simple-seek { flex:1; min-width:40px; }
+
+.map-simple-thumbnail { position:relative; display:flex; align-items:center; justify-content:center; width:100%; aspect-ratio:16/10; overflow:hidden; border-radius:6px; background:#090a12; color:#fff; /* literal-ok: source preview */ }
+.map-simple-thumbnail img, .map-simple-thumbnail video { width:100%; height:100%; object-fit:cover; }  /* a thumbnail fills its frame, no letterbox bars */
+.map-simple-thumbnail .map-shader-thumbnail { position:absolute; inset:0; width:auto; aspect-ratio:auto; border-radius:inherit; }  /* fills its frame; the gallery card keeps 16:9 */
+.map-simple-thumbnail > span:not(.map-shader-thumbnail) { font-size:15px; padding:5px; }
+
+/* Properties (VisualInspector): the sidebar is the container, so sections
+   are separated by rules, not boxed. */
+.map-simple-inspector .map-properties { padding:0; }
+.map-simple-section-title { display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; margin-bottom:10px; font-size:11px; }
+.map-simple-section-title span { color:var(--aether-color-text-dim); }
+.map-simple-layer-order { padding-bottom:12px; margin-bottom:12px; border-bottom:1px solid var(--aether-color-border); }
+.map-simple-layer-buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+.map-simple-layer-buttons button { white-space:normal; }
+.map-simple-layer-order p, .map-simple-notice { margin:10px 0 0; font-size:11px; line-height:1.5; color:var(--aether-color-text-dim); }
+.map-simple-notice { display:grid; gap:8px; margin:0 0 12px; }
+.map-simple-actions { display:flex; flex-direction:column; gap:6px; padding:12px 0; }
+.map-simple-actions > .aui-button { justify-content:flex-start; width:100%; }
+.map-simple-actions .map-simple-delete { color:var(--aether-color-danger,#ed6767); }
+.map-simple-shader-fields { display:grid; gap:12px; padding-top:12px; }

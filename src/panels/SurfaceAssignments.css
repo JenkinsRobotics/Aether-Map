@@ -1,0 +1,9 @@
+.map-surface-assignment-info { flex: 0 0 112px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; font-size: var(--aether-font-size-body); }
+.map-surface-assignment-info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-surface-assignment-info span { color: var(--aether-color-text-dim); font-size: var(--aether-font-size-caption); }
+.map-surface-assignment-actions { flex: 0 0 102px; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.map-scene-target { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--aether-color-text-dim); font-size: var(--aether-font-size-caption); }
+.map-scene-target svg { width: 20px; height: 20px; }
+.map-surface-cell:disabled { cursor: default; opacity: .5; }
+.map-surface-cell:focus-visible { outline: 2px solid var(--aether-color-border-focus); outline-offset: -3px; }
+@media (max-width: 640px) { .map-surface-assignment-info { flex-basis: 75px; } }

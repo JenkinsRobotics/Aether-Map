@@ -1,0 +1,34 @@
+/* Show center: every canvas rendering live, side by side (Mapping's layout,
+   Scene's render). The workspace frame is the container: no inner cards. */
+.map-show-workspace { height:100%; min-height:0; display:flex; flex-direction:column; background:var(--aether-color-bg-base); }
+.map-show-wall { flex:1; min-height:0; overflow:auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); align-content:center; gap:16px; padding:16px; }
+.map-show-canvas { display:flex; flex-direction:column; gap:6px; padding:0; border:0; background:none; color:inherit; text-align:left; cursor:pointer; font:inherit; }
+.map-show-canvas-head { display:flex; align-items:baseline; gap:8px; font-size:11px; color:var(--aether-color-text-dim); }
+.map-show-canvas-head strong { color:var(--aether-color-text); font-size:12px; }
+.map-show-canvas[aria-pressed="true"] .map-show-canvas-head strong { color:var(--aether-color-accent); }
+.map-show-routes { margin-left:auto; }
+.map-show-live { color:var(--aether-color-danger, #ef4444); font-weight:600; }
+.map-show-canvas-render { position:relative; display:block; aspect-ratio:16/9; overflow:hidden; background:#000; /* literal-ok: unlit projector output */ outline:1px solid var(--aether-color-border); }
+.map-show-canvas[aria-pressed="true"] .map-show-canvas-render { outline:2px solid var(--aether-color-accent); }
+.map-show-canvas-render .map-show-preview { position:absolute; inset:0; width:100%; height:100%; aspect-ratio:auto; }
+.map-show-idle { position:absolute; inset:0; display:grid; place-items:center; font-size:11px; color:var(--aether-color-text-dim); }
+.map-show-preview { position:relative; overflow:hidden; aspect-ratio:16/9; background:#000; /* literal-ok: unlit projector output */ }
+.map-show-raster { position:absolute; transform-origin:0 0; }
+.map-show-transport, .map-show-actions { display:flex; align-items:center; gap:8px; }
+.map-show-transport { padding:6px 10px; font-size:11px; font-variant-numeric:tabular-nums; color:var(--aether-color-text-dim); }
+.map-show-transport .aui-slider { flex:1; min-width:60px; }
+.map-show-actions { flex-wrap:wrap; padding:4px 0; }
+
+/* Show timeline (footer): one track per canvas, scene clips on it. */
+.map-show-timeline { display:flex; flex-direction:column; min-height:0; overflow:auto; font-size:11px; padding:4px 0; }
+.map-show-timeline-row { display:grid; grid-template-columns:140px minmax(0,1fr); align-items:stretch; min-height:30px; border-bottom:1px solid var(--aether-color-border); }
+.map-show-timeline-ruler { min-height:22px; }
+.map-show-timeline-label { display:flex; align-items:center; justify-content:space-between; gap:4px; padding:0 6px 0 10px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; color:var(--aether-color-text-dim); }
+.map-show-timeline-lane { position:relative; overflow:hidden; touch-action:none; }
+.map-show-tick { position:absolute; top:3px; transform:translateX(2px); color:var(--aether-color-text-dim); font-size:10px; pointer-events:none; }
+.map-show-cue-mark { position:absolute; bottom:0; width:2px; height:10px; background:var(--aether-color-warning, #f59e0b); }
+.map-show-playhead { position:absolute; top:0; bottom:0; width:1px; background:var(--aether-color-accent); pointer-events:none; }
+.map-show-clip { position:absolute; top:4px; bottom:4px; min-width:6px; padding:0 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; text-align:left; font:inherit; color:var(--aether-color-text);
+  border:1px solid color-mix(in srgb, var(--aether-color-accent) 60%, transparent); border-radius:4px; background:color-mix(in srgb, var(--aether-color-accent) 28%, transparent); cursor:grab; }
+.map-show-clip[aria-pressed="true"] { background:var(--aether-color-accent); color:var(--aether-color-accent-contrast, #fff); }
+.map-show-audio-clip { background:color-mix(in srgb, #32cf84 26%, transparent); border-color:color-mix(in srgb, #32cf84 60%, transparent); } /* literal-ok: audio track colour */

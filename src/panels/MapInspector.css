@@ -1,0 +1,35 @@
+/* Product composition only. Shared controls and property rows live in @aether/ui. */
+.map-inspector .map-properties,
+.map-inspector .map-feature-fields { padding: 0; gap: 0; }
+.map-inspector .map-properties + .map-properties { margin-top: 12px; }
+.map-inspector .map-section-label,
+.map-inspector .map-shader-heading {
+  margin: 12px 0 4px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--aether-color-border-subtle);
+  color: var(--aether-color-text);
+  font-size: var(--aether-font-size-body);
+  font-weight: var(--aether-font-weight-strong);
+  letter-spacing: normal;
+  text-transform: none;
+}
+.map-inspector .map-section-label:first-child { border: 0; margin-top: 0; padding-top: 0; }
+.map-inspector .map-hint { margin: 6px 0; font-size: var(--aether-font-size-body); line-height: 1.45; }
+.map-inspector .map-feature-buttons,
+.map-inspector .map-visual-actions { padding-block: 4px; gap: 5px; }
+.map-inspector .map-shader-grid,
+.map-inspector .map-transform-panel .map-transform-grid,
+.map-inspector .map-asset-timing { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+.map-inspector .map-transform-panel fieldset { gap: 0; }
+.map-inspector .map-align-buttons { gap: 3px; }
+.map-inspector .map-feature-buttons > span { display: inline-flex; align-items: center; gap: 2px; }
+.map-inspector .map-shader-modulation { margin-top: 12px; padding-left: 8px; }
+.map-inspector .map-properties-footer { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--aether-color-border-subtle); }
+.map-inspector details:not([class]) { padding-block: 6px; }
+.map-inspector summary { cursor: pointer; font-size: var(--aether-font-size-body); }
+.map-inspector .map-visual-targets { gap: 0; }
+.map-inspector .map-visual-effect { padding: 8px; border: 1px solid var(--aether-color-border-subtle); border-radius: var(--aether-radius-panel); }
+.map-inspector .map-animation-fields { display: grid; grid-template-columns: minmax(0, 1fr); padding: 0; gap: 0; border: 0; overflow: visible; }
+.map-inspector .map-color-preview { height: 32px; margin-block: 6px; }
+.map-inspector .map-color-swatches { padding-block: 8px; }
+.map-inspector .map-schedule-days { display: flex; flex-wrap: wrap; gap: 3px; }

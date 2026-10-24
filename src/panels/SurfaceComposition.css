@@ -1,0 +1,21 @@
+.map-surface-composition { position:relative; display:flex; flex-direction:column; flex:1; min-height:0; }
+.map-composition-heading > strong { flex-shrink:0; max-width:35%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.map-surface-composition-tools { display:flex; align-items:center; gap:4px; padding:4px 8px; border-bottom:1px solid var(--aether-color-border); }
+.map-surface-composition-tools > span { flex:1; min-width:0; font-size:11px; color:var(--aether-color-text-dim); }
+.map-surface-composition-viewport { flex:1; min-height:0; overflow:auto; background:var(--aether-color-bg-app); }
+.map-surface-composition-stage { position:relative; }
+.map-surface-composition-frame { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); }
+.map-surface-composition-board { position:relative; background:#000; /* literal-ok: unlit projection frame */ overflow:visible; }
+.map-placement-overlay { position:absolute; inset:0; touch-action:none; overflow:visible; }
+.map-placement-hit { fill:transparent; cursor:move; }
+.map-placement-handles { stroke:var(--aether-color-accent); fill:var(--aether-color-bg-panel); }
+.map-placement-handles polygon { pointer-events:none; }
+.map-placement-handles rect { cursor:nwse-resize; }
+.map-placement-handles circle { cursor:grab; }
+
+.map-surface-composition-tools { flex-wrap:wrap; }
+.map-surface-composition-tools select { max-width:110px; }
+.map-surface-composition-tools .aui-number-field { max-width:65px; }
+.map-placement-guide { stroke:var(--aether-color-accent); stroke-dasharray:4 3; pointer-events:none; }
+
+.map-surface-view-hud { position:absolute; bottom:8px; right:8px; display:flex; align-items:center; gap:2px; padding:3px; border:1px solid var(--aether-color-border); border-radius:var(--aether-radius-field); background:var(--aether-color-bg-panel); box-shadow:var(--aether-shadow-1); }

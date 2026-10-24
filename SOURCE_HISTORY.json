@@ -1,0 +1,30 @@
+{
+  "source": "/Users/jonathanjenkins/GITHUB/Aether Studio",
+  "sourceRevision": "cebdbec87576b24050f627008252be0e833c25be",
+  "filteredCommits": 6,
+  "paths": [
+    [
+      "aether-map/",
+      ""
+    ],
+    [
+      "aether-player/",
+      "player/"
+    ],
+    [
+      "LICENSE",
+      "LICENSE"
+    ]
+  ],
+  "note": "Filtered current-branch history; current uncommitted source snapshot is preserved in the migration commit. Drive retains Studio ancestry because it was developed there. All original branches/tags remain in the original repository.",
+  "githubCheckoutAdoption": {
+    "source": "/Users/jonathanjenkins/GITHUB/Temp Aether/aether-map",
+    "source_head": "8d0dc2a6c091126f6b5811c58d45470a41d34844",
+    "destination": "/Users/jonathanjenkins/GITHUB/Aether-Map",
+    "destination_head": "0a1821ce5d3e25a72c9672d28661534f45b1245a",
+    "origin": "https://github.com/JenkinsRobotics/Aether-Map.git",
+    "template_backup": "/Users/jonathanjenkins/GITHUB/Temp Aether/github-import-backup-2026-10-10/Aether-Map",
+    "date": "2026-10-10",
+    "note": "Source snapshot imported without replacing the destination .git. Original local history stays in Temp Aether; initial GitHub history remains the destination parent."
+  }
+}

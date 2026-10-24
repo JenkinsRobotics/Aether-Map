@@ -1,0 +1,8 @@
+.map-parameter-keyframes { display:grid; gap:8px; padding-block:8px; }
+.map-parameter-keyframes > svg { width:100%; min-height:80px; overflow:visible; color:var(--aether-color-accent); }
+.map-parameter-keyframes .map-parameter-axis { stroke:var(--aether-color-border); }
+.map-parameter-keyframes .map-parameter-curve { fill:none; stroke:currentColor; stroke-width:2; }
+.map-parameter-keyframes .map-parameter-playhead { stroke:var(--aether-color-text-dim); stroke-dasharray:3 3; }
+.map-parameter-keyframes circle { fill:var(--aether-color-bg-panel); stroke:currentColor; stroke-width:2; cursor:pointer; }
+.map-parameter-keyframes circle[aria-pressed="true"], .map-parameter-keyframes circle:focus { fill:currentColor; }
+.map-parameter-keyframes text { fill:var(--aether-color-text-dim); font-size:10px; }

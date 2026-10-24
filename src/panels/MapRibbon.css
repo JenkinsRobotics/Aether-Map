@@ -1,0 +1,16 @@
+/* Map owns where the tool bar sits; the shared WorkspaceRibbon owns all of its
+   artwork, layout and behaviour. */
+.map-ribbon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 12px;
+  pointer-events: auto;
+}
+
+.map-ribbon[data-docked] { width: 100%; padding: 0; justify-content: flex-start; }
+/* The portal mount is not a toolbar item and must not consume a flex gap. */
+.map-ribbon > [data-aether-overlay-host] { position: absolute; }

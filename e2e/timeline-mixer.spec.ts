@@ -1,0 +1,66 @@
+import { expect, test } from '@playwright/test';
+import { emptyShow } from '../src/document';
+import { normalizeMediaPool } from '../src/media-pool';
+import { signIn, switchWorkspace, openBottomDock } from './helpers';
+
+// Long 1 kHz reference tone: the mid band must change measured output, not just UI.
+function tone() {
+  const rate = 16000, n = rate * 60, b = Buffer.alloc(44 + n * 2);
+  b.write('RIFF'); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16,16);
+  b.writeUInt16LE(1,20); b.writeUInt16LE(1,22); b.writeUInt32LE(rate,24); b.writeUInt32LE(rate*2,28);
+  b.writeUInt16LE(2,32); b.writeUInt16LE(16,34); b.write('data',36); b.writeUInt32LE(n*2,40);
+  for (let i=0;i<n;i++) b.writeInt16LE(Math.round(Math.sin(i / rate * 1000 * Math.PI * 2)*8000),44+i*2);
+  return b;
+}
+test('compact mixer measures playback, applies EQ, mutes and persists track controls', async ({ page, baseURL }, info) => {
+  await signIn(page, baseURL!);
+  const show = { ...normalizeMediaPool(emptyShow()), timelineMode: 'advanced' };
+  const result = await page.request.post('/api/library/create', { headers: { Origin: baseURL! }, data: { app:'map', scope:'personal', name:'Mixer.aethermap', data_base64:Buffer.from(JSON.stringify(show)).toString('base64') } });
+  expect(result.ok()).toBe(true);
+  await page.goto(`/map/index.html?document=${(await result.json()).id}`);
+  await switchWorkspace(page, 'Visualization'); await openBottomDock(page, 'Timeline');
+  const timeline = page.getByRole('region', { name: 'Main timeline', exact: true });
+  await page.locator('input[type=file][accept="image/*,video/*,audio/*"]').setInputFiles({name:'Reference tone.wav',mimeType:'audio/wav',buffer:tone()});
+  const pool = page.getByRole('region',{name:'Media Pool',exact:true});
+  await pool.getByRole('button',{name:'Reference tone.wav',exact:true}).dragTo(timeline.getByLabel('A1 clips'),{targetPosition:{x:1,y:15}});
+  await timeline.getByRole('button', { name:'Go to start', exact:true }).click();
+  await timeline.getByRole('button', { name:'Play', exact:true }).click();
+  const mixer = timeline.getByRole('complementary', { name:'Audio mixer' });
+  const meter = mixer.getByRole('meter', { name:'A1 peak level' });
+  const db = async () => Number(await meter.getAttribute('aria-valuenow'));
+  await expect.poll(db).toBeGreaterThan(-15);
+  const flat = await db();
+  const mid = mixer.getByRole('textbox', {name:'A1 midDb'});
+  await mid.fill('-12'); await mid.press('Enter');
+  await expect.poll(db).toBeLessThan(flat - 10);
+  await expect(mixer.getByRole('button', {name:'Enable EQ A1'})).toHaveAttribute('aria-pressed','true');
+  const eqButton = mixer.getByRole('button', {name:'Enable EQ A1'});
+  const enabledColor = await eqButton.evaluate(el => getComputedStyle(el).backgroundColor);
+  await eqButton.click();
+  await expect.poll(() => eqButton.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe(enabledColor);
+  await expect.poll(db).toBeGreaterThan(flat - 2);
+  await mixer.getByRole('button', {name:'Enable EQ A1'}).click();
+  await mixer.getByRole('button', {name:'Mute A1 in mixer'}).click();
+  await expect.poll(db).toBe(-60);
+  await mixer.getByRole('button', {name:'Unmute A1 in mixer'}).click();
+  await expect.poll(db).toBeGreaterThan(-30);
+  await timeline.getByRole('button', {name:'Pause',exact:true}).click();
+  await expect.poll(db).toBe(-60);
+  await timeline.locator('.map-track-head').getByRole('button',{name:'A1',exact:true}).dblclick();
+  const name = timeline.getByRole('textbox',{name:'Track name'});
+  await name.fill('Music'); await name.press('Enter');
+  await expect(mixer.getByRole('region',{name:'Music equalizer'})).toBeVisible();
+  const row = mixer.locator('.map-mixer-eq .aui-field-row').first();
+  const label = (await row.locator('label').boundingBox())!, field = (await row.getByRole('textbox').boundingBox())!;
+  expect(field.x).toBeGreaterThan(label.x + label.width);
+  expect(Math.abs(field.y + field.height / 2 - label.y - label.height / 2)).toBeLessThan(5);
+  await mixer.getByRole('button',{name:'Close mixer'}).click();
+  await expect(mixer).toHaveCount(0);
+  await timeline.getByRole('button',{name:'Equalizer Music'}).click();
+  await expect(mixer).toBeVisible();
+  await page.screenshot({path:info.outputPath('compact-mixer.png')});
+  await expect(page.locator('.map-save-state')).toHaveText('Saved');
+  await page.reload(); await switchWorkspace(page, 'Visualization'); await openBottomDock(page, 'Timeline');
+  await expect(mixer.getByRole('textbox',{name:'Music midDb'})).toHaveValue('-12');
+  await expect(mixer.getByRole('button',{name:'Enable EQ Music'})).toHaveAttribute('aria-pressed','true');
+});

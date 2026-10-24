@@ -1,0 +1,9 @@
+/* CAD's view-tools sizing: a full-width strip under the right sidebar. */
+.map-studio-view-tools { width: 216px; max-width: 100%; }
+.map-studio-view-tools > .aui-floating-toolbar { width: 100%; }
+.map-studio-view-tools .aui-floating-toolbar-strip { padding: 0; gap: 0; border-radius: 9px; }
+.map-studio-view-tools .aui-floating-toolbar-group { flex: 1; gap: 0; align-items: stretch; }
+
+/* The camera surface floats at the canvas's top right (template placement). */
+.map-camera-chrome { position: absolute; z-index: 5; top: 12px; right: 12px; }
+.map-camera-actions { display: flex; flex-direction: column; gap: 4px; padding: 4px; }

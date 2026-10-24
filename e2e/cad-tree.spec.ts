@@ -1,0 +1,35 @@
+import { expect, test } from "@playwright/test";
+import { command, signIn } from "./helpers";
+
+test("CAD feature tree uses shared controls and preserves reference visibility, folders and filtering", async ({ page, baseURL }, info) => {
+  await signIn(page, baseURL!);
+  expect((await page.request.post("/api/admin/apps", { headers: { Origin: baseURL! }, data: { id: "cad", enabled: true } })).ok()).toBe(true);
+  await page.goto("/cad/index.html?new=part");
+  await page.getByRole("button", { name: "Create Part", exact: true }).click();
+  const tree = page.getByRole("tree", { name: "CAD items", exact: true });
+  await expect(tree).toBeVisible();
+  const plane = tree.getByRole("treeitem").filter({ has: page.getByText("Top Plane", { exact: true }) });
+  await plane.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Hide Top Plane", exact: true }).click();
+  await expect(plane.getByRole("button", { name: "Show Top Plane", exact: true })).toBeVisible();
+  await plane.getByRole("button", { name: "Show Top Plane", exact: true }).click();
+  await expect(plane.getByRole("button", { name: "Show Top Plane", exact: true })).toHaveCount(0);
+  page.once("dialog", (dialog) => dialog.accept("Folder 1"));
+  await page.getByRole("button", { name: "New folder", exact: true }).click();
+  await expect(tree.getByText("Folder 1", { exact: true })).toBeVisible();
+  await tree.getByText("Folder 1", { exact: true }).click();
+  page.once("dialog", (dialog) => dialog.accept("Mapping reference"));
+  await (await command(page, "Feature tree controls", "Rename item")).click();
+  await expect(tree.getByText("Mapping reference", { exact: true })).toBeVisible();
+  await page.getByRole("searchbox", { name: "Filter Items", exact: true }).fill("Mapping");
+  await expect(tree.getByText("Top Plane", { exact: true })).toHaveCount(0);
+  await expect(tree.getByText("Mapping reference", { exact: true })).toBeVisible();
+  await page.getByRole("searchbox", { name: "Filter Items", exact: true }).fill("");
+  await tree.getByRole("button", { name: "Collapse Reference Geometry" }).click();
+  await expect(tree.getByText("Top Plane", { exact: true })).toHaveCount(0);
+  await tree.getByRole("button", { name: "Expand Reference Geometry" }).click();
+  await expect(tree.getByText("Top Plane", { exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath("cad-shared-tree.png") });
+  await (await command(page, "Feature tree controls", "Dissolve folder")).click();
+  await expect(tree.getByText("Mapping reference", { exact: true })).toHaveCount(0);
+});
