@@ -13,7 +13,9 @@ const canvasCommand = (id: string) => {
 /** Workspace view toggles under the right sidebar — CAD's standard placement.
  * Mapping gets the canvas-editing set (grid, snap, backdrop); visualization
  * and show get their own output toggles (input media preview, blackout). */
-export function MapViewTools({ workspace, onPerformance, grid, onGrid, xray, onXray, snap, onSnap, backdrop, onBackdrop, showInput, onInput, blackout, onBlackout }: {
+export function MapViewTools({ workspace, onPerformance, grid, onGrid, xray, onXray, snap, onSnap, backdrop, onBackdrop, showInput, onInput, blackout, onBlackout, surfaceRow = false, onSurfaceRow }: {
+  /** Scene: the Apply-to-surfaces row. */
+  surfaceRow?: boolean; onSurfaceRow?: () => void;
   workspace: "mapping" | "visualization" | "show";
   /** Opens the live performance view (visualization). */
   onPerformance?: () => void;
@@ -33,6 +35,7 @@ export function MapViewTools({ workspace, onPerformance, grid, onGrid, xray, onX
   ];
   const outputTools = [
     { id: "input", label: "Input preview", icon: <AetherIcon name="monitor" />, pressed: showInput },
+    ...(workspace === "visualization" && onSurfaceRow ? [{ id: "surfaces", label: "Surface row", icon: <AetherIcon name="surface" />, pressed: surfaceRow }] : []),
     ...(workspace !== "mapping" ? [{ id: "backdrop", label: "Backdrop image", icon: <AetherIcon name="image" />, pressed: backdrop === true, disabled: backdrop === null }] : []),
     ...(workspace === "visualization" && onPerformance ? [{ id: "performance", label: "Performance", icon: <AetherIcon name="sliders" /> }] : []),
     { id: "blackout", label: "Blackout", icon: <AetherIcon name="hidden" />, pressed: blackout },
@@ -45,6 +48,7 @@ export function MapViewTools({ workspace, onPerformance, grid, onGrid, xray, onX
       else if (id === "snap") onSnap();
       else if (id === "backdrop") onBackdrop();
       else if (id === "input") onInput();
+      else if (id === "surfaces") onSurfaceRow?.();
       else if (id === "performance") onPerformance?.();
       else if (id === "blackout") onBlackout();
     }} />

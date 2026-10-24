@@ -54,9 +54,13 @@ test('a timeline is added from the gallery like any asset and listed with the me
 },15000);
 test('Scene tool row adds visuals beside the surface row; several files import at once; Add to project only pools them',async()=>{
  begin();
- const tools=screen.getByRole('group',{name:'Add visual'});
+ // The Add tools are ordinary tool bar commands, as in Mapping; the surface row is its own panel.
+ const tools=within(screen.getByRole('region',{name:'Map tools'})).getByRole('group',{name:'Add'});
  expect(within(tools).getAllByRole('button').map(b=>b.getAttribute('aria-label'))).toEqual(['Image','Video','Camera','Colour','Text','Drawing','Generator']);
- expect(screen.getByRole('region',{name:'Apply to surfaces'})).toBeTruthy();
+ expect(within(screen.getByRole('region',{name:'Map tools'})).queryByRole('region',{name:'Apply to surfaces'})).toBeNull();
+ const row=within(screen.getAllByRole('toolbar',{name:'View tools'})[0]).getByRole('button',{name:'Surface row'});
+ fireEvent.click(row);expect(screen.queryByRole('region',{name:'Apply to surfaces'})).toBeNull();
+ fireEvent.click(row);expect(screen.getByRole('region',{name:'Apply to surfaces'})).toBeTruthy();
  fireEvent.click(within(tools).getByRole('button',{name:'Camera'}));
  expect(order()).toEqual(['Select Webcam']);
  const picker=document.querySelector<HTMLInputElement>('input[type=file][multiple]')!;

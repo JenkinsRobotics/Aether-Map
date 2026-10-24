@@ -25,6 +25,8 @@ export interface SimpleVisualWorkspaceProps {
   onChange: (visual: Visual, key?: string | null) => void;
   /** Sets this scene's length (the transport's end time). */
   onLength?: (durationS: number) => void;
+  /** Below the transport: Scene's surface row, when shown. */
+  footer?: import('react').ReactNode;
   /** Opens the app's visual gallery (the empty state's call to action). */
   onBrowse: () => void;
   /** Loop on: the play bar repeats the scene's duration (default one minute). */
@@ -33,7 +35,7 @@ export interface SimpleVisualWorkspaceProps {
 
 /** The simple editor's center workspace: input pane, scene render and
  * transport. The list, Properties and gallery are the shared frame's. */
-export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, onPlay, onSeek, onChange, onBrowse, onPlayback, showInput, onLength }: SimpleVisualWorkspaceProps) {
+export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, onPlay, onSeek, onChange, onBrowse, onPlayback, showInput, onLength, footer }: SimpleVisualWorkspaceProps) {
   const looping = show.playback.mode === 'loop', duration = timelineDuration(show);
   const [painting, setPainting] = useState(false);
   const [paintColor, setPaintColor] = useState('#ffffff'), [paintWidth, setPaintWidth] = useState(12);
@@ -66,6 +68,7 @@ export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, 
         {onLength ? <TransportLength durationS={duration} label="Scene duration" format={formatTime} onLength={onLength} /> : <span>{formatTime(duration)}</span>}
         {onPlayback && <IconButton appearance="plain" label="Loop" aria-pressed={looping} onClick={() => onPlayback(looping ? 'continuous' : 'loop')}><AetherIcon name="refresh" /></IconButton>}
       </div>
+      {footer}
       {!!show.output.blackout && <p className="map-simple-notice">Output is blacked out. Turn off Blackout in the Show workspace to see visuals.</p>}
     </main>
   </section>;

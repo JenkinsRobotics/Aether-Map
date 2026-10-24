@@ -28,6 +28,8 @@ export const MAP_RIBBON_TABS = [
   ] },
   { id: "media", label: "Visuals", groups: [
     { label: "Select", tools: ["select"] },
+    // Make a visual from each kind of source; the surface row applies it.
+    { label: "Add", tools: ["visual-image", "visual-video", "visual-camera", "visual-colour", "visual-text", "visual-drawing", "visual-generator"] },
     { label: "Edit", tools: ["edit", "delete"] },
     // Source creation and import belong to the Media Pool.
     { label: "Preview", tools: ["input"] },

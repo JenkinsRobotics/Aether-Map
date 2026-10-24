@@ -4,6 +4,8 @@ import {
   type RibbonToolProps, type WorkspaceRibbonCommand, type WorkspaceRibbonDensity, type WorkspaceRibbonTab,
 } from "@aether/ui";
 import { contextCommandsFor, runContextCommand } from "@aether/ui/context-commands";
+
+export type SceneToolKind = 'image' | 'video' | 'camera' | 'colour' | 'text' | 'drawing' | 'generator';
 import type { MaskTool } from "../mask/tools";
 import type { FeatureKind } from "../features/types";
 import type { CompoundShape } from "../features/shape-groups";
@@ -12,8 +14,8 @@ import "./MapRibbon.css";
 
 export function MapRibbon(p: {
   docked: boolean;
-  /** Stands in for the icon tool row under the command field (Visualization's surface strip). */
-  toolRow?: import('react').ReactNode;
+  /** Scene: make a visual of this kind (image, video, camera, colour, text, drawing, generator). */
+  onSceneTool?: (kind: SceneToolKind) => void;
   /** Show workspace: run the next GO cue. */
   onGo?: () => void;
   workspace: MapWorkspace; onWorkspace: (workspace: MapWorkspace) => void;
@@ -104,6 +106,13 @@ export function MapRibbon(p: {
     devices: { icon: <ToolIcon name="connector" />, label: "Players", onClick: p.onDevices,
       title: "Pair and manage Raspberry Pi output players" },
     input: { icon: <ToolIcon name="panels" />, label: "Input preview", active: p.showInput, onClick: p.onInput },
+    "visual-image": { icon: <ToolIcon name="import" />, label: "Image", onClick: () => p.onSceneTool?.("image"), title: "Import images as visuals" },
+    "visual-video": { icon: <AetherIcon name="file-video" />, label: "Video", onClick: () => p.onSceneTool?.("video"), title: "Import videos as visuals" },
+    "visual-camera": { icon: <ToolIcon name="webcam" />, label: "Camera", onClick: () => p.onSceneTool?.("camera"), title: "A live camera feed" },
+    "visual-colour": { icon: <ToolIcon name="fill" />, label: "Colour", onClick: () => p.onSceneTool?.("colour"), title: "A solid colour or gradient" },
+    "visual-text": { icon: <ToolIcon name="text" />, label: "Text", onClick: () => p.onSceneTool?.("text"), title: "Titles and lettering" },
+    "visual-drawing": { icon: <ToolIcon name="freehand" />, label: "Drawing", onClick: () => p.onSceneTool?.("drawing"), title: "Draw a visual" },
+    "visual-generator": { icon: <ToolIcon name="ai-generate" />, label: "Generator", onClick: () => p.onSceneTool?.("generator"), title: "Choose a generator from the gallery" },
   };
 
   /** One command, as the shared ribbon takes it. */
@@ -170,7 +179,7 @@ export function MapRibbon(p: {
         onCommand={runCommand} onVariantSelect={chooseVariant}
         workspaceLayout="column" appearance="glass" docked={p.docked}
         density={density} onDensityChange={setDensity}
-        moreLabel="Tool bar options" commandShortcuts={commandShortcuts} toolRow={p.toolRow} />
+        moreLabel="Tool bar options" commandShortcuts={commandShortcuts} />
     </OverlayScope>
   );
 }

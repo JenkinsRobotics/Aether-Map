@@ -147,7 +147,7 @@ import { validateTransparentPng } from "./features/transparent-png";
 import type { RecordingSize } from "./export-video";
 import { cameraKey } from "./live/cameras";
 import { useCameraCleanup } from "./live/output-live";
-import { MapRibbon } from "./panels/MapRibbon";
+import { MapRibbon, type SceneToolKind } from "./panels/MapRibbon";
 import { ShowFileTabs, type DocumentEntry } from "./panels/ShowFileTabs";
 import { MapDocumentHeader, MapWorkspaceControls } from "./panels/MapDocumentHeader";
 import { MapCameraControls, MapViewTools } from "./panels/MapViewTools";
@@ -214,6 +214,9 @@ export default function App() {
     try { return localStorage.getItem(INPUT_PREVIEW_KEY) !== "hidden"; }
     catch { return true; }
   });
+  // Scene's surface row (Apply to surfaces) is its own panel, shown or hidden from the view tools.
+  const [showSurfaceRow, setShowSurfaceRow] = useState(() => { try { return localStorage.getItem("aether-map.surface-row") !== "hidden"; } catch { return true; } });
+  const toggleSurfaceRow = () => setShowSurfaceRow(shown => { try { localStorage.setItem("aether-map.surface-row", shown ? "hidden" : "shown"); } catch { /* Storage is optional. */ } return !shown; });
   const toggleInput = () => setShowInput((visible) => {
     const next = !visible;
     try { localStorage.setItem(INPUT_PREVIEW_KEY, next ? "shown" : "hidden"); }
@@ -358,15 +361,15 @@ export default function App() {
     mediaIntent.current = intent;
     if (fileRef.current) { fileRef.current.accept = accept; fileRef.current.click(); }
   };
-  // Scene's tool row: make a visual from each kind of source, then apply it with the surface row.
-  const sceneTools: { id: string; label: string; icon: React.ReactNode; run: () => void }[] = [
-    { id: 'image', label: 'Image', icon: <ToolIcon name="import" />, run: () => openMediaPicker({ kind: 'simple' }, 'image/*') },
-    { id: 'video', label: 'Video', icon: <AetherIcon name="file-video" />, run: () => openMediaPicker({ kind: 'simple' }, 'video/*') },
-    { id: 'camera', label: 'Camera', icon: <ToolIcon name="webcam" />, run: () => addSceneVisual(poolSource('webcam', sceneSize(show)), 'Webcam') },
-    { id: 'colour', label: 'Colour', icon: <ToolIcon name="fill" />, run: () => addSceneVisual(poolSource('colour', sceneSize(show)), 'Colour') },
-    { id: 'text', label: 'Text', icon: <ToolIcon name="text" />, run: () => addSceneVisual(poolSource('text', sceneSize(show)), 'Text') },
-    { id: 'drawing', label: 'Drawing', icon: <ToolIcon name="freehand" />, run: () => addSceneVisual(poolSource('paint', sceneSize(show)), 'Paint') },
-    { id: 'generator', label: 'Generator', icon: <ToolIcon name="ai-generate" />, run: addVisual },
+  // Scene's Add tools (tool bar): make a visual from each kind of source; the surface row applies it.
+  const sceneTools: { id: SceneToolKind; run: () => void }[] = [
+    { id: 'image', run: () => openMediaPicker({ kind: 'simple' }, 'image/*') },
+    { id: 'video', run: () => openMediaPicker({ kind: 'simple' }, 'video/*') },
+    { id: 'camera', run: () => addSceneVisual(poolSource('webcam', sceneSize(show)), 'Webcam') },
+    { id: 'colour', run: () => addSceneVisual(poolSource('colour', sceneSize(show)), 'Colour') },
+    { id: 'text', run: () => addSceneVisual(poolSource('text', sceneSize(show)), 'Text') },
+    { id: 'drawing', run: () => addSceneVisual(poolSource('paint', sceneSize(show)), 'Paint') },
+    { id: 'generator', run: addVisual },
   ];
   const galleryIntent = () => gallery && gallery !== 'add' ? { kind: 'replace-visual' as const, targetID: gallery } : { kind: 'simple' as const };
   const workspaceShell = useRef<WorkspaceShellHandle>(null);
@@ -1334,7 +1337,7 @@ export default function App() {
       workspaceControls={<MapWorkspaceControls workspace={mode} onWorkspace={enterMode} visualEditor={visualEditor} onVisualEditor={changeVisualEditor}/>}
       controllerRef={workspaceShell} toolbarSpan="center" frameToolbar={false} centerBottom={undefined}
       contentPresentation="framed"
-      sideBottom={{ right: <MapViewTools workspace={mode} onPerformance={() => setPerformanceOpen(true)} showInput={showInput} onInput={toggleInput}
+      sideBottom={{ right: <MapViewTools workspace={mode} onPerformance={() => setPerformanceOpen(true)} showInput={showInput} onInput={toggleInput} surfaceRow={showSurfaceRow} onSurfaceRow={toggleSurfaceRow}
         grid={mappingPreferences.grid} onGrid={()=>setMappingPreferences({grid:!mappingPreferences.grid})}
         xray={xray} onXray={()=>setXray(v=>!v)}
         snap={mappingPreferences.snapping} onSnap={()=>setMappingPreferences({snapping:!mappingPreferences.snapping})}
@@ -1558,19 +1561,7 @@ export default function App() {
       // Visualization: the standard command field stays; its icon row is the
       // surface strip — pick a visual, click surfaces to apply it.
       toolbar={
-        <MapRibbon onGo={runNextGo} toolRow={mode === 'visualization' ? <div className="map-scene-tool-row">
-          {/* The standard tool bar icon row (same markup the shared tool bar draws),
-              kept above the surface row: the shared tool row replaces it otherwise. */}
-          <div className="map-scene-tools" role="group" aria-label="Add visual">
-            {sceneTools.map(tool => <span key={tool.id} className="aui-studio-tool-family" data-tool-id={tool.id}>
-              <IconButton label={tool.label} size="large" appearance="rounded" title={tool.label} onClick={tool.run}>{tool.icon}</IconButton>
-              <span className="aui-studio-tool-label" aria-hidden="true">{tool.label}</span>
-            </span>)}
-          </div>
-          <section className="map-apply-surfaces" aria-label="Apply to surfaces">
-          <div className="map-apply-surfaces-title"><strong>Apply to surfaces</strong><span>Click a surface to turn this visual on or off.</span></div>
-          {surfaceStrip}
-        </section></div> : undefined} docked={layout === 'docked'} workspace={mode} onWorkspace={enterMode}
+        <MapRibbon onGo={runNextGo} onSceneTool={kind => sceneTools.find(t => t.id === kind)?.run()} docked={layout === 'docked'} workspace={mode} onWorkspace={enterMode}
         onSave={save} onOutput={()=>setChoosingOutput(true)} playing={transport.playing} onPlay={togglePlay}
         canUndo={document_.canUndo} canRedo={document_.canRedo} onUndo={undo} onRedo={redo}
         tool={tool} onTool={next=>{setTool(next);stageRef.current?.querySelector<HTMLElement>('.map-canvas-host')?.focus({preventScroll:true});}}
@@ -1592,7 +1583,11 @@ export default function App() {
         {/* Visualization's center, both editors: the selected scene's render
             fills the space, input side by side; advanced adds the timeline. */}
         {mode === 'visualization' ? <SimpleVisualWorkspace showInput={showInput} show={show} urls={urls} selectedID={selectedClipID} timeS={timeS} playing={transport.playing}
-          onPlay={togglePlay} onSeek={seek} onBrowse={addVisual} onPlayback={mode => edit(current => ({ ...current, playback: { mode } }))} onChange={(visual, key) => assets.change(visual.id, visual, key)} onLength={v => edit(current => withTimelineDuration(current, v), 'scene-length')} />
+          onPlay={togglePlay} onSeek={seek} onBrowse={addVisual} onPlayback={mode => edit(current => ({ ...current, playback: { mode } }))} onChange={(visual, key) => assets.change(visual.id, visual, key)} onLength={v => edit(current => withTimelineDuration(current, v), 'scene-length')}
+          footer={showSurfaceRow ? <section className="map-apply-surfaces" aria-label="Apply to surfaces">
+            <div className="map-apply-surfaces-title"><strong>Apply to surfaces</strong><span>Click a surface to turn this visual on or off.</span></div>
+            {surfaceStrip}
+          </section> : null} />
         : mode === 'show' ? <ShowWorkspace show={show} urls={urls} timeS={timeS} playing={transport.playing} onPlay={togglePlay} onSeek={t=>{if(t===0){cueRuns.current.clear();goIndex.current=0;}seek(t);}} onGo={runNextGo} selectedCanvasID={show.activeSceneId} onSelectCanvas={selectScene} onLength={v => editShowTimeline(t => ({ ...t, durationS: Math.max(1, v) }))}/>
         : <>
           <div style={{ width: "100%", height: "100%" }}>

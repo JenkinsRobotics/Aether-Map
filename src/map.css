@@ -1603,18 +1603,14 @@
    tools under the command field. The tool bar is the container. */
 /* Sized to the tool tray's own width (it is positioned by its insets), so the
    tiles scroll while All surfaces and + always stay in view. */
-.aui-studio-tool-tray:has(.map-apply-surfaces) { container-type: inline-size; }
-.map-apply-surfaces { flex: 1; min-width: 0; width: min(760px, calc(100cqi - 48px));  /* tool bar padding and border */ box-sizing: border-box; padding: 2px 4px; }
+/* Scene's surface row: its own panel above the tool bar, toggled from the view tools. */
+.map-apply-surfaces { align-self: center; width: min(960px, 100%); box-sizing: border-box; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--aether-color-border); border-radius: 12px; background: var(--aether-color-bg-panel); }
 .map-apply-surfaces-title { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; font-size: 11px; }
 .map-apply-surfaces-title span { color: var(--aether-color-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .map-apply-surfaces .map-surfaces { height: 60px; min-height: 60px; padding: 0; border: 0; background: transparent; }
 .map-apply-surfaces .map-surface-cell { flex: 0 0 92px; width: 92px; height: 56px; }
 
 /* The layers panel's list/cards view switch. */
-/* Scene's tool row: one button per source kind, above the surface row. */
-.map-scene-tool-row { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
-/* The standard tool families in a plain row (the shared group stretches to fill one). */
-.map-scene-tools { display: flex; flex-wrap: wrap; gap: 8px; }
 /* A transport's end time doubles as its length: plain text until clicked. */
 .map-transport-length { flex: none; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: text; }
 .map-transport-length:hover { color: var(--aether-color-text); text-decoration: underline dotted; }
@@ -1624,5 +1620,3 @@
 .map-tree-context-area { display: contents; }
 /* A custom outline's placeholder edge, in canvas pixels; the clip keeps its inner half. */
 .map-surface-edge { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-.map-scene-tools .aui-studio-tool-family { flex-direction: column; align-items: center; gap: 2px; }
-.map-scene-tools .aui-studio-tool-label { display: block; font-size: 10px; color: var(--aether-color-text-dim); }
