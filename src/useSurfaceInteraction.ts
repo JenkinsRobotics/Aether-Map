@@ -40,7 +40,7 @@ export interface FinishedSurfaceDrag {
 interface Options {
   motion?: SurfaceMotionContext;
   hostRef: RefObject<HTMLDivElement | null>; show: MapShow; selectedID: string | null;
-  scale: number; timeS: number; snapping?: boolean; snapDistancePx?: number; nodeEditing?: boolean;
+  scale: number; timeS: number; snapping?: boolean; snapDistancePx?: number; gridPx?: number; nodeEditing?: boolean;
   onActiveHandle?: (handle: ActiveHandle | null) => void;
   onWeldCorners?: (a: CornerRef, b: CornerRef) => void;
   onCurveControl?: (id: string, shape: number, edge: number, control: 'c1' | 'c2', point: Point, independent?: boolean) => void;
@@ -149,7 +149,7 @@ export function useSurfaceInteraction(options: Options) {
           const targets = [...(drag.sceneID ? [{ x: 0, y: 0, ...sceneSize(show) }] : []),
             ...drag.collection.filter(surface => !memberIDs.has(surface.id) && surface.enabled)
               .map(surface => boundsOf(animateSurface(surface, drag.timeS, drag.motion).corners))];
-          const snap = snapBounds(next, targets, (options.snapDistancePx ?? 6) / drag.scale, handle);
+          const snap = snapBounds(next, targets, (options.snapDistancePx ?? 6) / drag.scale, handle, options.gridPx);
           const snapped = resizeBounds(b, handle,
             [delta[0] + snap.delta[0], delta[1] + snap.delta[1]], event.shiftKey);
           next = snapped;
@@ -167,7 +167,7 @@ export function useSurfaceInteraction(options: Options) {
         const targets = [...(drag.sceneID ? [{ x: 0, y: 0, ...sceneSize(show) }] : []),
           ...drag.collection.filter(s => !memberIDs.has(s.id) && s.enabled)
             .map(s => boundsOf(animateSurface(s, drag.timeS, drag.motion).corners))];
-        const snap = snapBounds({ ...b, x: next[0], y: next[1] }, targets, (options.snapDistancePx ?? 6) / drag.scale);
+        const snap = snapBounds({ ...b, x: next[0], y: next[1] }, targets, (options.snapDistancePx ?? 6) / drag.scale, undefined, options.gridPx);
         next = [next[0] + snap.delta[0], next[1] + snap.delta[1]];
         nextGuides = snap.guides;
       }
@@ -192,7 +192,7 @@ export function useSurfaceInteraction(options: Options) {
       if (options.snapping !== false && !event.altKey) {
         const targets = [...(drag.sceneID ? [{ x: 0, y: 0, ...sceneSize(show) }] : []),
           ...drag.collection.filter(s => s.id !== drag.surface.id && s.enabled).map(s => boundsOf(animateSurface(s, drag.timeS, drag.motion).corners))];
-        const snap = snapBounds(next, targets, (options.snapDistancePx ?? 6) / drag.scale, handle);
+        const snap = snapBounds(next, targets, (options.snapDistancePx ?? 6) / drag.scale, handle, options.gridPx);
         if (handle) {
           const snapped = resizeBounds(b, handle, [delta[0] + snap.delta[0], delta[1] + snap.delta[1]], aspect);
           // Aspect locking may move the other edge; show only guides actually reached.
@@ -228,7 +228,7 @@ export function useSurfaceInteraction(options: Options) {
         const size = sceneSize(show);
         targets.push([0, 0], [size.width, 0], [size.width, size.height], [0, size.height]);
       }
-      const hit = snapVertex([start[0] + delta[0], start[1] + delta[1]], targets, (options.snapDistancePx ?? 6) / drag.scale);
+      const hit = snapVertex([start[0] + delta[0], start[1] + delta[1]], targets, (options.snapDistancePx ?? 6) / drag.scale, options.gridPx);
       if (hit) nodeDelta = [hit[0] - start[0], hit[1] - start[1]];
       if (hit && kind === 'corner') {
         for (const s of drag.collection.filter(s => s.id !== drag.surface.id && s.enabled && !s.locked)) {

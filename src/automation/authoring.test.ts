@@ -20,7 +20,7 @@ describe('saved scene and surface creation', () => {
     expect(next.outputs).toEqual(show.outputs);
     expect(normalizeDocument(next)).toBe(next);
   });
-  it('uses the target artboard and editor surface constructor, with reusable timeline normalization', () => {
+  it('uses the target artboard and editor surface constructor, with no per-surface timeline', () => {
     const show = normalizeDocument(emptyShow());
     const added = createInShow('map.scene.create', show, { name: 'Portrait', width_px: 720, height_px: 1280 });
     const scene = added.show.scenes[1];
@@ -29,7 +29,8 @@ describe('saved scene and surface creation', () => {
     const surface = next.scenes[1].surfaces[0];
     const expected = newFeature('surface', { width: 720, height: 1280 }, 0);
     expect(surface).toMatchObject({ name: 'Wall', kind: expected.kind, corners: expected.corners, source: expected.source });
-    expect(next.timelines?.some(t => t.surfaceID === surface.id)).toBe(true);
+    // New surfaces join Main; no per-surface timeline is created.
+    expect(next.timelines?.some(t => t.surfaceID === surface.id) ?? false).toBe(false);
     expect(changed.result).toMatchObject({ created: { scene_id: scene.id, surface_id: surface.id } });
     expect(next.outputs).toEqual(show.outputs);
     expect(next.activeSceneId).toBe(show.activeSceneId);

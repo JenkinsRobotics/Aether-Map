@@ -10,6 +10,8 @@ import { effectValueAt } from '../features/effect-motion';
 import { placeAsset, type PlacementArguments } from './placement';
 import { editGeometry, type GeometryArguments } from './geometry';
 import { createInShow, type CreationArguments } from './authoring';
+import { addShowClip, addShowCue, describeShowTimeline } from './show-commands';
+import { activeShow } from '../show-timeline';
 import { sceneLayers, type MapShow, type MediaRef, type Surface } from '../document';
 import { parseShow, serializeShow } from '../show-file';
 import { clipEditable, editTimelineClip, moveTimelineClip, type ClipAction } from '../timeline-edit';
@@ -50,6 +52,7 @@ function describe(show: MapShow) {
       suppressed: !!s.suppressed, artboard: s.artboard,
       surfaces: s.surfaces.map(p => ({ id: p.id, name: p.name, enabled: p.enabled, locked: !!p.locked, corners: p.corners, folder: p.folder, group_shape: p.groupShape, ...surfaceAutomationSummary(p) })) })),
     timelines: show.timelines ?? [], tracks: show.tracks ?? [],
+    show: describeShowTimeline(show),
     assets: (show.pool ?? []).map(a => ({ id: a.id, name: a.name, ...sourceSummary(a.source,show.media.find(m=>m.id===a.source.mediaId)) })),
     clips: (show.visuals ?? []).map(v => ({ id: v.id, name: v.name, track_id: v.trackID,
       asset_id: v.assetID, timeline_id: v.timelineRefID, targets: v.targets,
@@ -95,6 +98,13 @@ export function runDocumentCommand(command: string, show: MapShow, args: Argumen
     return { document:next, result:{surface_id:surface.id,...surfaceAutomationSummary(edited)} };
   }
   if (command === 'map.show.inspect') return { result: describe(show) };
+  if (command === 'map.show.clip.add' || command === 'map.show.cue.add') {
+    const next = normalize(command === 'map.show.clip.add' ? addShowClip(show, args) : addShowCue(show, args));
+    parseShow(serializeShow(next));
+    const timeline = activeShow(next)!;
+    const created = command === 'map.show.clip.add' ? { clip_id: timeline.tracks.flatMap(t => t.clips).at(-1)!.id } : { cue_id: timeline.cues.at(-1)!.id };
+    return { document: next, result: { created, show: describeShowTimeline(next) } };
+  }
   if (command === 'map.show.evaluate') {
     finiteTime(args.time_s);
     if (!show.scenes.some(s => s.id === args.scene_id)) throw new Error('Scene not found.');

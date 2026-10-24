@@ -8,7 +8,7 @@ export type MapWorkspace = "mapping" | "visualization" | "show";
 
 export const MAP_WORKSPACES = [
   { id: "mapping", label: "Mapping" },
-  { id: "visualization", label: "Visualization" },
+  { id: "visualization", label: "Scene" },
   { id: "show", label: "Show" },
 ] as const;
 
@@ -23,16 +23,22 @@ export const MAP_RIBBON_TABS = [
     // show rather than on whatever you have pointed at. They live in the
     // header's document menu with Rename, Save a copy and the rest.
     { label: "Edit", tools: ["edit", "delete"] },
+    // Outputs and their routing are projection setup: Mapping's.
+    { label: "Outputs", tools: ["new-output"] },
   ] },
   { id: "media", label: "Visuals", groups: [
     { label: "Select", tools: ["select"] },
+    // Make a visual from each kind of source; the surface row applies it.
+    { label: "Add", tools: ["visual-image", "visual-video", "visual-camera", "visual-colour", "visual-text", "visual-drawing", "visual-generator"] },
     { label: "Edit", tools: ["edit", "delete"] },
     // Source creation and import belong to the Media Pool.
     { label: "Preview", tools: ["input"] },
   ] },
   { id: "output", label: "Output", groups: [
-    { label: "Display", tools: ["output", "new-output", "devices", "blackout"] },
-    { label: "Playback", tools: ["play"] },
+    // Show control: run the next manual cue; players; the program.
+    { label: "Cues", tools: ["go"] },
+    { label: "Players", tools: ["devices"] },
+    { label: "Display", tools: ["output", "blackout"] },
   ] },
 ] as const;
 

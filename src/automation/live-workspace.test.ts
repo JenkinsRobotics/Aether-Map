@@ -26,14 +26,14 @@ function fixture() {
   const call = (name: string, args: Record<string, unknown> = {}, signal = new AbortController().signal) =>
     editor.execute('editor:Main', { id: 'call', name: 'aether_map_' + name, arguments: args }, signal);
   const scene = state.show.scenes[0], surface = scene.surfaces[0];
-  const track = state.show.tracks!.find(t => t.timelineID && t.kind === 'video')!;
+  const track = state.show.tracks!.find(t => !t.timelineID && t.kind === 'video')!;
   return { state, editor, call, scene, surface, track, commits: () => commits, history: () => history };
 }
 
 describe('live Map agent operations', () => {
   it('lists only implemented tools, removing saved-file authority arguments', () => {
-    expect(mapAgentTools).toHaveLength(20);
-    expect(new Set(mapAgentTools.map(t => t.name)).size).toBe(20);
+    expect(mapAgentTools).toHaveLength(22);
+    expect(new Set(mapAgentTools.map(t => t.name)).size).toBe(22);
     for (const tool of mapAgentTools) {
       expect(tool.description).toBeTruthy();
       for (const key of ['app', 'id', 'expected_revision']) expect(tool.inputSchema.properties).not.toHaveProperty(key);
@@ -49,12 +49,13 @@ describe('live Map agent operations', () => {
     expect(await f.call('show_inspect', { section: 'surfaces', scene_id: f.scene.id })).toMatchObject({ items: [{ id: f.surface.id }], selection: { surface_ids: [f.surface.id] } });
     expect(f.commits()).toBe(before);
   });
-  it('creates a surface and its canonical timeline as one undo step without changing output/focus', async () => {
+  it('creates a surface (on Main, no own timeline) as one undo step without changing output/focus', async () => {
     const f = fixture(), before = f.state.show;
     const result = await f.call('surface_create', { scene_id: f.scene.id, name: 'Front wall' }) as { created: { surface_id: string } };
     const next = f.state.show;
     expect(next.scenes[0].surfaces.at(-1)?.id).toBe(result.created.surface_id);
-    expect(next.timelines?.some(t => t.surfaceID === result.created.surface_id)).toBe(true);
+    // New surfaces join Main; no per-surface timeline is created.
+    expect(next.timelines?.some(t => t.surfaceID === result.created.surface_id) ?? false).toBe(false);
     expect(next.outputs).toEqual(before.outputs);
     expect(next.activeSceneId).toBe(before.activeSceneId);
     expect(f.history().past).toHaveLength(1);

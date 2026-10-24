@@ -13,8 +13,9 @@ function fixture() {
   let s=emptyShow();const face=newSurface(s.output,0); face.corners=[[100,80],[500,100],[450,420],[120,400]];
   s.scenes[0].surfaces=[face];s=normalizeSurfaceTimelines(normalizeMediaPool(s));
   s=addPoolAsset(s,{mediaId:null,rect:[0,0,1920,1080],fill:'#ff0000'},'Red');
-  const child=s.timelines![0];s={...s,activeTimelineID:child.id};
   s=placePoolAsset(s,s.pool![0].id,timelineTracks(s).find(t=>t.kind==='video')!.id,0);
+  // Main holds the use; it targets the face directly (no per-surface timeline).
+  s={...s,visuals:s.visuals!.map((v,i,all)=>i===all.length-1?{...v,targets:[{sceneID:s.activeSceneId,surfaceID:face.id}]}:v)};
   return {s,face,clip:s.visuals!.at(-1)!};
 }
 it('round-trips per-use placement without modifying geometry, pool source, timing or another use',()=>{

@@ -75,3 +75,12 @@ it('keeps a legacy Pi-only host free of an unavailable TV download', async () =>
   expect(screen.queryByRole('button', { name: 'Download TV receiver' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Download projector installer' })).toBeTruthy();
 });
+
+it('a server with its own HTTPS authority pins it before installing', async () => {
+  const { bootstrapCommand } = await import('./DeviceManager');
+  expect(bootstrapCommand('http://localhost:8780/api/map/install.sh', null)).toBe('curl -sSL http://localhost:8780/api/map/install.sh | bash');
+  const pinned = bootstrapCommand('https://aetherstudio.local:8443/api/map/install.sh', 'ab'.repeat(32));
+  expect(pinned).toContain('curl -sk https://aetherstudio.local:8443/api/network/ca.pem -o aether-ca.pem');
+  expect(pinned).toContain(`echo "${'ab'.repeat(32)}  aether-ca.pem" | sha256sum -c`);
+  expect(pinned).toContain('curl --cacert aether-ca.pem -sSL https://aetherstudio.local:8443/api/map/install.sh | bash');
+});

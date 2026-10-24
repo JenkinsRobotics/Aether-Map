@@ -19,3 +19,8 @@ dist-library/
 build/
 *.egg-info/
  REFERENCE CAD/
+
+# Checksum-locked shared packages come from release assets (tools/fetch-vendor.py)
+vendor/*.tgz
+.claude/worktrees/
+.claude/settings.local.json

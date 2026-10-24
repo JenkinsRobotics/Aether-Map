@@ -189,6 +189,13 @@ properties. Each opening window starts Main from zero; booting inside an open
 window also starts from zero. Play once holds the last frame until the window
 closes; closed hours do not consume playback.
 
+The show's own logic runs on the Pi too: timeline cues fire as the show clock
+passes them. That covers jumps and their repeat counts (loops), pause, stop and
+blackout, so a show that loops a section three times and then goes dark does
+exactly that with no laptop attached. GO cues need an operator and never fire on
+a player. Cue conditions read MIDI controls, which a player does not have, so a
+conditional cue stays off there.
+
 Current timelines use show versions up to 12 (surface modulation and radius/bend keys, full visual presets, color/choice and numeric source motion, plus opacity/placement motion). Re-run the installer on existing
 players to update their version gate; the downloaded renderer handles migration.
 

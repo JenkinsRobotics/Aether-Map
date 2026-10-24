@@ -1,23 +1,21 @@
+import { createPortal } from "react-dom";
 import { MidiControlsButton } from '../live/MidiControls';
 import { BodyTrackingStatus } from '../body/BodyTrackingControls';
 import { useStudioApplications } from "@aether/session/applications";
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import {
-  AetherIcon, StudioDocumentBar as DocumentBar, WorkspaceSwitcher, Button, Dialog,
-  MenuButton, SelectField, SettingsCard, SettingsRow, SettingsWindow,
+  AetherIcon, ApplicationSettings, ModelStudioHeader, WorkspaceQuickControls, WorkspaceSwitcher,
+  Button, Dialog, MenuButton, SelectField, SettingsCard, SettingsRow, SettingsWindow,
   StudioModeButton, TextField, WorkspaceWindowMenu, type LayoutPreset,
 } from "@aether/ui";
-import "./MapDocumentHeader.css";
 import { MAP_WORKSPACES, type MapWorkspace } from "./map-ribbon-layout";
 import type { SurfaceLook } from "../document";
 import { SurfaceLookSettings } from "./SurfaceLookSettings";
 
 interface MapDocumentHeaderProps {
-  fileMenuTarget?: HTMLElement | null;
   visualEditor?: 'simple' | 'advanced';
   onVisualEditor?: (mode: 'simple' | 'advanced') => void;
-  file: { id: string; name: string } | null;
+  file: { id: string; name: string; branch?: string; branch_label?: string } | null;
   workspace: MapWorkspace;
   onWorkspace: (workspace: MapWorkspace) => void;
   preset: LayoutPreset;
@@ -41,10 +39,14 @@ interface MapDocumentHeaderProps {
   onSaveCopy: () => void;
   surfaceLook: SurfaceLook;
   onSurfaceLook: (look: SurfaceLook) => void;
+  /** Panels without an aux-rail button (notes, reminders) open from the palette. */
+  onShowPanel?: (id: string) => void;
+  /** The file footer's actions slot hosts the Document controls menu. */
+  fileMenuTarget?: HTMLElement | null;
 }
 
 /** Map's global navigation, document commands and account in the shared sidebar. */
-export function MapDocumentHeader({ fileMenuTarget, file, preset, panelsOnOuterEdge, sidebarVariant, onSidebarVariantChange, onPanelEdgeChange, onPresetChange, onSave, onImport, onExport, onExportOptions, onWireframe, canExport, onUndo, onRedo, canUndo, canRedo, onStatus, onRename, onSaveCopy, surfaceLook, onSurfaceLook }: MapDocumentHeaderProps) {
+export function MapDocumentHeader({ fileMenuTarget, file, onWorkspace, preset, panelsOnOuterEdge, sidebarVariant, onSidebarVariantChange, onPanelEdgeChange, onPresetChange, onSave, onImport, onExport, onExportOptions, onWireframe, canExport, onUndo, onRedo, canUndo, canRedo, onStatus, onRename, onSaveCopy, surfaceLook, onSurfaceLook, onShowPanel }: MapDocumentHeaderProps) {
   const applications = useStudioApplications();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pane, setPane] = useState("workspace");
@@ -62,7 +64,7 @@ export function MapDocumentHeader({ fileMenuTarget, file, preset, panelsOnOuterE
     }
   };
 
-  const fileMenu = <MenuButton label="Document controls" items={[
+  const documentItems = [
           { id: "undo", label: "Undo", icon: <AetherIcon name="undo" />, shortcut: "⌘Z", disabled: !canUndo },
           { id: "redo", label: "Redo", icon: <AetherIcon name="redo" />, shortcut: "⇧⌘Z", disabled: !canRedo },
           { id: "save", label: "Save show", icon: <AetherIcon name="save" />, shortcut: "⌘S", separatorBefore: true },
@@ -77,25 +79,42 @@ export function MapDocumentHeader({ fileMenuTarget, file, preset, panelsOnOuterE
           { id: "settings", label: "Settings", icon: <AetherIcon name="settings" />, separatorBefore: true },
           { id: "mapping-grid", label: "Mapping grid settings", icon: <AetherIcon name="surface-map" /> },
           { id: "studio", label: "Aether Studio", icon: <AetherIcon name="aether" />, separatorBefore: true },
-        ]} onSelect={(id) => {
-          if (id === "undo") onUndo();
-          else if (id === "redo") onRedo();
-          else if (id === "save") onSave();
-          else if (id === "rename") onRename();
-          else if (id === "copy") onSaveCopy();
-          else if (id === "import") onImport();
-          else if (id === "export") onExport();
-          else if (id === "export-options") onExportOptions?.();
-          else if (id === "wireframe") onWireframe();
-          else if (id === "link") void copyLink();
-          else if (id === "settings") setSettingsOpen(true);
-          else if (id === "mapping-grid") { setPane("surfaces"); setSettingsOpen(true); }
-          else location.assign(id === "library" ? "/map/" : "/");
-        }}><AetherIcon name="menu" /></MenuButton>;
+        ];
+  const act = (id: string) => {
+    if (id === "undo") onUndo();
+    else if (id === "redo") onRedo();
+    else if (id === "save") onSave();
+    else if (id === "rename") onRename();
+    else if (id === "copy") onSaveCopy();
+    else if (id === "import") onImport();
+    else if (id === "export") onExport();
+    else if (id === "export-options") onExportOptions?.();
+    else if (id === "wireframe") onWireframe();
+    else if (id === "link") void copyLink();
+    else if (id === "settings" || id === "file:properties" || id === "about") setSettingsOpen(true);
+    else if (id === "mapping-grid") { setPane("surfaces"); setSettingsOpen(true); }
+    else if (id === "library") location.assign("/map/");
+    else if (id === "studio") location.assign("/");
+    else if (id.startsWith("workspace:")) onWorkspace(id.slice("workspace:".length) as MapWorkspace);
+    else if (id.startsWith("panel:")) onShowPanel?.(id.slice("panel:".length));
+  };
+  const fileMenu = <MenuButton label="Document controls" items={documentItems} onSelect={act}><AetherIcon name="menu" /></MenuButton>;
   return <>
-    <DocumentBar documentName={file?.name ?? "Untitled show"} application={{id:"map",name:"Aether Map",apps:applications,onSettings:()=>setSettingsOpen(true)}}
-      viewControls={<><StudioModeButton preset={preset} onChange={onPresetChange}/><WorkspaceWindowMenu/></>} />
+    <ModelStudioHeader app="map" title="Aether Map" name={file?.name ?? "Untitled show"}
+      workspaceName={file?.branch_label ?? file?.branch ?? "Main"} onAction={act}
+      commands={[
+        ...MAP_WORKSPACES.map(value => ({ id: `workspace:${value.id}`, label: `Switch to ${value.label}`, category: "Workspace" })),
+        ...(onShowPanel ? [
+          { id: "panel:notes", label: "Open document notes", category: "Workspace" },
+          { id: "panel:reminders", label: "Open reminders", category: "Workspace" },
+        ] : []),
+        ...documentItems.map(({ id, label, shortcut, disabled, disabledReason }) => ({ id, label, shortcut, disabled, disabledReason, category: "Document" })),
+      ]}
+      utilities={<><WorkspaceQuickControls appID="map" appName="Aether Map" apps={applications}
+        defaultPinnedIDs={["theme","comments","apps","share"]} onSettings={() => setSettingsOpen(true)}
+        viewControls={<><StudioModeButton preset={preset} onChange={onPresetChange}/><WorkspaceWindowMenu/></>} /></>} />
     {fileMenuTarget && createPortal(fileMenu, fileMenuTarget)}
+    <ApplicationSettings appID="map" name="Aether Map" onSettings={() => setSettingsOpen(true)} />
     <SettingsWindow open={settingsOpen} title="Aether Map settings"
       sections={[{ title: "General", panes: [
         { id: "workspace", label: "Workspace", icon: <AetherIcon name="windows" /> },
@@ -131,10 +150,15 @@ export function MapDocumentHeader({ fileMenuTarget, file, preset, panelsOnOuterE
 }
 
 /** Workspace choices stay over the canvas, separate from document identity. */
-export function MapWorkspaceControls({ workspace, onWorkspace, visualEditor, onVisualEditor }: Pick<MapDocumentHeaderProps, 'workspace' | 'onWorkspace' | 'visualEditor' | 'onVisualEditor'>) {
+export function MapWorkspaceControls({ workspace, onWorkspace, visualEditor, onVisualEditor, renderView }: Pick<MapDocumentHeaderProps, 'workspace' | 'onWorkspace' | 'visualEditor' | 'onVisualEditor'> & {
+  /** Scene: render the whole scene, or one surface straight-on. */
+  renderView?: { value: string; options: { value: string; label: string }[]; onChange: (value: string) => void };
+}) {
   return <><WorkspaceSwitcher workspaces={MAP_WORKSPACES} workspaceID={workspace} onSelect={id=>onWorkspace(id as MapWorkspace)}/>
     {workspace === 'visualization' && visualEditor === 'advanced' && onVisualEditor && <Button aria-label="Switch to simple editor" onClick={() => onVisualEditor('simple')}>Simple</Button>}
-    {workspace === 'mapping' && onVisualEditor && <Button onClick={() => onWorkspace('visualization')}>Edit visuals</Button>}
+    {workspace === 'visualization' && visualEditor === 'simple' && onVisualEditor && <Button aria-label="Advanced editor" onClick={() => onVisualEditor('advanced')}>Advanced</Button>}
+    {workspace === 'visualization' && renderView && <SelectField aria-label="Render view" value={renderView.value} options={renderView.options} onChange={e => renderView.onChange(e.target.value)} />}
+    {/* Rooms switch from the workspace dropdown; no duplicate jump buttons. */}
     <BodyTrackingStatus/><MidiControlsButton/>
   </>;
 }

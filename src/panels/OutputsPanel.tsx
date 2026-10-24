@@ -8,6 +8,7 @@ import { useMapDevices } from "../use-map-devices";
 import { startRecording, stopRecording, useRecording } from "../export-video";
 import { outputConnection, outputDeviceName } from "../output-connection";
 import { describeSchedule } from "../output-schedule";
+import { TreeContextArea } from "./TreeContextArea";
 
 export interface OutputsPanelProps {
   show: MapShow;
@@ -44,7 +45,6 @@ export function OutputsPanel({ show, selectedID, displays, documentID, onSelect,
   const [renamingID, setRenamingID] = useState<string | null>(null);
   const { list, online } = useMapDevices();
   const recording = useRecording();
-  const selected = show.outputs.find((output) => output.id === selectedID);
   const sceneOf = (output: ShowOutput) => show.scenes.find((scene) => scene.id === output.sceneId);
   const deviceOf = (output: ShowOutput) => list.find((entry) => entry.id === output.deviceId);
   const connection = (output: ShowOutput) =>
@@ -113,34 +113,27 @@ export function OutputsPanel({ show, selectedID, displays, documentID, onSelect,
     else if (action === "delete") onDelete(id);
     else if (action.startsWith("scene:")) onPatch(id, { sceneId: action.slice("scene:".length) || undefined });
   };
-  const controls: TreeControl[] = [
-    { id: "new", label: "New output", icon: <AetherIcon name="new" />, onClick: onAdd },
-    // Devices sits in the tray beside New output: managing players is a tool of
-    // this collection, not a panel of its own competing with it.
-    { id: "devices", label: "Devices", icon: <AetherIcon name="hardware" />, onClick: onDevices },
+  // Header: a name and "+". The list's own commands are right-click, on a
+  // row (after its commands) or on empty space.
+  const listItems: MenuItem[] = [
+    { id: "list-new", label: "New output", icon: <AetherIcon name="plus" />, separatorBefore: true },
+    // Managing players is a tool of this collection, not a panel of its own.
+    { id: "list-devices", label: "Devices", icon: <AetherIcon name="hardware" /> },
     // Recording belongs with the outputs: it captures one of these windows.
-    { id: "record", label: recording.recording ? "Stop recording" : "Record the output to a file",
-      icon: <AetherIcon name={recording.recording ? "status-error" : "play"} />, separatorBefore: true,
-      onClick: () => (recording.recording ? stopRecording() : void startRecording(showName)) },
-    { id: "properties", label: "Properties", icon: <AetherIcon name="settings" />, disabled: !selected,
-      onClick: () => selected && onSelect(selected.id) },
-    { id: "open", label: selected && displays[selected.id] ? "Show output window" : "Open output window",
-      icon: <AetherIcon name="window" />, disabled: !selected,
-      onClick: () => selected && onOpen(selected.id) },
-    { id: "close", label: "Close output window", icon: <AetherIcon name="close" />, disabled: !selected || !displays[selected.id],
-      onClick: () => selected && onClose(selected.id) },
-    { id: "rename", label: "Rename output", icon: <AetherIcon name="notes" />, disabled: !selected, shortcut: "F2",
-      onClick: () => setRenamingID(selectedID) },
-    { id: "delete", label: "Delete output", icon: <AetherIcon name="delete" />,
-      disabled: !selected, shortcut: "Delete",
-      onClick: () => selectedID && onDelete(selectedID) },
+    { id: "list-record", label: recording.recording ? "Stop recording" : "Record the output to a file", icon: <AetherIcon name={recording.recording ? "status-error" : "play"} /> },
   ];
-  return <TreePanel ariaLabel="Outputs" rootInset={0} nodes={nodes}
+  const listCommand = (action: string) => {
+    if (action === "list-new") onAdd();
+    else if (action === "list-devices") onDevices();
+    else if (action === "list-record") { if (recording.recording) stopRecording(); else void startRecording(showName); }
+  };
+  const plus: TreeControl[] = [{ id: "new", label: "New output", icon: <AetherIcon name="plus" />, onClick: onAdd }];
+  return <TreeContextArea label="Output options" items={listItems} onSelect={listCommand} shortcut={key => { if (selectedID) command(selectedID, key === "Delete" ? "delete" : "rename"); }}><TreePanel ariaLabel="Outputs" rootInset={0} nodes={nodes}
     selectedIDs={new Set(selectedID ? [selectedID] : [])}
     onSelect={(ids) => { const id = ids.at(-1); if (id) onSelect(id); }}
     onActivate={onOpen}
-    controls={controls} controlsLabel="Output controls" menuLabel="Output options" menuItems={menuItems}
-    onCommand={command} onAction={command}
+    controls={[]} headerControls={plus} controlsLabel="Output controls" menuLabel="Output options" menuItems={id => [...menuItems(id), ...listItems]}
+    onCommand={(id, action) => action.startsWith("list-") ? listCommand(action) : command(id, action)} onAction={command}
     renamingID={renamingID} onCancelRename={() => setRenamingID(null)}
-    onRename={(id, name) => { onPatch(id, { name }); setRenamingID(null); }} />;
+    onRename={(id, name) => { onPatch(id, { name }); setRenamingID(null); }} /></TreeContextArea>;
 }

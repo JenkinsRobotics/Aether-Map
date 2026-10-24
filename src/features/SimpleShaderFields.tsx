@@ -10,20 +10,23 @@ import { newShader, parameterLabel } from './shader-catalog';
 import { parameterSliderRange, parameterStep } from './shader-parameter-controls';
 
 /** Friendly controls over the exact same source used by the full shader editor. */
-export function SimpleShaderFields({ shader, onChange, showPresets=true }: { showPresets?:boolean; shader: ShaderSource; onChange: (shader: ShaderSource) => void }) {
+export function SimpleShaderFields({ shader, onChange, showPresets=true, part, keyframes=true }: { showPresets?:boolean; shader: ShaderSource; onChange: (shader: ShaderSource) => void;
+  /** Appearance shows the palette ('colors'); Properties the rest ('controls'). Omitted: both. */ part?: 'colors' | 'controls';
+  /** Parameter keyframes are change over time: the advanced editor's. */ keyframes?: boolean }) {
   const [details, setDetails] = useState(false);
   const parameters = { ...newShader(shader.preset).parameters, ...shader.parameters };
   const time = { ...DEFAULT_SHADER_TIME, ...shader.time };
   return <div className="map-simple-shader-fields">
     {showPresets&&<ShaderPresetFields shader={shader} onChange={onChange} />}
-    {shader.colors.map((color, i) => <FieldRow key={i} label={`Color ${i + 1}`}><ColorField ariaLabel={`Visual color ${i + 1}`} value={color}
+    {part !== 'controls' && shader.colors.map((color, i) => <FieldRow key={i} label={`Color ${i + 1}`}><ColorField ariaLabel={`Visual color ${i + 1}`} value={color}
       onChange={value => onChange({ ...shader, colors: shader.colors.map((c, n) => n === i ? value : c) })} /></FieldRow>)}
+    {part !== 'colors' && <>
     {[...new Set(['speed', 'scale', 'density', 'glow', ...Object.keys(STAGE_CONTROLS[shader.preset]??{})])].filter(key => typeof parameters[key] === 'number').map(key => <ParameterRow key={key}
       label={parameterLabel(key)} ariaLabel={`Visual ${parameterLabel(key).toLowerCase()}`} value={parameters[key] as number} min={0} step={parameterStep(key,shader.preset)}
       sliderRange={parameterSliderRange(key,shader.preset)} onChange={value => onChange({ ...shader, parameters: { ...shader.parameters, [key]: value } })} />)}
     <FieldRow label="Direction"><SelectField aria-label="Visual direction" value={time.direction} options={[{ value: 'forward', label: 'Forward' }, { value: 'reverse', label: 'Reverse' }, { value: 'pingpong', label: 'Back and forth' }]}
       onChange={e => onChange({ ...shader, time: { ...time, direction: e.target.value as typeof time.direction } })} /></FieldRow>
-    <ShaderAnimationFields shader={shader} onChange={onChange} />
+    {keyframes && <ShaderAnimationFields shader={shader} onChange={onChange} />}
     <Button aria-expanded={details} onClick={() => setDetails(v => !v)}>Audio, tempo & modulation</Button>
     {details && <>
       <AudioResponseFields shader={shader} onChange={onChange} />
@@ -34,5 +37,6 @@ export function SimpleShaderFields({ shader, onChange, showPresets=true }: { sho
         onChange={value => { const modulation = { ...shader.modulation }; if (value) modulation[key] = value; else delete modulation[key]; onChange({ ...shader, modulation }); }} />)}
     </>}
     {!details && !!Object.keys(shader.modulation ?? {}).length && <p className="map-hint">Live modulation is assigned. Open Audio, tempo & modulation to adjust or clear it.</p>}
+    </>}
   </div>;
 }

@@ -15,6 +15,28 @@ import { deploymentReadiness } from '../deployment-readiness';
  * show to one. This is about the hardware, not about any one output — an output
  * only names the device it plays on. Opened from the Outputs tray.
  */
+/** On a server with its own HTTPS authority, fetch the authority first and
+ * pin its SHA-256 before trusting anything it serves. */
+export function bootstrapCommand(installer: string, authority: string | null): string {
+  if (!authority) return `curl -sSL ${installer} | bash`;
+  const origin = new URL(installer).origin;
+  return `curl -sk ${origin}/api/network/ca.pem -o aether-ca.pem && echo "${authority}  aether-ca.pem" | sha256sum -c && curl --cacert aether-ca.pem -sSL ${installer} | bash`;
+}
+function useAuthorityFingerprint(): string | null {
+  const [value, setValue] = useState<string | null>(null);
+  useEffect(() => {
+    if (location.protocol !== 'https:' || !crypto.subtle) return;
+    let live = true;
+    void fetch('/api/network/ca.pem').then(r => r.ok ? r.arrayBuffer() : null).then(async bytes => {
+      if (!bytes || !live) return;
+      const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+      setValue([...digest].map(b => b.toString(16).padStart(2, '0')).join(''));
+    }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  return value;
+}
+
 export function DeviceManager({ documentID, installerURL, dirty, show }: {
   show?: MapShow;
   documentID: string | null;
@@ -22,6 +44,7 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
   dirty: boolean;
 }) {
   const { list, nowS, error, setError, refresh, online } = useMapDevices();
+  const authority = useAuthorityFingerprint();
   const castController = useRef<AbortController | null>(null);
   const [diagnostics, setDiagnostics] = useState<CastDiagnostics | null>(null);
   const [cast, setCast] = useState<{ id: string; status: CastStatus } | null>(null);
@@ -162,7 +185,8 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
         <details className="map-dialog-lead">
           <summary>The device is already on your network</summary>
           <p className="map-dialog-lead">Open a terminal on it and run:</p>
-          <pre className="map-command">{`curl -sSL ${installerURL} | bash`}</pre>
+          <pre className="map-command">{bootstrapCommand(installerURL, authority)}</pre>
+          {authority && <p className="map-dialog-lead">This server uses its own certificate authority. The command downloads it, checks its fingerprint (<code>{authority.slice(0, 16)}…</code>), and the installer then trusts it on the device.</p>}
           {isLoopback(installerURL) && (
             <p className="map-dialog-lead map-warning">
               You are browsing this server as <code>localhost</code>, which on the device

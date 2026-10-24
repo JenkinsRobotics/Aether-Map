@@ -46,4 +46,6 @@ export interface Visual extends Clip {
   legacyTrack?: string;
   /** Masks preserve their original compositing position without appearing as visual assets. */
   mask?: boolean;
+  /** Visual layers list group. A list-view grouping only; paint order is the array order. */
+  folder?: string;
 }

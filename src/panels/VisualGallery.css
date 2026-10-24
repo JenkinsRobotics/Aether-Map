@@ -75,3 +75,6 @@
 .map-loop-badge { position:absolute; right:7px; bottom:6px; border-radius:4px; padding:3px 5px; background:var(--aether-color-bg-panel); color:var(--aether-color-text); font-size:10px; }
 .map-loop-preview-error { position:absolute; inset:auto 8px 8px; padding:8px; background:var(--aether-color-bg-panel); color:var(--aether-color-text); font-size:11px; }
 .map-gallery-detail-copy p[role=alert] { display:block; color:var(--aether-color-text); }
+
+/* "Advanced" sources (test pattern, tracker, the show's own pool). */
+.map-gallery-sources-heading { margin: 10px 2px 2px; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--aether-color-text-dim); }

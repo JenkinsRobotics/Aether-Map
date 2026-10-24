@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { DEFAULT_SURFACE_LOOK, type Rect, type SurfaceAppearance } from "../document";
+import { DEFAULT_SURFACE_LOOK, type Rect, type Surface, type SurfaceAppearance } from "../document";
+import { clipShapes } from "../mask/clip";
 
 /**
  * Line weight as a fraction of the surface's long edge. It has to be
@@ -18,7 +19,9 @@ const WEIGHT = 0.009;
  * its areas change. Which reads better depends on the surface and the room,
  * which is why it is a setting and not a decision made here.
  */
-export function SurfaceGrid({ rect, style, look = DEFAULT_SURFACE_LOOK.external }: {
+export function SurfaceGrid({ rect, style, look = DEFAULT_SURFACE_LOOK.external, edge = true }: {
+  /** false: the surface draws its own edge along a custom outline. */
+  edge?: boolean;
   rect: Rect;
   style: CSSProperties;
   look?: SurfaceAppearance;
@@ -58,8 +61,20 @@ export function SurfaceGrid({ rect, style, look = DEFAULT_SURFACE_LOOK.external 
         </>
       )}
       {/* The border closes every pattern, and is the only mark "fill" has. */}
-      <rect x={x + stroke / 2} y={y + stroke / 2} width={Math.max(0, w - stroke)} height={Math.max(0, h - stroke)}
-        fill="none" stroke={look.border} strokeWidth={stroke} />
+      {edge && <rect x={x + stroke / 2} y={y + stroke / 2} width={Math.max(0, w - stroke)} height={Math.max(0, h - stroke)}
+        fill="none" stroke={look.border} strokeWidth={stroke} />}
     </svg>
   );
+}
+
+/** A custom outline's placeholder edge (pen shapes, masks), drawn along the
+ * outline in canvas pixels; the surface clip keeps its inner half. The grid's
+ * own rectangle edge would only show as slivers where the outline meets it. */
+export const outlineEdged = (surface: Surface) => surface.masks.length > 0;
+export function OutlineEdge({ surface, look }: { surface: Surface; look: SurfaceAppearance }) {
+  const xs = surface.corners.map(p => p[0]), ys = surface.corners.map(p => p[1]);
+  const width = 2 * Math.max(1, Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * WEIGHT);
+  return <svg className="map-surface-edge" width={1} height={1} aria-hidden="true">
+    {clipShapes(surface).map((shape, index) => <polygon key={index} points={shape.map(p => p.join(",")).join(" ")} fill="none" stroke={look.border} strokeWidth={width} strokeLinejoin="round" />)}
+  </svg>;
 }

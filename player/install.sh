@@ -37,6 +37,16 @@ if [[ "${SERVER_URL}" == @@* ]]; then
   SERVER_URL=""
 fi
 
+# The Studio host's own certificate authority, filled in when the host serves
+# this installer and uses local HTTPS certificates. It goes into the system
+# trust store, which the player (Python) and curl both use.
+AETHER_CA_B64="@@AETHER_CA_PEM@@"
+if [[ "${AETHER_CA_B64}" != @@* && -n "${AETHER_CA_B64}" ]]; then
+  say "Trusting this Aether Studio's certificate authority"
+  printf '%s' "${AETHER_CA_B64}" | base64 -d | sudo tee /usr/local/share/ca-certificates/aether-studio.crt >/dev/null
+  sudo update-ca-certificates >/dev/null
+fi
+
 if [[ -n "${SERVER_URL}" ]] && ! curl -sSf --max-time 10 "${SERVER_URL}/api/map/ping" >/dev/null 2>&1; then
   # Not fatal: the Pi may be provisioned before the host is reachable, and the
   # daemon retries anyway. But say so plainly rather than failing later in the

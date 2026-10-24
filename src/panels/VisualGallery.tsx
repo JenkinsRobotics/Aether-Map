@@ -24,12 +24,27 @@ function LivePreview({visual,playing}: {visual:GalleryVisual;playing:boolean}) {
  },[playing,visual.id]);
  return <PreviewQuality.Provider value={quality}><ShaderMedia key={visual.id} shader={visual.shader} timeS={time} placeholder style={{position:'absolute',inset:0}} /></PreviewQuality.Provider>;
 }
-export function VisualGallery({onClose,onChoose,actionLabel='Add to Media Pool',onCreate,onImport,onChooseLoop}: {
+export function VisualGallery({onClose,onChoose,actionLabel='Add to Media Pool',onCreate,onImport,onImportToProject,onChooseLoop,onlineLibrary,pool,timelines}: {
  onClose:()=>void;onChoose:(visual:GalleryVisual)=>void;actionLabel?:string;
  onChooseLoop?:(file:File,loop:BundledLoop)=>Promise<boolean>;
  onCreate?:(kind:PoolSourceKind)=>void;onImport?:()=>void;
+ /** Imports files into the show's pool without applying them to anything. */
+ onImportToProject?:()=>void;
+ /** Online stock media (Pixabay/Openverse), a source like Import and Live camera. */
+ onlineLibrary?:import('react').ReactNode;
+ /** The show's own media pool ("In this show"), for reuse and removal. */
+ pool?:{assets:readonly {id:string;name:string}[];thumbnail:(id:string)=>import('react').ReactNode;onChoose:(id:string)=>void;onRemove?:(id:string)=>void};
+ /** The show's other timelines: a timeline is added like any asset (nested). */
+ timelines?:{items:readonly {id:string;name:string}[];onChoose:(id:string)=>void};
 }) {
  const [expanded,setExpanded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ // The main area shows the generator gallery, online media or the show's pool.
+ const [source,setSource]=useState<'gallery'|'online'|'pool'|'timelines'>('gallery');
+ const [poolPick,setPoolPick]=useState<string|null>(null);
+ // "In this show" and "Timelines" are the same shelf: pick one, add it.
+ const shelf=source==='pool'&&pool?{label:'In this show',...pool,empty:['Nothing in this show yet','Imported media and generators you create appear here for reuse.'],hint:'Select media from this show to reuse it.'}
+  :source==='timelines'&&timelines?{label:'Scenes',assets:timelines.items,thumbnail:()=> <AetherIcon name="timeline-tracks"/>,onChoose:timelines.onChoose,onRemove:undefined as ((id:string)=>void)|undefined,empty:['No other scenes yet','Create a scene in the sidebar’s Scenes section; it can then be added like any layer.'],hint:'Select a scene to add it as a layer.'}
+  :null;
  const items:GalleryItem[]=useMemo(()=>onChooseLoop?[...GALLERY_VISUALS,...GALLERY_LOOPS]:GALLERY_VISUALS,[onChooseLoop]);
  const categories=onChooseLoop?[...GALLERY_CATEGORIES,'Video loops']:GALLERY_CATEGORIES;
  const [category,setCategory]=useState('All'),[query,setQuery]=useState('');
@@ -65,9 +80,31 @@ export function VisualGallery({onClose,onChoose,actionLabel='Add to Media Pool',
      <Button disabled={busy} onClick={()=>{onClose();onCreate('text');}}><AetherIcon name="text"/>Text</Button>
     </>}
     {onImport && <Button disabled={busy} onClick={()=>{onClose();onImport();}}><AetherIcon name="import"/>Import image or video</Button>}
+    {onImportToProject && <Button disabled={busy} onClick={()=>{onClose();onImportToProject();}}><AetherIcon name="folder"/>Add to project</Button>}
     {onCreate && <Button disabled={busy} onClick={()=>{onClose();onCreate('webcam');}}><AetherIcon name="camera"/>Live camera</Button>}
+    {onlineLibrary && <Button disabled={busy} aria-pressed={source==='online'} onClick={()=>setSource(v=>v==='online'?'gallery':'online')}><AetherIcon name="search"/>Online media</Button>}
+    {(onCreate || pool || timelines) && <>
+     <h3 className="map-gallery-sources-heading">Advanced</h3>
+     {onCreate && <Button disabled={busy} onClick={()=>{onClose();onCreate('test-pattern');}}><AetherIcon name="surface"/>Test pattern</Button>}
+     {onCreate && <Button disabled={busy} onClick={()=>{onClose();onCreate('tracker');}}><AetherIcon name="tracker"/>Tracker</Button>}
+     {pool && <Button disabled={busy} aria-pressed={source==='pool'} onClick={()=>setSource(v=>v==='pool'?'gallery':'pool')}><AetherIcon name="folder"/>In this show</Button>}
+     {timelines && <Button disabled={busy} aria-pressed={source==='timelines'} onClick={()=>{setPoolPick(null);setSource(v=>v==='timelines'?'gallery':'timelines');}}><AetherIcon name="timeline-tracks"/>Scenes</Button>}
+    </>}
     <p>Generators keep their editable colors and motion. {onChooseLoop?'Video loops import as ordinary media for timing, layering and effects.':'All generators are included and work offline.'}</p>
    </aside>
+   {source==='online' ? <main className="map-gallery-main map-gallery-online" aria-label="Online media">{onlineLibrary}</main>
+   : shelf ? <><main className="map-gallery-main" aria-label={shelf.label}>
+     <div className="map-gallery-scroll">{shelf.assets.length
+      ? <div className="map-gallery-grid">{shelf.assets.map(asset=><button type="button" key={asset.id} className="map-gallery-card" aria-label={`Preview ${asset.name}`} aria-pressed={poolPick===asset.id} onClick={()=>setPoolPick(asset.id)}>
+         <span className="map-shader-thumbnail">{shelf.thumbnail(asset.id)}</span><span className="map-gallery-card-name">{asset.name}</span></button>)}</div>
+      : <div className="map-gallery-empty"><strong>{shelf.empty[0]}</strong><p>{shelf.empty[1]}</p></div>}</div>
+    </main>
+    <aside className="map-gallery-detail" aria-label="Selected media">{(()=>{const asset=shelf.assets.find(a=>a.id===poolPick);return asset?<div className="map-gallery-detail-copy">
+      <div className="map-gallery-preview">{shelf.thumbnail(asset.id)}</div><span className="map-gallery-category">{shelf.label}</span><h2>{asset.name}</h2>
+      <Button className="map-gallery-add" primary onClick={()=>{shelf.onChoose(asset.id);onClose();}}>{actionLabel}</Button>
+      {shelf.onRemove&&<Button onClick={()=>{shelf.onRemove!(asset.id);setPoolPick(null);}}>Remove from pool</Button>}
+    </div>:<div className="map-gallery-detail-copy"><p>{shelf.hint}</p></div>;})()}</aside></>
+   : <>
    <main className="map-gallery-main" inert={expanded} aria-hidden={expanded || undefined}>
     <div className="map-gallery-search"><SearchField ariaLabel="Search visuals" placeholder="Search visuals…" value={query} onQueryChange={setQuery}/><span>{filtered.length} visuals</span></div>
     <div className="map-gallery-categories" role="group" aria-label="Visual categories">{['All',...categories].map(name=><button key={name} type="button" disabled={busy} aria-pressed={category===name} onClick={()=>setCategory(name)}>{name}</button>)}</div>
@@ -88,6 +125,7 @@ export function VisualGallery({onClose,onChoose,actionLabel='Add to Media Pool',
      <small>Previewing does not change your show.</small>
     </div>
    </aside>
+   </>}
   </div>
  </Dialog>, document.body);
 }

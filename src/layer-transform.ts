@@ -67,13 +67,23 @@ export function flipLayer(surface: Surface, axis: 0 | 1, timeS: number, pivot?: 
     ? [2 * center[0] - p[0], p[1]] : [p[0], 2 * center[1] - p[1]]), timeS, context);
 }
 
-/** Snap a node to one real vertex, not an accidental intersection of two axes. */
-export function snapVertex(point: Point, targets: Point[], tolerance: number): Point | null {
+/** Snap a node to one real vertex, not an accidental intersection of two axes.
+ * With `grid` set, a miss falls back to the nearest grid line per axis. */
+export function snapVertex(point: Point, targets: Point[], tolerance: number, grid?: number): Point | null {
   // Preserve Map's last-target tie priority while using the shared distance test.
-  return nearestPoint(point, [...targets].reverse().map(point => ({ point })), tolerance)?.point ?? null;
+  const hit = nearestPoint(point, [...targets].reverse().map(point => ({ point })), tolerance)?.point ?? null;
+  if (hit || !grid) return hit;
+  const snapped: Point = [point[0], point[1]];
+  let any = false;
+  for (const axis of [0, 1] as const) {
+    const near = Math.round(point[axis] / grid) * grid;
+    if (Math.abs(near - point[axis]) <= tolerance) { snapped[axis] = near; any = true; }
+  }
+  return any ? snapped : null;
 }
-/** Nearest scene/layer edge or center, measured in screen pixels by the caller. */
-export function snapBounds(b: Bounds, targets: Bounds[], tolerance: number, handle?: ResizeHandle): { delta: Point; guides: SnapGuide[] } {
+/** Nearest scene/layer edge or center, measured in screen pixels by the caller.
+ * Geometry targets win over the grid; grid snaps draw no alignment guides. */
+export function snapBounds(b: Bounds, targets: Bounds[], tolerance: number, handle?: ResizeHandle, grid?: number): { delta: Point; guides: SnapGuide[] } {
   const delta: Point = [0, 0], guides: SnapGuide[] = [];
   for (const axis of [0, 1] as const) {
     if (handle && (axis === 0 ? !/[we]/.test(handle) : !/[ns]/.test(handle))) continue;
@@ -82,6 +92,10 @@ export function snapBounds(b: Bounds, targets: Bounds[], tolerance: number, hand
     for (const target of targets) for (const edge of anchors(target, axis)) for (const point of points) {
       const distance = edge - point;
       if (Math.abs(distance) <= tolerance && Math.abs(distance) < best) { best = Math.abs(distance); delta[axis] = distance; guide = edge; }
+    }
+    if (guide === undefined && grid) for (const point of points) {
+      const distance = Math.round(point / grid) * grid - point;
+      if (Math.abs(distance) <= tolerance && Math.abs(distance) < best) { best = Math.abs(distance); delta[axis] = distance; }
     }
     if (guide !== undefined) guides.push({ axis, position: guide });
   }

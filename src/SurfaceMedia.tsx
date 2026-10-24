@@ -41,6 +41,8 @@ export interface SurfaceMediaProps {
    * and judging it against a wall are different jobs.
    */
   placeholder?: SurfaceAppearance;
+  /** false: the placeholder pattern omits its rectangular edge (a custom outline draws its own). */
+  placeholderEdge?: boolean;
   loop?: boolean;
 }
 
@@ -74,6 +76,7 @@ function SurfaceMediaContent({
   timeS,
   playing,
   placeholder,
+  placeholderEdge,
   loop = true,
 }: SurfaceMediaProps) {
   const rect = source?.rect;
@@ -120,5 +123,5 @@ function SurfaceMediaContent({
     return <video ref={videoRef} style={style} src={url} muted playsInline />;
   }
   if (url) return <img style={style} src={url} alt="" />;
-  return placeholder && source ? <SurfaceGrid rect={source.rect} style={style} look={placeholder} /> : null;
+  return placeholder && source ? <SurfaceGrid rect={source.rect} style={style} look={placeholder} edge={placeholderEdge} /> : null;
 }

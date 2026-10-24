@@ -246,12 +246,9 @@ describe("SurfaceCanvas", () => {
     expect([raster?.style.left, raster?.style.top]).toEqual(["0px", "0px"]);
   });
 
-  it("offers fit and true-size controls with the current zoom", () => {
+  it("keeps only the live zoom readout; view toggles live in the view tools", () => {
     const { container } = renderCanvas(showWithSurface());
-    const labels = Array.from(container.querySelectorAll(".map-zoom button")).map(
-      (button) => button.textContent,
-    );
-    expect(labels).toEqual(["Snap", "X-ray", "Fit", "100%"]);
+    expect(container.querySelectorAll(".map-zoom button")).toHaveLength(0);
     expect(container.querySelector(".map-zoom-value")?.textContent).toMatch(/%$/);
   });
 
@@ -267,11 +264,12 @@ describe("SurfaceCanvas", () => {
       onDrawShape: (shape) => added.push(shape),
     });
     const host = container.querySelector(".map-canvas-host")!;
-    fireEvent.pointerDown(host, { button: 0, clientX: 100, clientY: 100, pointerId: 1 });
-    fireEvent.pointerMove(host, { clientX: 300, clientY: 220, pointerId: 1 });
+    // Alt draws freely (no snapping), so the profile is exactly the drag.
+    fireEvent.pointerDown(host, { button: 0, clientX: 100, clientY: 100, pointerId: 1, altKey: true });
+    fireEvent.pointerMove(host, { clientX: 300, clientY: 220, pointerId: 1, altKey: true });
     // The preview follows the pointer before release.
     expect(container.querySelector(".map-draft polygon")).not.toBeNull();
-    fireEvent.pointerUp(host, { clientX: 300, clientY: 220, pointerId: 1 });
+    fireEvent.pointerUp(host, { clientX: 300, clientY: 220, pointerId: 1, altKey: true });
     expect(added).toHaveLength(1);
     expect(added[0]).toEqual([
       [100, 100],

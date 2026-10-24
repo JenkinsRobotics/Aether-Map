@@ -49,7 +49,7 @@ def test_actual_mcp_protocol_discovery_execution_receipt_replay_and_readonly_cat
     responses=[json.loads(line) for line in process.stdout.splitlines()]
     assert len(responses)==5, process.stderr
     assert responses[0]['result']['serverInfo']['name']=='aether-map'
-    assert len(responses[1]['result']['tools'])==16
+    assert len(responses[1]['result']['tools'])==18
     assert responses[2]==responses[3]
     result=json.loads(responses[4]['result']['content'][0]['text'])
     assert len(result['result']['scenes'])==2

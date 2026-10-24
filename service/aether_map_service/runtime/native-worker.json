@@ -2,7 +2,7 @@
   "schema": 1,
   "app": "map",
   "entry": "runner.mjs",
-  "sha256": "0d8b92f6d5dca2844bce1faed802d3291578eae695e4ad17a2cef05ed3cc6173",
+  "sha256": "849092e1015734b24afc55a6053a86e60a4d4ea25b850a52ca96e90f72e92fd0",
   "commands": [
     {
       "id": "map.show.inspect",
@@ -908,6 +908,174 @@
         "readOnlyHint": true,
         "destructiveHint": false,
         "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "id": "map.show.clip.add",
+      "title": "Add Map scene clip",
+      "description": "Place a scene on a canvas track of the show timeline. scene_id is a timeline id from inspect, or 'main' for the canvas's own Main. Scenes reuse across canvases by surface role. Requires latest revision and records recoverable file history; open editors must reload. Does not play or deploy.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "enum": [
+              "map"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "canvas_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "scene_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "start_s": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 604800
+          },
+          "duration_s": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 604800
+          },
+          "loop": {
+            "type": "string",
+            "enum": [
+              "yes",
+              "no"
+            ]
+          }
+        },
+        "required": [
+          "app",
+          "id",
+          "expected_revision",
+          "canvas_id",
+          "scene_id",
+          "start_s",
+          "duration_s"
+        ],
+        "additionalProperties": false
+      },
+      "writes": true,
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "id": "map.show.cue.add",
+      "title": "Add Map show cue",
+      "description": "Add a show-control cue: trigger 'timeline' (fires at at_s), 'go' (operator GO, in order) or 'midi' (fires when MIDI CC control rises above zero); action play, pause, stop, jump (to to_s), blackout-on or blackout-off. Requires latest revision and records recoverable file history; open editors must reload. Optional times makes a jump cue a loop that repeats at most that many times per run; condition_control/condition_above make the cue fire only while that MIDI control is above the value.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "enum": [
+              "map"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "trigger": {
+            "type": "string",
+            "enum": [
+              "timeline",
+              "go",
+              "midi"
+            ]
+          },
+          "cue_action": {
+            "type": "string",
+            "enum": [
+              "play",
+              "pause",
+              "stop",
+              "jump",
+              "blackout-on",
+              "blackout-off"
+            ]
+          },
+          "at_s": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 604800
+          },
+          "to_s": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 604800
+          },
+          "control": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          },
+          "times": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "condition_control": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          },
+          "condition_above": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          }
+        },
+        "required": [
+          "app",
+          "id",
+          "expected_revision",
+          "name",
+          "trigger",
+          "cue_action"
+        ],
+        "additionalProperties": false
+      },
+      "writes": true,
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false
       }
     }

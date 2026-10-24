@@ -1,98 +1,92 @@
 // @vitest-environment jsdom
 import { useState } from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { SimpleVisualWorkspace } from './SimpleVisualWorkspace';
+import { VisualInspector } from './VisualInspector';
+import { VisualProperties } from './VisualProperties';
 import { emptyShow, newSurface, type MapShow } from '../document';
 import { normalizeDocument } from '../normalize-document';
-import { addSimpleVisual, replaceSimpleVisual, moveSimpleVisual } from '../simple-visuals';
-import { BUNDLED_LOOPS } from '../features/bundled-loops';
+import { addSimpleVisual, moveSimpleVisual, simpleVisuals } from '../simple-visuals';
 import { duplicateVisual } from '../visual-document';
 vi.mock('../features/ShaderThumbnail', () => ({ ShaderThumbnail: () => <span /> }));
 vi.mock('./ShowPreview', () => ({ ShowPreview: () => <div>Scene pixels</div> }));
 vi.mock('./InputPreview', () => ({ InputPreview: () => <div>Source pixels</div> }));
-vi.mock('./VisualGallery', () => ({ VisualGallery: (p: { onChoose: (v: unknown) => void; onClose: () => void; onImport: () => void; onChooseLoop?:(file:File,loop:typeof BUNDLED_LOOPS[number])=>Promise<boolean> }) => <div><button onClick={()=>void p.onChooseLoop?.(new File(['video'],'test.mp4'),BUNDLED_LOOPS[0])}>Choose loop</button><button onClick={() => { p.onChoose({ name: 'Neon', shader: { preset: 'neon-beams', parameters: {}, colors: ['#fff'], time: { speed: 1 } } }); p.onClose(); }}>Choose neon</button><button onClick={p.onImport}>Import a visual</button><button onClick={p.onClose}>Cancel gallery</button></div> }));
 afterEach(cleanup);
-function Harness({ seed, onAdvanced = vi.fn(), onImport = vi.fn(), onLoop = vi.fn().mockResolvedValue(true) }: { onLoop?: (file:File,loop:typeof BUNDLED_LOOPS[number],id?:string)=>Promise<boolean>; seed?: MapShow; onAdvanced?: () => void; onImport?: (id?: string) => void }) {
-  const [show, setShow] = useState(seed ?? normalizeDocument(emptyShow())), [id, setID] = useState<string | null>(null);
-  return <><SimpleVisualWorkspace show={show} urls={{}} selectedID={id} timeS={0} playing={false} onPlay={vi.fn()} onSeek={vi.fn()}
-    onSelect={setID} onScene={scene => setShow(s => ({ ...s, activeSceneId: scene }))} onMapping={vi.fn()} onAdvanced={onAdvanced} onImport={onImport} onLoop={onLoop}
-    onAdd={(source, name, pool) => setShow(s => addSimpleVisual(s, source, name, pool))}
-    onReplace={(id, source, name) => setShow(s => replaceSimpleVisual(s, id, source, name))}
-    onChange={v => setShow(s => ({ ...s, visuals: s.visuals!.map(old => old.id === v.id ? v : old) }))}
-    onDuplicate={v => setShow(s => duplicateVisual(s, v.id))} onMove={(v, d) => setShow(s => moveSimpleVisual(s, v.id, d))}
-    onRemove={v => setShow(s => ({ ...s, visuals: s.visuals!.filter(old => old.id !== v.id) }))}/><output data-testid="document">{JSON.stringify(show)}</output></>;
+const white = (show: MapShow, name = 'White') => addSimpleVisual(show, { mediaId: null, rect: [0, 0, 100, 100], fill: '#fff' }, name);
+// The shared Properties (both editors) plus the sidebar's Effects tab.
+function Harness({ seed, timelines = false, onReplace = vi.fn() }: { seed: MapShow; timelines?: boolean; onReplace?: () => void }) {
+  const [show, setShow] = useState(seed), [id, setID] = useState(seed.visuals!.at(-1)!.id);
+  const visual = show.visuals!.find(v => v.id === id) ?? show.visuals!.at(-1);
+  const change = (v: typeof visual) => setShow(s => ({ ...s, visuals: s.visuals!.map(old => old.id === v!.id ? v! : old) }));
+  return <>{visual && <><VisualInspector show={show} visual={visual} timelines={timelines} onChange={change} onReplace={onReplace} onPickMedia={vi.fn()}
+      onDuplicate={() => setShow(s => duplicateVisual(s, visual.id))} onMove={d => setShow(s => moveSimpleVisual(s, visual.id, d))}
+      onRemove={() => setShow(s => ({ ...s, visuals: s.visuals!.filter(old => old.id !== visual.id) }))} />
+    <VisualProperties only="effects" visual={visual} show={show} onChange={change} onPickMedia={vi.fn()} onDuplicate={vi.fn()} onMove={vi.fn()} /></>}
+    <ul aria-label="Order">{[...simpleVisuals(show)].reverse().map(v => <li key={v.id}><button onClick={() => setID(v.id)}>Select {v.name}</button></li>)}</ul>
+    <output data-testid="document">{JSON.stringify(show)}</output></>;
 }
 const value = () => JSON.parse(screen.getByTestId('document').textContent!) as MapShow;
-test('gallery inserts a continuous visual and Shapes actions duplicate, hide and delete real uses', () => {
-  render(<Harness />);
-  fireEvent.click(screen.getByRole('button', { name: 'Add visual' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Choose neon' }));
-  expect(value().visuals).toHaveLength(1); expect(value().visuals![0].continuous).toBe(true);
-  fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }));
-  expect(value().visuals).toHaveLength(2);
-  fireEvent.click(screen.getByRole('button', { name: 'Hide visual' }));
-  expect(value().visuals!.at(-1)!.enabled).toBe(false);
-  fireEvent.click(screen.getByRole('button', { name: 'Delete visual' }));
-  expect(value().visuals).toHaveLength(1);
+const menu = (item: string) => {
+  fireEvent.click(within(screen.getByRole('region', { name: 'Layer properties' })).getByRole('button', { name: /^Options for / }));
+  fireEvent.click(screen.getByRole('menuitem', { name: item }));
+};
+test('the ⋮ menu replaces, duplicates, hides and deletes real uses', () => {
+  const onReplace = vi.fn();
+  render(<Harness seed={white(normalizeDocument(emptyShow()))} onReplace={onReplace} />);
+  menu('Replace layer'); expect(onReplace).toHaveBeenCalled();
+  menu('Duplicate'); expect(value().visuals).toHaveLength(2);
+  menu('Hide layer'); expect(value().visuals!.some(v => v.enabled === false)).toBe(true);
+  menu('Delete layer'); expect(value().visuals).toHaveLength(1);
 });
-test('assignment and effect edits use the same saved visual; entering advanced does not change it', () => {
-  let seed = emptyShow(); seed.scenes[0].surfaces = [newSurface(seed.output, 0)];
-  seed = addSimpleVisual(normalizeDocument(seed), { mediaId: null, rect: [0, 0, 100, 100], fill: '#fff' }, 'White');
-  const onAdvanced = vi.fn(); render(<Harness seed={seed} onAdvanced={onAdvanced} />);
-  const visual = value().visuals!.at(-1)!;
-  fireEvent.click(screen.getByRole('button', { name: `Assign to ${seed.scenes[0].surfaces[0].name}` }));
-  expect(value().visuals!.at(-1)!.targets).toEqual([]);
-  fireEvent.click(screen.getByRole('tab', { name: 'Effects' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Add effect' }));
-  expect(value().visuals!.at(-1)!.effects?.[0].kind).toBe('blur');
-  expect(value().visuals!.at(-1)!.id).toBe(visual.id);
-  const before = value(); fireEvent.click(screen.getByRole('button', { name: 'Advanced editor' }));
-  expect(onAdvanced).toHaveBeenCalledOnce(); expect(value()).toEqual(before);
+test('Properties is plain categories, the same in both editors except timeline timing', () => {
+  const seed = white(normalizeDocument(emptyShow()));
+  const sections = () => [...document.querySelectorAll('[aria-label="Layer properties"] .aui-inspector-section-heading')].map(s => s.textContent);
+  const view = render(<Harness seed={seed} />); const simple = sections();
+  expect(simple).toEqual(expect.arrayContaining(['General', 'Surfaces']));
+  expect(screen.queryAllByRole('radio', { name: /Adjust|Fit|Shapes/ })).toHaveLength(0);
+  expect(screen.queryByRole('button', { name: 'Add timing' })).toBeNull();
+  // Several surfaces: a copy on each, or one picture across them.
+  fireEvent.click(screen.getByRole('radio', { name: 'One across all' })); expect(value().visuals![0].mapping).toBe('span');
+  view.unmount(); render(<Harness seed={seed} timelines />);
+  // Advanced adds only change-over-time sections (motion) and timing.
+  expect(sections().filter(name => !/motion/i.test(name ?? ''))).toEqual(simple);
+  expect(screen.getByRole('button', { name: 'Add timing' })).toBeTruthy();
 });
-test('canceling replacement preserves the visual and locked tracks disable editing', () => {
-  let seed = addSimpleVisual(normalizeDocument(emptyShow()), { mediaId: null, rect: [0, 0, 100, 100], fill: '#fff' }, 'White');
-  const view = render(<Harness seed={seed} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Replace visual' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Cancel gallery' })); expect(value()).toEqual(seed);
-  view.unmount(); seed = { ...seed, tracks: seed.tracks!.map(t => ({ ...t, locked: true })) };
+test('locked visuals disable editing', () => {
+  let seed = white(normalizeDocument(emptyShow()));
+  seed = { ...seed, tracks: seed.tracks!.map(t => ({ ...t, locked: true })) };
   render(<Harness seed={seed} />);
-  expect((screen.getByRole('button', { name: 'Replace visual' }) as HTMLButtonElement).disabled).toBe(true);
-  expect((screen.getByRole('button', { name: 'Delete visual' }) as HTMLButtonElement).disabled).toBe(true);
-  const assignments = screen.getByRole('group', { name: 'Asset surface assignments' });
-  expect((within(assignments).getByRole('button') as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(within(screen.getByRole('region', { name: 'Layer properties' })).getByRole('button', { name: /^Options for / }));
+  for (const item of ['Replace layer', 'Delete layer']) expect((screen.getByRole('menuitem', { name: item }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('textbox', { name: 'Asset name' }) as HTMLInputElement).disabled).toBe(true);
 });
 
-test('layer controls stay visible across inspector tabs and the rail follows front-to-back composition', () => {
+test('layer order buttons follow front-to-back composition', () => {
   let seed = normalizeDocument(emptyShow());
-  for (const name of ['Red', 'Green', 'Blue']) seed = addSimpleVisual(seed, { mediaId: null, rect: [0, 0, 100, 100], fill: '#fff' }, name);
+  for (const name of ['Red', 'Green', 'Blue']) seed = white(seed, name);
   render(<Harness seed={seed} />);
-  const rail = screen.getByRole('group', { name: 'Layers, front to back' });
-  const order = () => within(rail).getAllByRole('button').map(b => b.getAttribute('aria-label'));
+  const order = () => screen.getAllByRole('button', { name: /^Select / }).map(b => b.textContent);
   const disabled = (name: string) => (screen.getByRole('button', { name }) as HTMLButtonElement).disabled;
   expect(order()).toEqual(['Select Blue', 'Select Green', 'Select Red']);
   expect(disabled('Bring to front')).toBe(true);
-  fireEvent.click(screen.getByRole('tab', { name: 'Effects' }));
   fireEvent.click(screen.getByRole('button', { name: 'Send to back' }));
   expect(order()).toEqual(['Select Green', 'Select Red', 'Select Blue']);
   expect(disabled('Move backward')).toBe(true);
-  expect(disabled('Send to back')).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Move forward' }));
   expect(order()).toEqual(['Select Green', 'Select Blue', 'Select Red']);
   fireEvent.click(screen.getByRole('button', { name: 'Bring to front' }));
   expect(order()).toEqual(['Select Blue', 'Select Green', 'Select Red']);
-  expect(screen.getByRole('tab', { name: 'Effects' }).getAttribute('aria-selected')).toBe('true');
 });
-
-test('new effects support real ordering, toggling, removal and bounded integer amounts', () => {
-  const seed = addSimpleVisual(normalizeDocument(emptyShow()), { mediaId: null, rect: [0, 0, 100, 100], fill: '#fff' }, 'White');
-  render(<Harness seed={seed}/>);
-  fireEvent.click(screen.getByRole('tab', {name:'Effects'}));
+test('effects support real ordering, toggling, removal and bounded integer amounts', () => {
+  let seed = emptyShow(); seed.scenes[0].surfaces = [newSurface(seed.output, 0)];
+  render(<Harness seed={white(normalizeDocument(seed))} />);
+  const id = value().visuals!.at(-1)!.id;
   for (const kind of ['tile','kaleido','crt','vintage','fisheye']) {
     fireEvent.change(screen.getByRole('combobox',{name:'Effect type'}),{target:{value:kind}});
     fireEvent.click(screen.getByRole('button',{name:'Add effect'}));
   }
-  const effects = () => value().visuals!.at(-1)!.effects!;
+  const effects = () => value().visuals!.find(v => v.id === id)!.effects!;
   expect(effects().map(e=>e.kind)).toEqual(['tile','kaleido','crt','vintage','fisheye']);
   fireEvent.change(screen.getByRole('textbox',{name:'tile amount'}),{target:{value:'3.8'}});
   fireEvent.blur(screen.getByRole('textbox',{name:'tile amount'}));
@@ -104,14 +98,10 @@ test('new effects support real ordering, toggling, removal and bounded integer a
   fireEvent.click(screen.getAllByRole('button',{name:'Remove effect'})[2]);
   expect(effects().map(e=>e.kind)).toEqual(['kaleido','tile','vintage','fisheye']);
 });
-
-test('simple video imports distinguish adding from replacing the selected layer',async()=>{
- const onLoop=vi.fn().mockResolvedValue(true);
- const seed=addSimpleVisual(normalizeDocument(emptyShow()),{mediaId:null,rect:[0,0,100,100],fill:'#fff'},'White');
- render(<Harness seed={seed} onLoop={onLoop}/>);
- fireEvent.click(screen.getByRole('button',{name:'Add visual'}));fireEvent.click(screen.getByRole('button',{name:'Choose loop'}));
- await waitFor(()=>expect(onLoop).toHaveBeenCalledWith(expect.any(File),BUNDLED_LOOPS[0],undefined));
- fireEvent.click(screen.getByRole('button',{name:'Cancel gallery'}));
- fireEvent.click(screen.getByRole('button',{name:'Replace visual'}));fireEvent.click(screen.getByRole('button',{name:'Choose loop'}));
- await waitFor(()=>expect(onLoop).toHaveBeenLastCalledWith(expect.any(File),BUNDLED_LOOPS[0],seed.visuals![0].id));
+test('the center workspace is the render and transport; empty state opens the gallery', () => {
+  const onBrowse = vi.fn();
+  render(<SimpleVisualWorkspace show={normalizeDocument(emptyShow())} urls={{}} selectedID={null} timeS={0} playing={false}
+    onPlay={vi.fn()} onSeek={vi.fn()} onChange={vi.fn()} onBrowse={onBrowse} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Browse visual gallery' })); expect(onBrowse).toHaveBeenCalled();
+  expect(screen.queryByRole('region', { name: 'Layer properties' })).toBeNull();
 });

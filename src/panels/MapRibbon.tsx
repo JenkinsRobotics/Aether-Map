@@ -3,6 +3,9 @@ import {
   AetherIcon, OverlayScope, ToolIcon, WorkspaceRibbon,
   type RibbonToolProps, type WorkspaceRibbonCommand, type WorkspaceRibbonDensity, type WorkspaceRibbonTab,
 } from "@aether/ui";
+import { contextCommandsFor, runContextCommand } from "@aether/ui/context-commands";
+
+export type SceneToolKind = 'image' | 'video' | 'camera' | 'colour' | 'text' | 'drawing' | 'generator';
 import type { MaskTool } from "../mask/tools";
 import type { FeatureKind } from "../features/types";
 import type { CompoundShape } from "../features/shape-groups";
@@ -11,6 +14,10 @@ import "./MapRibbon.css";
 
 export function MapRibbon(p: {
   docked: boolean;
+  /** Scene: make a visual of this kind (image, video, camera, colour, text, drawing, generator). */
+  onSceneTool?: (kind: SceneToolKind) => void;
+  /** Show workspace: run the next GO cue. */
+  onGo?: () => void;
   workspace: MapWorkspace; onWorkspace: (workspace: MapWorkspace) => void;
   onSave: () => void; onOutput: () => void; playing: boolean; onPlay: () => void;
   canUndo: boolean; canRedo: boolean; onUndo: () => void; onRedo: () => void;
@@ -66,8 +73,8 @@ export function MapRibbon(p: {
     "setup-image": { icon: <ToolIcon name="backdrop" />, label: "Import backdrop", onClick: p.onSetupImage,
       title: "Import a reference photo for this scene — visible only in the editor" },
     output: { icon: <ToolIcon name="eye" />, label: "Output", onClick: p.onOutput },
-    play: { icon: <AetherIcon name="play" />, label: p.playing ? "Pause" : "Play", active: p.playing, onClick: p.onPlay },
     blackout: { icon: <AetherIcon name="hidden" />, label: "Blackout", active: p.blackout, onClick: p.onBlackout },
+    go: { icon: <AetherIcon name="play" />, label: "GO", onClick: p.onGo, title: "Run the next manual cue" },
     mask: { icon: <ToolIcon name="mask" />, label: "Mask", onClick: () => p.onAdd("mask"), title: "Create a black layer to cover the projection beneath it" },
     edit: { icon: <ToolIcon name="settings" />, label: "Edit feature", disabled: !p.hasSelection || p.canEdit === false, onClick: p.onEdit },
     delete: { icon: <ToolIcon name="remove" />, label: "Delete", disabled: !p.hasSelection || p.canDelete === false, onClick: p.onDelete },
@@ -96,9 +103,16 @@ export function MapRibbon(p: {
       title: "Import a transparency-capable PNG as its own mapped surface" },
     "new-output": { icon: <ToolIcon name="panels" />, label: "New Output", onClick: p.onNewOutput,
       title: "Add another scene-bound output for a display or player" },
-    devices: { icon: <ToolIcon name="connector" />, label: "Devices", onClick: p.onDevices,
+    devices: { icon: <ToolIcon name="connector" />, label: "Players", onClick: p.onDevices,
       title: "Pair and manage Raspberry Pi output players" },
     input: { icon: <ToolIcon name="panels" />, label: "Input preview", active: p.showInput, onClick: p.onInput },
+    "visual-image": { icon: <ToolIcon name="import" />, label: "Image", onClick: () => p.onSceneTool?.("image"), title: "Import images as visuals" },
+    "visual-video": { icon: <AetherIcon name="file-video" />, label: "Video", onClick: () => p.onSceneTool?.("video"), title: "Import videos as visuals" },
+    "visual-camera": { icon: <ToolIcon name="webcam" />, label: "Camera", onClick: () => p.onSceneTool?.("camera"), title: "A live camera feed" },
+    "visual-colour": { icon: <ToolIcon name="fill" />, label: "Colour", onClick: () => p.onSceneTool?.("colour"), title: "A solid colour or gradient" },
+    "visual-text": { icon: <ToolIcon name="text" />, label: "Text", onClick: () => p.onSceneTool?.("text"), title: "Titles and lettering" },
+    "visual-drawing": { icon: <ToolIcon name="freehand" />, label: "Drawing", onClick: () => p.onSceneTool?.("drawing"), title: "Draw a visual" },
+    "visual-generator": { icon: <ToolIcon name="ai-generate" />, label: "Generator", onClick: () => p.onSceneTool?.("generator"), title: "Choose a generator from the gallery" },
   };
 
   /** One command, as the shared ribbon takes it. */
@@ -127,8 +141,24 @@ export function MapRibbon(p: {
       tools: group.tools.map((id) => toFamily(id)),
     })),
   }));
+  // The Studio tool bar's suggested commands, right of its Command field.
+  const commandShortcuts = [
+    { id: "shortcut-undo", label: "Undo", tone: "amber" as const, disabled: !p.canUndo },
+    { id: "shortcut-redo", label: "Redo", tone: "blue" as const, disabled: !p.canRedo },
+    { id: "shortcut-frame", label: "Frame", tone: "green" as const },
+  ];
   /** The button reports its family, which means whichever variant is chosen. */
   const runCommand = (id: string) => {
+    if (id === "shortcut-undo") return p.onUndo();
+    if (id === "shortcut-redo") return p.onRedo();
+    if (id === "shortcut-frame") {
+      // The canvas owns Fit and scopes it to its host; reach it the same way
+      // the context menu does, through an element inside that scope.
+      const host = document.querySelector(".map-canvas-host");
+      const fit = host && contextCommandsFor(host).find(command => command.id === "zoom-fit");
+      if (fit) runContextCommand(fit);
+      return;
+    }
     const key = (id in MAP_RIBBON_VARIANTS ? variants[id as keyof typeof MAP_RIBBON_VARIANTS] : id) as MapRibbonCommand;
     if (!commands[key] || commands[key].disabled) return;
     commands[key].onClick?.();
@@ -147,9 +177,9 @@ export function MapRibbon(p: {
         workspaceID={p.workspace} onWorkspaceSelect={selectWorkspace}
         tabs={ribbonTabs} activeTabID={activeTab} onTabSelect={selectTab}
         onCommand={runCommand} onVariantSelect={chooseVariant}
-        workspaceLayout="none" appearance="glass" docked={p.docked}
+        workspaceLayout="column" appearance="glass" docked={p.docked}
         density={density} onDensityChange={setDensity}
-        moreLabel="Tool bar options" />
+        moreLabel="Tool bar options" commandShortcuts={commandShortcuts} />
     </OverlayScope>
   );
 }

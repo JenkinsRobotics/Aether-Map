@@ -1,3 +1,4 @@
+import { readShows, readShowTimeline } from './show-timeline';
 import { surfaceMotionVersion } from './features/surface-parameters';
 import { visualLookVersion,VISUAL_LOOK_SLOTS } from './visual-looks';
 import { readSourceMotion, sourceMotionVersion } from './source-motion';
@@ -99,6 +100,10 @@ export function parseShow(bytes: Uint8Array | string): MapShow {
     },
     ...(Array.isArray(raw.unassignedFolders) ? { unassignedFolders: readFolders(raw.unassignedFolders) } : {}),
     outputs: readOutputs(raw, output, scenes, activeSceneId, legacyOutputs),
+    ...(raw.showTimeline ? { showTimeline: readShowTimeline(raw.showTimeline) } : {}),
+    ...(readShows(raw.shows)?.length ? { shows: readShows(raw.shows) } : {}),
+    ...(typeof raw.activeShowID === 'string' ? { activeShowID: raw.activeShowID } : {}),
+    ...(typeof raw.playerShowID === 'string' ? { playerShowID: raw.playerShowID } : {}),
     ...readMix(raw, scenes),
     ...(raw.lfos ? { lfos: readLfos(raw.lfos) } : {}),
     surfaceLook: readSurfaceLook(raw, output),
@@ -133,7 +138,7 @@ function readScenes(raw: Record<string, unknown>): Scene[] {
   return [
     {
       id: "scene-1",
-      name: "Scene 1",
+      name: "Canvas 1",
       durationS: legacyDuration,
       surfaces: Array.isArray(raw.surfaces)
         ? restoreLegacyCompoundShapes(raw.surfaces.filter(isRecord).map(readSurface))
@@ -396,6 +401,7 @@ function readSurface(raw: Record<string, unknown>): Surface {
     ...(typeof raw.lockAspectRatio === "boolean" ? { lockAspectRatio: raw.lockAspectRatio } : {}),
     ...(typeof raw.sequence === 'boolean' ? { sequence: raw.sequence } : {}),
     ...(typeof raw.folder === "string" && raw.folder.trim() ? { folder: raw.folder.trim() } : {}),
+    ...(typeof raw.role === "string" && raw.role.trim() ? { role: raw.role.trim().slice(0, 80) } : {}),
     ...(typeof raw.compositionAspectRatio === 'number' && Number.isFinite(raw.compositionAspectRatio) && raw.compositionAspectRatio >= .05 && raw.compositionAspectRatio <= 20 ? {compositionAspectRatio:raw.compositionAspectRatio} : {}),
     ...(raw.groupShape === "cube" || raw.groupShape === "box" ? { groupShape: raw.groupShape } : {}),
     ...(raw.groupShape === null ? { groupShape: null } : {}),
@@ -493,7 +499,7 @@ function readVisual(value: unknown, index: number): Visual | null {
   const effects=readVisualEffects(value.effects);
   const looks=readVisualLooks(value.looks);
   return { ...clip, ...(looks?{looks}:{}), ...(value.motion ? {motion:readVisualMotion(value.motion,typeof value.timelineRefID === 'string')} : {}), ...(typeof value.timelineRefID === 'string' ? { timelineRefID: value.timelineRefID } : {}), ...(typeof value.assetID === 'string' ? { assetID: value.assetID } : {}), ...(typeof value.trackID === 'string' ? { trackID: value.trackID } : {}), name: String(value.name ?? 'Visual'), targets: targets.filter((t, i) => targets.findIndex(a => a.sceneID === t.sceneID && a.surfaceID === t.surfaceID) === i), mapping: value.mapping === 'span' ? 'span' : 'repeat', color: String(value.color ?? '#547aff'), opacity: typeof value.opacity === 'number' ? clamp01(value.opacity) : 1,
-    ...(isRecord(value.placement) ? {placement:readVisualPlacement(value.placement)} : {}), ...(value.continuous === true ? { continuous: true } : {}), ...(typeof value.legacyTrack === 'string' ? { legacyTrack: value.legacyTrack } : {}), ...(value.mask === true ? { mask: true } : {}), ...(effects.length ? { effects } : {}) };
+    ...(isRecord(value.placement) ? {placement:readVisualPlacement(value.placement)} : {}), ...(value.continuous === true ? { continuous: true } : {}), ...(typeof value.legacyTrack === 'string' ? { legacyTrack: value.legacyTrack } : {}), ...(value.mask === true ? { mask: true } : {}), ...(effects.length ? { effects } : {}), ...(typeof value.folder === 'string' && value.folder.trim() ? { folder: value.folder.trim().slice(0, 80) } : {}) };
 }
 
 function readTargets(value: unknown): import('./visual-model').VisualTarget[] {

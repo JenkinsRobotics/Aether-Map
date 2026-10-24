@@ -15,10 +15,24 @@ export interface WorkspaceTrayProps {
   panels: Record<WorkspaceID, ReactNode>;
   timelineLabel?: string;
   toolbarRef?: (element: HTMLDivElement | null) => void;
+  /** Render flush in the shell footer (toggled from the aux toolbar). */
+  docked?: boolean;
 }
 
 /** Surfaces sit above the timeline; audio is a remembered timeline subpanel. */
-export function WorkspaceTray({ open, onToggle, panels, storageKey, height, onHeightChange, toolbarRef, timelineLabel }: WorkspaceTrayProps) {
+export function WorkspaceTray({ open, onToggle, panels, storageKey, height, onHeightChange, toolbarRef, timelineLabel, docked }: WorkspaceTrayProps) {
+  // In the footer the aux toolbar's Timeline toggle is the switch, so the
+  // timeline renders flush there like Open files — no floating dock chrome.
+  if (docked) {
+    const audio = open.includes('audio');
+    return <section className="map-footer-timeline" aria-label={timelineLabel}>
+      <div className="map-bottom-command-bar" ref={toolbarRef} />
+      <div className={`map-bottom-editors${audio ? ' is-split' : ''}`}>
+        <div className="map-bottom-timeline">{panels.timeline}</div>
+        {audio && <div className="map-bottom-audio">{panels.audio}</div>}
+      </div>
+    </section>;
+  }
   const timeline = open.includes('timeline'), audio = timeline && open.includes('audio');
   const visibleTabs = open.filter(id => id !== 'audio');
   return <WorkspaceBottomDock ariaLabel="Map workspace dock" storageKey={storageKey}

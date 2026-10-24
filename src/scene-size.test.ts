@@ -29,6 +29,7 @@ describe('scene artboards', () => {
   });
   it('allows continuous playback and timeline content beyond the initial view range', () => {
     const show = emptyShow(), scene = show.scenes[0], surface = newSurface(show.output, 0);
+    show.playback.mode = 'continuous';
     expect(showTime(show, 3600)).toBe(3600); expect(playbackEnded(show, 3600)).toBe(false);
     const media = { id: 'image', kind: 'image' as const, name: 'Image', file: 'image.png', width: 100, height: 100, bytes: 1 };
     surface.clips.push(placeClip('late', media, 121, Infinity)); scene.surfaces.push(surface);

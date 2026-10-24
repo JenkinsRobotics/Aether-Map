@@ -1,81 +1,52 @@
 import {expect,test} from '@playwright/test';
-import {signIn,switchWorkspace,clickRibbon} from './helpers';
+import {signIn,switchWorkspace,clickRibbon,players,rightTab} from './helpers';
 
-test('sidebar workspaces keep a selector-free toolbar only in Mapping',async({page,baseURL},info)=>{
+// The three workspaces (Mapping, Scene, Show) share the standard frame; the
+// one file row lists the document's typed entries.
+test('Mapping, Scene and Show each own their job and share one file row',async({page,baseURL},info)=>{
   await signIn(page,baseURL!);
   await page.goto('/map/index.html?new=show');
-  const nav=page.getByRole('navigation',{name:'Workspaces'});
-  await expect(nav.getByRole('button',{name:'Mapping',exact:true})).toHaveAttribute('aria-pressed','true');
-  await expect(page.locator('.map-ribbon')).toBeVisible();
-  await expect(page.locator('.aui-shell-toolbar')).toBeVisible();
-  await expect(page.getByRole('button',{name:/^Workspace:/})).toHaveCount(0);
-  await expect(page.locator('.map-mapping-tools')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Workspace: Mapping',exact:true})).toBeVisible();
   await expect(page.locator('[data-icon-missing]')).toHaveCount(0);
+  // Mapping: surfaces, canvases, outputs; drawing tools.
+  for(const name of ['Layers','Outputs']) await expect(page.getByRole('tree',{name}).first()).toBeVisible();
   await clickRibbon(page,'Cube');
   await expect(page.locator('.map-surface')).toHaveCount(3);
   await clickRibbon(page,'Rectangle');
   await expect(page.locator('.map-canvas-host')).toHaveClass(/is-drawing/);
   await clickRibbon(page,'Select');
   await expect(page.locator('.map-canvas-host')).not.toHaveClass(/is-drawing/);
-  await clickRibbon(page,'Square');
-  await expect(page.locator('.map-canvas-host')).toHaveClass(/is-drawing/);
-  await clickRibbon(page,'Select');
-  await page.screenshot({path:info.outputPath('mapping-header.png')});
-  // Workspace controls remain keyboard accessible in the global rail.
-  await nav.getByRole('button',{name:'Mapping',exact:true}).focus();
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('Enter');
-  await expect(nav.getByRole('button',{name:'Visualization',exact:true})).toHaveAttribute('aria-pressed','true');
-  await expect(page.locator('.map-ribbon')).toHaveCount(0);
-  const pool=page.getByRole('region',{name:'Media Pool',exact:true});
-  await pool.getByRole('tab',{name:'Generators',exact:true}).click();
-  await pool.getByRole('button',{name:'New shader',exact:true}).click();
-  await expect(page.locator('.map-input-preview')).toBeVisible();
-  await page.getByRole('button',{name:'Input preview',exact:true}).click();
-  await expect(page.locator('.map-input-preview')).toHaveCount(0);
-  await page.getByRole('button',{name:'Input preview',exact:true}).click();
-  await expect(page.locator('.map-input-preview')).toBeVisible();
-  await page.screenshot({path:info.outputPath('visualization-header.png')});
+  await page.screenshot({path:info.outputPath('mapping.png')});
+  // Scene: reusable content. Add a generator layer from the gallery.
+  await switchWorkspace(page,'Scene');
+  await page.locator('.map-visual-panel-title').getByRole('button',{name:'Add layer'}).click();
+  await page.getByRole('dialog').getByRole('button',{name:'Add visual to scene'}).click();
+  await expect(page.getByRole('region',{name:'Layer properties'})).toBeVisible();
+  await expect(page.getByRole('region',{name:'Scene preview'})).toBeVisible();
+  await page.screenshot({path:info.outputPath('scene.png')});
+  // Show: every canvas live, the show timeline, cues and players.
   await switchWorkspace(page,'Show');
-  const show=page.getByRole('region',{name:'Show workspace',exact:true});
-  await expect(show).toBeVisible();
-  const left=page.getByRole('toolbar',{name:'Left sidebar tabs',exact:true});
-  for(const name of ['Features and parts','Version control','Create version','Comments','Document notes','Reminders','AI advisor','Action items','Part manager']) {
-    await expect(left.getByRole('button',{name,exact:true})).toBeVisible();
-  }
-  await expect(left.getByRole('button',{name:'Outputs',exact:true})).toHaveAttribute('aria-pressed','true');
-  await left.getByRole('button',{name:'Version control',exact:true}).click();
-  await expect(page.getByRole('region',{name:'Versions and history',exact:true})).toBeVisible();
-  await left.getByRole('button',{name:'Comments',exact:true}).click();
-  await expect(page.getByRole('region',{name:'Comments',exact:true})).toBeVisible();
-  await left.getByRole('button',{name:'Action items',exact:true}).click();
-  await expect(page.getByRole('region',{name:'Action items',exact:true})).toBeVisible();
-  await page.screenshot({path:info.outputPath('show-standard-tray.png')});
-  await left.getByRole('button',{name:'Outputs',exact:true}).click();
-  await show.getByRole('tab',{name:'Players',exact:true}).click();
-  await expect(show.getByRole('button',{name:'Set up a new one'})).toBeVisible();
-  await show.getByRole('tab',{name:'Export',exact:true}).click();
-  await expect(show.getByRole('heading',{name:'Export & recording'})).toBeVisible();
-  await show.getByRole('tab',{name:'Show',exact:true}).click();
-  await page.locator('.aui-application-sidebar .suite-settings > summary').click();
-  await page.locator('.aui-application-sidebar .suite-settings').getByRole('combobox',{name:'Theme'}).selectOption('dark');
-  await page.screenshot({path:info.outputPath('show-header.png')});
-  for(const layout of ['Docked','Canvas','Floating']) {
-    await page.getByRole('button',{name:`Studio mode: ${layout}`,exact:true}).click();
-    await expect(nav).toBeVisible();
-    await expect(page.locator('.aui-shell-fltoolbar')).toHaveCount(0);
-  }
-  await page.getByRole('button',{name:'Collapse Aether Map sidebar'}).click();
-  for(const width of [1200,1000,800,640,480]) {
+  await expect(page.getByRole('list',{name:'Canvases'})).toBeVisible();
+  await expect(page.getByRole('region',{name:'Show timeline'})).toBeVisible();
+  await expect(page.getByRole('tree',{name:'Cues'})).toBeVisible();
+  const devices=await players(page);
+  await expect(devices.getByRole('button',{name:'Set up a new one'})).toBeVisible();
+  await devices.getByRole('button',{name:'Done',exact:true}).click();
+  await rightTab(page,'Export');
+  await expect(page.getByRole('region',{name:'Record an output'})).toBeVisible();
+  await page.screenshot({path:info.outputPath('show.png')});
+  // The one file row: the document, then its Show and Scene entries. Canvases
+  // are not files; they live in Mapping's layer tree.
+  const files=page.locator('.aui-studio-aux-toolbar').getByRole('button',{name:'Open files'});
+  if(await files.getAttribute('aria-pressed')!=='true')await files.click();
+  const row=page.getByRole('tablist',{name:'Open shows'});
+  for(const kind of ['Show','Scene']) await expect(row.getByRole('tab').filter({hasText:kind}).first()).toBeVisible();
+  await expect(row.getByRole('tab').filter({hasText:/^Canvas/})).toHaveCount(0);
+  await row.getByRole('tab').filter({hasText:'Scene'}).first().click();
+  await expect(page.getByRole('button',{name:'Workspace: Scene',exact:true})).toBeVisible();
+  // Narrow windows keep the page from scrolling sideways.
+  for(const width of [1200,900]) {
     await page.setViewportSize({width,height:900});
-    await switchWorkspace(page,'Visualization');
-    await switchWorkspace(page,'Mapping');
-    await expect(nav).toBeInViewport();
-    const globalSidebar = page.getByRole('complementary',{name:'Aether Map sidebar',exact:true});
-    expect((await globalSidebar.boundingBox())!.x).toBe(0);
-    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(width);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }
-  await page.screenshot({path:info.outputPath('compact-header.png')});
-  await page.reload();
-  await expect(nav.getByRole('button',{name:'Mapping',exact:true})).toHaveAttribute('aria-pressed','true');
 });

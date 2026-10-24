@@ -19,6 +19,7 @@ function seed(){const show=addSimpleVisual(normalizeDocument(emptyShow()),{media
 function Harness({initial=seed(),simple=true,performance=false}:{initial?:MapShow;simple?:boolean;performance?:boolean}){
  const h=useDocumentHistory(initial),show=h.present,v=show.visuals![0];const commands=createVisualCommands({show,edit:(update,key)=>h.set(s=>normalizeDocument(update(s)),key),select:()=>{}});const change=(visual:typeof v,key?:string|null)=>commands.change(visual.id,visual,key);
  return <>{performance?<PerformanceView show={show} urls={{}} selectedID={v.id} timeS={2} playing={false} onSelect={()=>{}} onScene={()=>{}} onChange={change} onPlay={()=>{}} onSeek={()=>{}} onClose={()=>{}} onPickMedia={vi.fn()} onUndo={h.undo} onRedo={h.redo} canUndo={h.canUndo} canRedo={h.canRedo} onGestureStart={h.beginGesture} onGestureEnd={h.endGesture}/>:<VisualProperties show={show} visual={v} onChange={change} onPickMedia={vi.fn()} onDuplicate={vi.fn()} onMove={vi.fn()} simple={simple}/>}
+ {/* Effects are the right sidebar's own tab. */}{!performance&&<VisualProperties only="effects" show={show} visual={v} onChange={change} onPickMedia={vi.fn()} onDuplicate={vi.fn()} onMove={vi.fn()}/>}
  <button onClick={h.undo}>Undo test</button><button onClick={h.redo}>Redo test</button><output data-testid="show">{JSON.stringify(show)}</output></>;
 }
 const value=()=>JSON.parse(screen.getByTestId('show').textContent!) as MapShow;
@@ -26,7 +27,7 @@ const field=(name:string,value:string)=>{const input=screen.getByRole('textbox',
 test.each([true,false])('Simple=%s stores and recalls text/effects/motion as one undoable operation',simple=>{
  render(<Harness simple={simple}/>);fireEvent.click(screen.getByRole('button',{name:'Store preset A'}));expect(value().version).toBe(11);const look=structuredClone(value().visuals![0].looks!.A!);
  field('Size','40');expect(visualSource(value(),value().visuals![0]).motion!.animation!.textSizePx).toBeUndefined();
- fireEvent.click(screen.getByRole('tab',{name:'Effects'}));fireEvent.click(screen.getByRole('button',{name:'Remove effect'}));fireEvent.click(screen.getByRole('tab',{name:'Adjust'}));
+ fireEvent.click(screen.getByRole('button',{name:'Remove effect'}));
  fireEvent.click(screen.getByRole('button',{name:'Recall preset A'}));expect(visualSource(value(),value().visuals![0])).toEqual(look.source);expect(value().visuals![0].effects).toEqual(look.effects);
  const restored=value();fireEvent.click(screen.getByRole('button',{name:'Undo test'}));expect(visualSource(value(),value().visuals![0]).text!.sizePx).toBe(40);expect(value().visuals![0].effects).toEqual([]);
  fireEvent.click(screen.getByRole('button',{name:'Redo test'}));expect(value()).toEqual(restored);

@@ -1,5 +1,4 @@
 import type { BundledLoop } from '../features/bundled-loops';
-import { VISUAL_EFFECTS } from '../visual-effects';
 import { ChromaKeyFields } from '../media/ChromaKeyFields';
 import { POOL_SOURCES, type PoolSourceKind } from '../pool-sources';
 import type { ReactNode } from 'react';
@@ -16,13 +15,12 @@ import { ShaderThumbnail } from '../features/ShaderThumbnail';
 import type { GalleryVisual } from '../features/visual-gallery';
 
 export { POOL_DRAG_TYPE } from '../media-pool';
-export function MediaPool({ show, urls, selectedID, onSelect, onImport, onCreate, onVisual, onLoop, onAppend, onChange, onRemove, onEffect, canApplyEffect, timelines, onlineLibrary }: {
+export function MediaPool({ show, urls, selectedID, onSelect, onImport, onCreate, onVisual, onLoop, onAppend, onChange, onRemove, timelines, onlineLibrary }: {
   onLoop?: (file:File,loop:BundledLoop)=>Promise<boolean>;
   onVisual: (visual: GalleryVisual) => void;
   timelines?: TimelinePoolActions;
   onlineLibrary?: ReactNode;
   show: MapShow; urls: Record<string, string>; selectedID: string | null;
-  canApplyEffect: boolean; onEffect: (kind: import('../visual-model').VisualEffect['kind']) => void;
   onSelect: (id: string) => void; onImport: () => void; onCreate: (kind: PoolSourceKind) => void;
   onAppend: (id: string) => void; onChange: (asset: PoolAsset) => void; onRemove: (id: string) => void;
 }) {
@@ -34,12 +32,9 @@ export function MediaPool({ show, urls, selectedID, onSelect, onImport, onCreate
   const folders = [...new Set(show.pool?.map(a => a.folder).filter((s): s is string => !!s))].sort();
   const assets = (show.pool ?? []).filter(a => (!folder || a.folder === folder) && a.name.toLowerCase().includes(query.toLowerCase()));
   return <section className="map-media-pool" aria-label="Media Pool">
-    {gallery && <VisualGallery onChooseLoop={onLoop?async(file,loop)=>{const added=await onLoop(file,loop);if(added){setTab('pool');setFolder('');setQuery('');setTimelineBin(false);}return added;}:undefined} onClose={() => setGallery(false)} onImport={onImport} onCreate={kind => { onCreate(kind); setTab('pool'); }} onChoose={visual => { onVisual(visual); setTab('pool'); setFolder(''); setQuery(''); setTimelineBin(false); }} />}
-    <Tabs tabs={[{ id: 'pool', label: 'Media Pool' }, { id: 'generators', label: 'Generators' }, { id: 'effects', label: 'Effects' }, ...(onlineLibrary ? [{ id:'online', label:'Online Library' }] : [])]} activeID={tab} onSelect={setTab} />
-    {tab === 'online' ? <div className="map-pool-online">{onlineLibrary}</div> : tab === 'effects' ? <div className="map-pool-generators">
-      <p>Select a timeline clip, then add an effect. Adjust its settings in Properties → Effects.</p>
-      {VISUAL_EFFECTS.map(effect => <Button key={effect.value} disabled={!canApplyEffect} onClick={() => onEffect(effect.value)}>{effect.label}</Button>)}
-    </div> : tab === 'generators' ? <div className="map-pool-source-browser">
+    {gallery && <VisualGallery onlineLibrary={onlineLibrary} onChooseLoop={onLoop?async(file,loop)=>{const added=await onLoop(file,loop);if(added){setTab('pool');setFolder('');setQuery('');setTimelineBin(false);}return added;}:undefined} onClose={() => setGallery(false)} onImport={onImport} onCreate={kind => { onCreate(kind); setTab('pool'); }} onChoose={visual => { onVisual(visual); setTab('pool'); setFolder(''); setQuery(''); setTimelineBin(false); }} />}
+    <Tabs tabs={[{ id: 'pool', label: 'Media Pool' }, { id: 'generators', label: 'Generators' }, ...(onlineLibrary ? [{ id:'online', label:'Online Library' }] : [])]} activeID={tab} onSelect={setTab} />
+    {tab === 'online' ? <div className="map-pool-online">{onlineLibrary}</div> : tab === 'generators' ? <div className="map-pool-source-browser">
       <Button onClick={() => setGallery(true)}><AetherIcon name="palette" />Browse visual gallery</Button>
       {(['Generated', 'Live inputs'] as const).map(group => <section key={group} aria-label={group}>
         <h3>{group}</h3><div className="map-pool-source-grid">

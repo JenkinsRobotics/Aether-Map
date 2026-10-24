@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { AetherIcon, TreePanel, type TreeControl, type TreeNode, type MenuItem } from "@aether/ui";
-import { allSurfaces, surfaceCollection, withSurfaceCollection, type MapShow, type Scene, type Surface, type Clip } from "../document";
+import { TreeContextArea } from "./TreeContextArea";
+import { withSurfaceCollection, type MapShow, type Scene, type Surface, type Clip } from "../document";
 import { assetName, clipSource, sourceID, sourceHasContent, sourceKind, sourceName } from '../surface-assets';
 import { backgroundLayer } from "../background-layer";
 import { canDeleteLayer, folderID, resolveTreeID, type TreeTarget } from "../scene-tree";
@@ -50,6 +51,9 @@ export interface LayersPanelProps {
   onDissolveFolder: (folder: string, sceneID: string | null) => void;
   /** Groups the selected layer into a new folder and returns its name. */
   onNewFolder: (id: string) => string;
+  /** 'tree' nests layers under scenes. The sidebar split shows 'layers' (the
+   * active scene's list) over 'scenes' (selecting one switches the list). */
+  view?: "tree" | "layers" | "scenes" | "scene-picker";
 }
 
 /**
@@ -63,9 +67,11 @@ export interface LayersPanelProps {
  * Commands resolve the row's owner, so a control on an inactive scene cannot
  * accidentally edit the active scene. TreePanel owns presentation and interaction.
  */
-export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, selectedLayerIDs, onSelectLayers, selectedClipID, scenes, onSelectAsset, onEditAsset, onChangeAsset, onDeleteAsset, onDuplicateAsset, onMoveAsset, onDropAsset, onSelect, onPatch, onReorder,
+export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, selectedLayerIDs, onSelectLayers, selectedClipID, scenes, onSelectAsset, onEditAsset, onChangeAsset, onDeleteAsset, onDuplicateAsset,  onDropAsset, onSelect, onPatch, onReorder,
   onDelete, onDuplicate, onEdit, onAdd,
-  onSetFolder, onRenameFolder, onDissolveFolder, onNewFolder }: LayersPanelProps) {
+  onSetFolder, onRenameFolder, onDissolveFolder, onNewFolder, view: requestedView = "tree" }: LayersPanelProps) {
+  // Visualization picks scenes but cannot create them: same list, no creation.
+  const picker = requestedView === "scene-picker", view = picker ? "scenes" : requestedView;
   const [renamingID, setRenamingID] = useState<string | null>(null);
   /**
    * Expansion is controlled here rather than left to the tree's own state.
@@ -76,11 +82,6 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
     () => new Set(show.scenes.filter((scene) => scene.id !== show.activeSceneId).map((scene) => scene.id)));
   const active = show.scenes.find((scene) => scene.id === show.activeSceneId);
-  const selectedOwner = selectedID ? surfaceCollection(show, selectedID) : undefined;
-  const surfaces = selectedOwner?.surfaces ?? active?.surfaces ?? [];
-  const background = backgroundLayer(show);
-  const selected = allSurfaces(show).find((surface) => surface.id === selectedID);
-  const index = surfaces.findIndex((surface) => surface.id === selectedID);
   const at = (id: string) => resolveTreeID(show, id);
   const assets = new Map<string, { surface: Surface; clip: Clip | null }>();
 
@@ -112,7 +113,7 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
     children: childrenFor(surface),
     status: [
       ...(surface.sceneCanvas ? [{ id: "scene-target", label: "Entire scene", icon: <AetherIcon name="scene" /> }] : []),
-      ...(surface.cues.length ? [{ id: "cues", label: `${surface.cues.length} cues`, icon: <AetherIcon name="history" /> }] : []),
+      ...(surface.cues.length ? [{ id: "cues", label: `${surface.cues.length} surface keys`, icon: <AetherIcon name="history" /> }] : []),
     ],
     actions: [
       { id: "visibility", label: `${surface.enabled ? "Hide" : "Show"} ${surface.name}`, icon: <AetherIcon name={surface.enabled ? "visible" : "hidden"} />, pinned: true },
@@ -160,8 +161,8 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
     return nodes;
   };
 
-  const nodes: TreeNode[] = show.scenes.map((scene) => {
-    const contents = contentsOf(scene.surfaces, scene);
+  const sceneNodes: TreeNode[] = show.scenes.map((scene) => {
+    const contents = view === "scenes" ? undefined : contentsOf(scene.surfaces, scene);
     return {
     id: scene.id, category: "scene", label: scene.name,
     icon: <AetherIcon name="scene" />,
@@ -169,7 +170,7 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
     className: scene.id === show.activeSceneId ? "map-tree-active-scene" : undefined,
     children: contents,
     status: [
-      ...(scene.suppressed ? [{ id: "suppressed", label: "Suppressed — no output renders this scene", icon: <AetherIcon name="window" /> }] : []),
+      ...(scene.suppressed ? [{ id: "suppressed", label: "Suppressed — no output renders this canvas", icon: <AetherIcon name="window" /> }] : []),
     ],
     actions: [
       { id: "visibility", label: `${scene.hidden ? "Show" : "Hide"} ${scene.name} on the canvas`, icon: <AetherIcon name={scene.hidden ? "hidden" : "visible"} />, pinned: true },
@@ -177,7 +178,9 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
     ],
   };
   });
-  nodes.push(...contentsOf(show.unassignedSurfaces, null));
+  const nodes: TreeNode[] = view === "scenes" ? sceneNodes
+    : view === "layers" ? [...(active ? contentsOf(active.surfaces, active) : []), ...contentsOf(show.unassignedSurfaces, null)]
+    : [...sceneNodes, ...contentsOf(show.unassignedSurfaces, null)];
 
   // Everything with children is open unless it was closed: a new layer or a new
   // scene appears expanded, which is what you want after making one.
@@ -195,9 +198,6 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
   }, [nodes, collapsed]);
 
   const asset = selectedClipID ? assets.get(selectedClipID) : undefined;
-  const assetLocked = Boolean(asset?.surface.locked || asset?.clip?.locked);
-  const ordered = asset ? [...asset.surface.clips].sort((a, b) => a.startS - b.startS) : [];
-  const assetIndex = ordered.findIndex(c => c.id === selectedClipID);
 
   const activate = (id: string) => {
     const target = at(id);
@@ -234,16 +234,16 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
     if (target.kind === "scene") {
       const scene = target.scene, first = show.scenes[0]?.id === id, last = show.scenes.at(-1)?.id === id;
       return [
-        { id: "edit", label: "Scene properties", icon: <AetherIcon name="settings" /> },
-        { id: "rename", label: "Rename scene", shortcut: "F2" },
-        { id: "duplicate", label: "Duplicate scene", icon: <AetherIcon name="items" /> },
+        { id: "edit", label: "Canvas properties", icon: <AetherIcon name="settings" /> },
+        { id: "rename", label: "Rename canvas", shortcut: "F2" },
+        { id: "duplicate", label: "Duplicate canvas", icon: <AetherIcon name="items" /> },
         { id: "visibility", label: scene.hidden ? "Show on the canvas" : "Hide from the canvas",
           icon: <AetherIcon name={scene.hidden ? "hidden" : "visible"} />, separatorBefore: true },
         { id: "suppress", label: scene.suppressed ? "Restore to the show" : "Suppress — keep out of the show",
           icon: <AetherIcon name="status-incomplete" /> },
-        { id: "raise", label: "Move scene up", disabled: first, separatorBefore: true },
-        { id: "lower", label: "Move scene down", disabled: last },
-        { id: "delete", label: "Delete scene", shortcut: "Delete", danger: true,
+        { id: "raise", label: "Move canvas up", disabled: first, separatorBefore: true },
+        { id: "lower", label: "Move canvas down", disabled: last },
+        { id: "delete", label: "Delete canvas", shortcut: "Delete", danger: true,
           disabled: show.scenes.length <= 1, separatorBefore: true },
       ];
     }
@@ -288,7 +288,7 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
     const elsewhere = show.scenes.filter((scene) => scene.id !== target.scene?.id);
     return [
       { id: "group", label: "Group selected layers", disabled: !groupable, icon: <AetherIcon name="items" /> },
-      { id: "edit", label: "Edit feature", icon: <AetherIcon name="settings" /> },
+      { id: "edit", label: "Layer properties", icon: <AetherIcon name="settings" /> },
       { id: "rename", label: "Rename", shortcut: "F2", disabled: surface.locked },
       { id: "duplicate", label: "Duplicate", icon: <AetherIcon name="items" /> },
       { id: "visibility", label: surface.enabled ? "Hide" : "Show", icon: <AetherIcon name={surface.enabled ? "visible" : "hidden"} />, separatorBefore: true },
@@ -298,7 +298,7 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
         ...(surface.folder ? [{ id: "folder-out", label: `Move out of ${surface.folder}`, disabled: surface.locked }] : [])],
       // Moving a layer to another scene is a menu command as well as a drag,
       // because a drag across a collapsed scene is a fiddly way to say it.
-      ...(elsewhere.length ? [{ id: "scene-move-header", label: "Move to scene", disabled: true, separatorBefore: true },
+      ...(elsewhere.length ? [{ id: "scene-move-header", label: "Move to canvas", disabled: true, separatorBefore: true },
         ...elsewhere.map((scene) => ({ id: "scene:" + scene.id, label: scene.name, disabled: surface.locked }))] : []),
       { id: "raise", label: "Move layer forward", disabled: surface.locked || position === list.length - 1, separatorBefore: true },
       { id: "lower", label: "Move layer backward", disabled: surface.locked || position === 0 },
@@ -395,31 +395,14 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
    * With no layer or asset selected, the selected row is the active scene.
    */
   const target = selectedID ? at(selectedID) : undefined;
-  const kind = asset ? "asset" : target?.kind ?? (selectedID ? "missing" : "scene");
-  const scene = active;
-  const sceneIndex = show.scenes.findIndex((entry) => entry.id === show.activeSceneId);
-  const noun = kind === "asset" ? "asset" : kind === "scene" ? "scene" : kind === "folder" ? "group" : "layer";
-  const backdropLocked = Boolean(background?.background.locked);
 
-  const step = (direction: -1 | 1) => {
-    if (kind === "asset" && asset) { onMoveAsset(asset.surface.id, selectedClipID!, direction === 1 ? -1 : 1); return; }
-    if (kind === "scene") {
-      const neighbour = show.scenes[sceneIndex + (direction === 1 ? -1 : 1)];
-      if (scene && neighbour) scenes.move(scene.id, neighbour.id, direction === 1 ? "before" : "after");
-      return;
-    }
-    if (kind === "folder" && selectedID) onTreeEdit(current => stepLayerFolder(current, selectedID, direction));
-    else if (selected) onReorder(selected.id, direction);
-  };
 
-  const primary = asset ? selectedClipID : selectedID ?? show.activeSceneId;
+
+  const primary = view === "scenes" ? show.activeSceneId : asset ? selectedClipID : selectedID ?? show.activeSceneId;
   const selectedIDs = new Set(primary && !asset && selectedLayerIDs.includes(primary) ? selectedLayerIDs.filter(id => at(id)) : primary ? [primary] : []);
   const groupTargets = [...selectedIDs].map(at).filter((t): t is Extract<TreeTarget, {kind: "surface"}> => t?.kind === "surface");
   const groupable = groupTargets.length === selectedIDs.size && groupTargets.length > 0
     && groupTargets.every(t => !t.surface.locked && t.scene?.id === groupTargets[0].scene?.id);
-  const visibilityLabel = kind === "scene" ? (scene?.hidden ? "Show scene on the canvas" : "Hide scene from the canvas")
-    : kind === "surface" ? `${selected?.enabled ? "Hide" : "Show"} layer`
-    : kind === "folder" ? "Show / hide group" : kind === "backdrop" ? `${background?.background.visible ? "Hide" : "Show"} backdrop` : "Show / hide asset";
 
   const groupSelection = () => {
     if (!groupable) return;
@@ -429,9 +412,11 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
     const id = folderID(owner, name); onSelect(id); setRenamingID(id);
   };
 
-  const controls: TreeControl[] = [
-    { id: "new-scene", label: "New scene", icon: <AetherIcon name="scene" />, onClick: () => scenes.openProperties(null) },
-    { id: "new", label: "New Surface", icon: <AetherIcon name="new" />, onClick: onAdd },
+  // Headers carry a name and one "+"; everything else is right-click: a row's
+  // own commands, then this list's creation commands (also on empty space).
+  const creation: TreeControl[] = [
+    { id: "new", label: "New Surface", icon: <AetherIcon name="plus" />, onClick: onAdd },
+    { id: "new-scene", label: "New canvas", icon: <AetherIcon name="scene" />, onClick: () => scenes.openProperties(null) },
     { id: "folder", label: "New folder", icon: <AetherIcon name="collection-folder" />,
       onClick: () => {
         const owner = target ? target.scene?.id ?? null : show.activeSceneId;
@@ -439,77 +424,24 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
         onTreeEdit(current => createLayerFolder(current, owner, name));
         const id = folderID(owner, name); onSelect(id); setRenamingID(id);
       } },
-    { id: "group", label: "Group selected layers", icon: <AetherIcon name="items" />, disabled: !groupable,
-      onClick: groupSelection },
-    { id: "dissolve", label: "Ungroup", icon: <AetherIcon name="items" />, disabled: kind !== "folder" || !selectedID || !canDeleteLayer(show, selectedID),
-      onClick: () => selectedID && command(selectedID, "dissolve") },
     // A show that opens empty asks you to map a wall before it has shown you
     // anything worth mapping. These arrive finished and projectable.
-    { id: "preset", label: "Add a ready-made scene", icon: <AetherIcon name="palette" />, onClick: scenes.openPresets },
-    { id: "delete", label: `Delete ${noun}`, icon: <AetherIcon name="delete" />, shortcut: "Delete",
-      disabled: kind === "asset" ? assetLocked
-        : kind === "backdrop" ? backdropLocked
-        : kind === "scene" ? show.scenes.length <= 1
-        : !selectedID || ![...selectedIDs].every(id => canDeleteLayer(show, id)),
-      onClick: () => {
-        if (kind === "asset" && asset) onDeleteAsset(asset.surface.id, selectedClipID!);
-        else if (kind === "scene" && scene) scenes.delete(scene.id);
-        else if (selectedID) command(selectedID, "delete");
-      } },
-    { id: "duplicate", label: `Duplicate ${noun}`, icon: <AetherIcon name="items" />,
-      disabled: kind === "asset" ? !asset?.clip || Boolean(asset?.surface.locked)
-        : kind === "backdrop" ? true
-        : kind === "scene" ? false
-        : !selected,
-      onClick: () => {
-        if (kind === "asset" && asset?.clip) onDuplicateAsset(asset.surface, asset.clip);
-        else if (kind === "scene" && scene) scenes.duplicate(scene.id);
-        else if (selected) onDuplicate(selected.id);
-      } },
-    { id: "edit", label: kind === "asset" ? "Asset properties" : kind === "scene" ? "Scene properties" : "Layer properties",
-      icon: <AetherIcon name="settings" />,
-      disabled: kind === "folder" || kind === "missing",
-      onClick: () => {
-        if (kind === "scene" && scene) scenes.openProperties(scene.id);
-        else activate(kind === "asset" ? selectedClipID! : selectedID!);
-      } },
-    { id: "rename", label: `Rename ${noun}`, icon: <AetherIcon name="notes" />, shortcut: "F2",
-      disabled: kind === "asset" ? !asset?.clip || assetLocked
-        : kind === "backdrop" ? true
-        : kind === "scene" ? false
-        : kind === "folder" ? false : !selected || selected.locked,
-      onClick: () => setRenamingID(kind === "asset" ? selectedClipID : kind === "scene" ? scene?.id ?? null : selectedID) },
-    { id: "visibility", label: visibilityLabel,
-      icon: <AetherIcon name="visible" />, disabled: kind === "missing", separatorBefore: true,
-      onClick: () => command(asset ? selectedClipID! : selectedID ?? show.activeSceneId, "visibility") },
-    { id: "lock", label: "Lock / unlock layer", icon: <AetherIcon name="pin_slot" />, disabled: kind === "scene" || kind === "missing",
-      onClick: () => command(asset ? selectedClipID! : selectedID ?? show.activeSceneId, "lock") },
-    ...(kind === "scene" ? [{ id: "suppress", label: scene?.suppressed ? "Restore scene to the show" : "Suppress scene — keep it out of the show",
-      icon: <AetherIcon name="status-incomplete" />,
-      onClick: () => scene && scenes.patch(scene.id, { suppressed: !scene.suppressed }) }] : []),
-    { id: "raise", label: kind === "asset" ? "Move asset earlier" : kind === "scene" ? "Move scene up" : "Move layer forward",
-      icon: <AetherIcon name="chevron" style={{ transform: "rotate(-90deg)" }} />, separatorBefore: true,
-      disabled: kind === "asset" ? assetLocked || assetIndex <= 0
-        : kind === "backdrop" ? true
-        : kind === "scene" ? sceneIndex <= 0
-        : kind === "folder" ? !selectedID || !canDeleteLayer(show, selectedID)
-        : !selected || selected.locked || index === surfaces.length - 1,
-      onClick: () => step(1) },
-    { id: "lower", label: kind === "asset" ? "Move asset later" : kind === "scene" ? "Move scene down" : "Move layer backward",
-      icon: <AetherIcon name="chevron" style={{ transform: "rotate(90deg)" }} />,
-      disabled: kind === "asset" ? assetLocked || assetIndex < 0 || assetIndex === ordered.length - 1
-        : kind === "backdrop" ? true
-        : kind === "scene" ? sceneIndex === show.scenes.length - 1
-        : kind === "folder" ? !selectedID || !canDeleteLayer(show, selectedID)
-        : !selected || selected.locked || index === 0,
-      onClick: () => step(-1) },
-  ];
-
-
-
-  return <TreePanel ariaLabel="Layers" filterOptions={[
+    { id: "preset", label: "Add a ready-made canvas", icon: <AetherIcon name="palette" />, onClick: scenes.openPresets },
+  ].filter(c => picker ? false : view === "scenes" ? ["new-scene", "preset"].includes(c.id) : view === "layers" ? ["new", "folder"].includes(c.id) : true);
+  const plus = creation.slice(0, 1).map(c => ({ ...c, id: "new", icon: <AetherIcon name="plus" /> }));
+  const createItems: MenuItem[] = creation.map((c, index) => ({ id: `create-${c.id}`, label: c.label, icon: c.icon, separatorBefore: index === 0 }));
+  const create = (action: string) => creation.find(c => `create-${c.id}` === action)?.onClick();
+  // Only what applies: commands that cannot run here are left out, except a
+  // locked/last-item Delete (it explains itself) and section labels.
+  const rowMenu = (id: string): MenuItem[] => [...menuItems(id).filter(item => (!item.disabled || item.danger || item.id.endsWith("-header")) && !(picker && ["duplicate", "delete"].includes(item.id))), ...createItems];
+  const shortcutRow = asset ? selectedClipID : selectedID ?? (view === "scenes" ? show.activeSceneId : null);
+  const runShortcut = (key: "Delete" | "F2") => {
+    const item = shortcutRow ? rowMenu(shortcutRow).find(entry => entry.shortcut === key && !entry.disabled) : undefined;
+    if (item && shortcutRow) command(shortcutRow, item.id);
+  };
+  return <TreeContextArea label={view === "scenes" ? "Canvas options" : "Layer options"} items={createItems} onSelect={create} shortcut={runShortcut}><TreePanel ariaLabel={view === "scenes" ? "Canvases" : "Layers"} filterOptions={view === "scenes" ? undefined : [
     { id: 'folder', label: 'Folders and groups', icon: <AetherIcon name="collection-folder" /> },
-    { id: 'scene', label: 'Scenes', icon: <AetherIcon name="scene" /> },
+    { id: 'scene', label: 'Canvases', icon: <AetherIcon name="scene" /> },
     { id: 'surface', label: 'Surfaces', icon: <AetherIcon name="surface-map" /> },
     { id: 'image', label: 'Images', icon: <AetherIcon name="image" /> },
     { id: 'video', label: 'Videos', icon: <AetherIcon name="file-clip" /> },
@@ -545,8 +477,8 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
       if (target?.kind === "asset" && target.clip !== undefined) onSelectAsset(target.surface.id, id);
       else onSelectLayers([...next]);
     }} onActivate={activate}
-    controls={controls} controlsLabel="Layer controls" menuLabel="Layer options" menuItems={menuItems}
-    onCommand={command} onAction={command} renamingID={renamingID}
+    controls={[]} headerControls={plus} controlsLabel={view === "scenes" ? "Canvas controls" : "Layer controls"} menuLabel={view === "scenes" ? "Canvas options" : "Layer options"} menuItems={rowMenu}
+    onCommand={(id, action) => { if (action.startsWith("create-")) create(action); else if (!(picker && ["duplicate", "delete"].includes(action))) command(id, action); }} onAction={command} renamingID={renamingID}
     onRename={(id, name) => {
       const target = at(id);
       if (target?.kind === "scene") scenes.patch(id, { name });
@@ -593,5 +525,5 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
       }
       if (from.kind === "surface" || from.kind === "folder") moveRow(id, targetID, position);
     }}
-    emptyState={<span>No scenes yet</span>} />;
+    emptyState={<span>{view === "layers" ? "No layers yet" : "No canvases yet"}</span>} /></TreeContextArea>;
 }

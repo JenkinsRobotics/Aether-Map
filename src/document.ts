@@ -207,6 +207,8 @@ export interface Surface {
    * Folder name scoped to the owning scene (or workspace root). Members are
    * contiguous in paint order; optional owner.folders also retains empty folders.
    */
+  /** The name scenes use to find this surface on any canvas; defaults to its name. */
+  role?: string;
   folder?: string;
   /** Created as a linked multi-face shape, distinct from a manual folder. */
   /** null records an intentional regroup, so old-file inference cannot restore it. */
@@ -346,6 +348,13 @@ export interface OutputSchedule {
 }
 
 export interface MapShow {
+  /** Legacy single show (r15); the normalizer moves it into `shows`. */
+  showTimeline?: import('./show-timeline').ShowTimeline;
+  /** The document's shows: canvas tracks of scene clips, and cues. */
+  shows?: import('./show-timeline').ShowProgram[];
+  /** The show open in the Show workspace; the one players play. */
+  activeShowID?: string;
+  playerShowID?: string;
   /** Independent visual instances. Missing in legacy surface-owned documents. */
   visuals?: import('./visual-model').Visual[];
   /** Four shared oscillators; omitted in older shows. */
@@ -432,7 +441,7 @@ export const DEFAULT_OUTPUT = { width: 1920, height: 1080 };
 export const DEFAULT_DURATION_S = 60;
 
 export function emptyShow(): MapShow {
-  const scene = newScene("Scene 1");
+  const scene = newScene("Canvas 1");
   return {
     version: 3,
     output: { ...DEFAULT_OUTPUT },
@@ -444,7 +453,8 @@ export function emptyShow(): MapShow {
     unassignedSurfaces: [],
     scenes: [scene],
     activeSceneId: scene.id,
-    playback: { mode: "continuous" },
+    // A new show is one looping minute; Loop off runs continuously.
+    playback: { mode: "loop" },
   };
 }
 

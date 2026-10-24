@@ -4,6 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { installPointerEvents } from "./test-pointer";
 
+// The footer widgets toggle from the aux toolbar, like the aux sidebar panels.
+// The Timeline toggle only exists outside the Mapping workspace.
+const openTimelineDock = () => {
+  const rail = document.querySelector(".aui-studio-aux-toolbar") as HTMLElement;
+  const timeline = within(rail).getByRole("button", { name: "Timeline" });
+  if (timeline.getAttribute("aria-pressed") !== "true") fireEvent.click(timeline);
+};
+
+
 /**
  * Whole-app wiring. Not a substitute for driving a real browser, but it catches
  * what refactors actually break: a panel that no longer receives its props, a
@@ -15,6 +24,7 @@ import { installPointerEvents } from "./test-pointer";
 afterEach(cleanup);
 
 beforeEach(() => {
+  localStorage.removeItem("aether-map.bottom-dock.v1");
   localStorage.removeItem("aether-map.visual-editor");
   localStorage.removeItem("aether-map.visualization.ribbon-tab");
   localStorage.removeItem("aether-map.tool-variants");
@@ -46,16 +56,21 @@ beforeEach(() => {
 });
 
 function ribbonTool(label: string) {
-  return within(screen.getByRole('region', {name:'Map tools'})).getByRole('button', {name:label});
+  // The classic ribbon presents each tool twice (labeled group + compact
+  // strip), matching CAD's standard toolbar; either instance runs the tool.
+  return within(screen.getByRole('region', {name:'Map tools'})).getAllByRole('button', {name:label})[0];
 }
 
-function changeWorkspace(name: "Mapping" | "Visualization") {
+function changeWorkspace(name: "Mapping" | "Scene") {
   fireEvent.click(screen.getByRole('button',{name:/Workspace:/}));
   fireEvent.click(screen.getByRole('menuitemradio',{name}));
 }
 
 function addLayerSurface() {
   const controls = screen.getAllByRole("group", { name: "Layer controls" })[0];
+  // The tray shows New Surface directly unless it overflows into More.
+  const direct = within(controls).queryByRole("button", { name: "New Surface" });
+  if (direct) { fireEvent.click(direct); return; }
   fireEvent.click(within(controls).getByRole("button", { name: "More Layer controls" }));
   fireEvent.click(screen.getByRole("menuitem", { name: "New Surface" }));
 }
@@ -68,13 +83,29 @@ const present = (text: string | RegExp) => screen.getAllByText(text).length > 0;
  * Export act on the show rather than on a selection, so they are not ribbon
  * tools — they live with Rename and Save a copy behind the hamburger.
  */
-const documentCommand = (name: string) => {
+// The Document controls hamburger lives in the file footer's actions cluster
+// (the standard slot), so the files widget must be open to reach it.
+const openDocumentControls = () => {
+  // Simple visuals has no aux rail; its footer already shows the file row.
+  const rail = document.querySelector(".aui-studio-aux-toolbar");
+  const files = rail && within(rail as HTMLElement).getByRole("button", { name: "Open files" });
+  if (files && files.getAttribute("aria-pressed") !== "true") fireEvent.click(files);
   fireEvent.click(screen.getAllByRole("button", { name: "Document controls" })[0]);
+};
+const documentCommand = (name: string) => {
+  openDocumentControls();
   fireEvent.click(screen.getAllByRole("menuitem", { name: new RegExp(`^${name}`) })[0]);
 };
-/** Rows of the one content tree: scenes at the root, everything else beneath. */
-const treeRows = () =>
-  within(screen.getAllByRole("tree", { name: "Layers" })[0]).queryAllByRole("treeitem");
+/** Mapping's one artboard tree: canvases at the root, the open (active)
+ * canvas's layers beneath it. */
+const layerTree = () => screen.getAllByRole("tree", { name: "Layers" })[0];
+const treeRows = () => within(layerTree()).queryAllByRole("treeitem").filter(row => row.getAttribute("aria-level") !== "1");
+const sceneRows = () => within(layerTree()).queryAllByRole("treeitem").filter(row => row.getAttribute("aria-level") === "1");
+/** Right-click on the tree's empty space, then a creation command. */
+const treeCommand = (name: string) => {
+  fireEvent.contextMenu(layerTree());
+  fireEvent.click(screen.getByRole("menuitem", { name }));
+};
 const absent = (text: string | RegExp) => screen.queryAllByText(text).length === 0;
 /** A row in one of the trees, not the same name wherever else it appears. */
 const clickRow = (tree: string, name: string) =>
@@ -83,15 +114,15 @@ const clickRow = (tree: string, name: string) =>
 
 describe("Aether Map", () => {
   it.each([false, true])("keeps Layers beside Comments in the studio sidebar (saved layout: %s)", (saved) => {
-    const previousLayout = localStorage.getItem("aether-map.mapping");
-    const previousMode = localStorage.getItem("aether-map.layout");
+    const previousLayout = localStorage.getItem("aether-map.mapping.studio-v1");
+    const previousMode = localStorage.getItem("aether-map.layout.studio-v1");
     try {
-      localStorage.setItem("aether-map.layout", "docked");
+      localStorage.setItem("aether-map.layout.studio-v1", "docked");
       if (saved) {
-        localStorage.setItem("aether-map.mapping", JSON.stringify({ version: 1, layouts: {
+        localStorage.setItem("aether-map.mapping.studio-v1", JSON.stringify({ version: 1, layouts: {
           docked: { layers: { placement: "docked" }, comments: { placement: "docked" } },
         } }));
-      } else localStorage.removeItem("aether-map.mapping");
+      } else localStorage.removeItem("aether-map.mapping.studio-v1");
       render(<App />);
       const tabs = screen.getByRole("toolbar", { name: "Left sidebar tabs" });
       const layers = within(tabs).getByRole("button", { name: "Features and parts" });
@@ -109,10 +140,10 @@ describe("Aether Map", () => {
       expect(comments.getAttribute("aria-pressed")).toBe("false");
     } finally {
       cleanup();
-      if (previousLayout === null) localStorage.removeItem("aether-map.mapping");
-      else localStorage.setItem("aether-map.mapping", previousLayout);
-      if (previousMode === null) localStorage.removeItem("aether-map.layout");
-      else localStorage.setItem("aether-map.layout", previousMode);
+      if (previousLayout === null) localStorage.removeItem("aether-map.mapping.studio-v1");
+      else localStorage.setItem("aether-map.mapping.studio-v1", previousLayout);
+      if (previousMode === null) localStorage.removeItem("aether-map.layout.studio-v1");
+      else localStorage.setItem("aether-map.layout.studio-v1", previousMode);
     }
   });
 
@@ -129,7 +160,7 @@ describe("Aether Map", () => {
       const inspector = screen.getByRole("region", { name: "Selection properties" });
       expect((within(inspector).getByLabelText("Surface name") as HTMLInputElement).value).toBe("Surface 1");
       expect(within(inspector).queryByLabelText("Scene shown on this output")).toBeNull();
-      clickRow("Layers", "Scene 1");
+      clickRow("Layers", "Canvas 1");
       addLayerSurface();
       expect((within(inspector).getByLabelText("Surface name") as HTMLInputElement).value).toBe("Surface 2");
       expect(within(inspector).queryByLabelText("Scene length")).toBeNull();
@@ -179,7 +210,7 @@ describe("Aether Map", () => {
       addLayerSurface();
       clickRow("Layers", "Surface 1");
       expect(present("Corners")).toBe(true);
-      clickRow("Layers", "Scene 1");
+      clickRow("Layers", "Canvas 1");
       // Check the rail itself: a feature window may independently stay open
       // while Properties follows the selected scene.
       expect(present("Visibility")).toBe(true);
@@ -192,17 +223,27 @@ describe("Aether Map", () => {
 
     it("offers hide and suppress on the selected scene", () => {
       render(<App />);
-      clickRow("Layers", "Scene 1");
+      clickRow("Layers", "Canvas 1");
       expect(screen.getAllByLabelText(/Hidden/).length).toBeGreaterThan(0);
       expect(screen.getAllByLabelText(/Suppressed/).length).toBeGreaterThan(0);
     });
 
     it("tells you whether anything is projecting the selected scene", () => {
       render(<App />);
-      clickRow("Layers", "Scene 1");
+      clickRow("Layers", "Canvas 1");
       // A new show aims its one output at its one scene.
       expect(present(/Projecting on Output 1/)).toBe(true);
     });
+  });
+
+  it("Scene and Show offer the backdrop toggle in the view tools, like Mapping", () => {
+    render(<App />);
+    for (const name of ["Scene", "Show"] as const) {
+      fireEvent.click(screen.getByRole('button',{name:/Workspace:/})); fireEvent.click(screen.getByRole('menuitemradio',{name}));
+      const tools = screen.getAllByRole("toolbar", { name: "View tools" })[0];
+      // No backdrop imported yet: present, but nothing to toggle.
+      expect(within(tools).getByRole("button", { name: "Backdrop image" }).hasAttribute("disabled")).toBe(true);
+    }
   });
 
   it("keeps the crossfader out of the content tree", () => {
@@ -213,32 +254,28 @@ describe("Aether Map", () => {
     expect(within(tree.parentElement!).queryByLabelText("Scene to fade toward")).toBeNull();
   });
 
-  it("lists scenes and their layers in one tree, the way artboards nest", () => {
+  it("is one artboard tree: each canvas holds its layers, with a single + in the header", () => {
     render(<App />);
     addLayerSurface();
-    const tree = screen.getAllByRole("tree", { name: "Layers" })[0];
-    const rows = within(tree).getAllByRole("treeitem");
-    // The scene is the root and the layer hangs off it.
-    expect(rows[0].textContent).toContain("Scene 1");
-    expect(rows[0].getAttribute("aria-level")).toBe("1");
-    const surface = rows.find((row) => row.textContent?.includes("Surface 1"))!;
+    const surface = treeRows().find((row) => row.textContent?.includes("Surface 1"))!;
     expect(surface.getAttribute("aria-level")).toBe("2");
-    // And there is no separate Scenes tree left.
-    expect(screen.queryAllByRole("tree", { name: "Scenes" })).toHaveLength(0);
+    expect(sceneRows().map((row) => row.textContent)).toEqual([expect.stringContaining("Canvas 1")]);
+    expect(screen.queryByRole("tree", { name: "Canvases" })).toBeNull();
+    const header = screen.getAllByRole("group", { name: "Layer controls" })[0];
+    expect(within(header).getAllByRole("button").map(b => b.getAttribute("aria-label"))).toEqual(["New Surface"]);
   });
 
   it("mounts with a scene and an empty layer list", () => {
     render(<App />);
-    expect(present("Scene 1")).toBe(true);
-    // The scene is the only row: it has nothing in it yet.
-    expect(treeRows()).toHaveLength(1);
+    expect(sceneRows()).toHaveLength(1);
+    expect(treeRows()).toHaveLength(0);
   });
 
   it("adds a surface from the ribbon and lists it as a layer", () => {
     render(<App />);
     addLayerSurface();
     expect(present("Surface 1")).toBe(true);
-    expect(treeRows()).toHaveLength(2);
+    expect(treeRows()).toHaveLength(1);
   });
 
   it("undoes the surface it just added", () => {
@@ -246,45 +283,65 @@ describe("Aether Map", () => {
     addLayerSurface();
     expect(present("Surface 1")).toBe(true);
     documentCommand("Undo");
-    expect(treeRows()).toHaveLength(1);
+    expect(treeRows()).toHaveLength(0);
     expect(absent("Surface 1")).toBe(true);
   });
 
   it("adds a scene and makes it the active one", () => {
     render(<App />);
-    fireEvent.click(screen.getAllByRole("button", { name: "New scene" })[0]);
+    treeCommand("New canvas");
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
-    expect(present("Scene 2")).toBe(true);
-    // Surfaces belong to a scene: the new one starts empty, so the tree is two
-    // scene rows and nothing under either.
-    expect(treeRows()).toHaveLength(2);
+    expect(sceneRows()).toHaveLength(2);
+    // The new scene is active, and it starts empty.
+    expect(treeRows()).toHaveLength(0);
   });
 
-  it("keeps each scene's surfaces separate, and shows whose they are", () => {
+  it("keeps each scene's surfaces separate: selecting a scene switches the list", () => {
     render(<App />);
     addLayerSurface();
-    fireEvent.click(screen.getAllByRole("button", { name: "New scene" })[0]);
+    treeCommand("New canvas");
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
-    // Both scenes are in the one tree now, so "separate" is about nesting
-    // rather than about one of them being absent.
-    const tree = screen.getAllByRole("tree", { name: "Layers" })[0];
-    const rows = within(tree).getAllByRole("treeitem");
-    const sceneOne = rows.findIndex((row) => row.textContent?.includes("Scene 1"));
-    const sceneTwo = rows.findIndex((row) => row.textContent?.includes("Scene 2"));
-    const surface = rows.findIndex((row) => row.textContent?.includes("Surface 1"));
-    expect(surface).toBeGreaterThan(sceneOne);
-    expect(surface).toBeLessThan(sceneTwo);
-    // Scene 2 has nothing under it: the next row after it is nothing at all.
-    expect(rows).toHaveLength(3);
+    // Each canvas holds its own: Surface 1 sits under Canvas 1, Canvas 2 is empty.
+    clickRow("Layers", "Canvas 1");
+    const rows = within(layerTree()).queryAllByRole("treeitem").map(row => `${row.getAttribute("aria-level")}:${row.textContent?.trim()}`);
+    expect(rows).toEqual([expect.stringMatching(/^1:Canvas 1/), expect.stringMatching(/^2:Surface 1/), expect.stringMatching(/^1:Canvas 2/)]);
+  });
+
+  it("opens the Visual gallery from the sidebar + in advanced, as in simple", () => {
+    render(<App />);
+    changeWorkspace("Scene");
+    fireEvent.click(screen.getByRole("button", { name: "Advanced editor" }));
+    fireEvent.click(within(document.querySelector(".map-visual-panel-title") as HTMLElement).getByRole("button", { name: "Add layer" }));
+    expect(screen.getByRole("dialog", { name: "Visual gallery" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Solid color" }));
+    expect(within(screen.getByRole("list", { name: "Visuals" })).getAllByRole("button", { name: /^Select Colour/ })).toHaveLength(1);
+  });
+
+  it("offers the Advanced gallery sources: test pattern, tracker and the show's own pool", () => {
+    render(<App />);
+    changeWorkspace("Scene");
+    fireEvent.click(screen.getByRole("button", { name: "Advanced editor" }));
+    const open = () => fireEvent.click(within(document.querySelector(".map-visual-panel-title") as HTMLElement).getByRole("button", { name: "Add layer" }));
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Test pattern" }));
+    expect(within(screen.getByRole("list", { name: "Visuals" })).getAllByRole("button", { name: /^Select Test pattern/ })).toHaveLength(1);
+    open();
+    expect(screen.getByRole("button", { name: "Tracker" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "In this show" }));
+    expect(screen.getByRole("main", { name: "In this show" })).toBeTruthy();
   });
 
   it("opens independent bottom panels and keeps export in the document menu", () => {
     render(<App />);
-    let tray = screen.getByRole("toolbar", { name: "Map workspace dock tabs" });
-    expect(within(tray).getAllByRole("button").map(tab => tab.getAttribute("aria-label"))).toEqual(["Surfaces", "Timeline"]);
-    changeWorkspace("Visualization");
+    // Mapping has no timeline: its aux toolbar toggles only files and surfaces.
+    const mappingRail = document.querySelector(".aui-studio-aux-toolbar") as HTMLElement;
+    expect(within(mappingRail).queryByRole("button", { name: "Timeline" })).toBeNull();
+    expect(within(mappingRail).getByRole("button", { name: "Open files" })).toBeTruthy();
+    expect(within(mappingRail).getByRole("button", { name: "Mapped surfaces" })).toBeTruthy();
+    changeWorkspace("Scene");
     fireEvent.click(screen.getByRole("button", { name: "Advanced editor" }));
-    tray = screen.getByRole("toolbar", { name: "Map workspace dock tabs" });
+    // The aux toolbar's Timeline toggle docks the timeline in the footer.
+    const tray = (openTimelineDock(), document.querySelector(".aui-studio-aux-toolbar") as HTMLElement);
     const timeline = within(tray).getByRole("button", { name: "Timeline" });
     const audio = within(screen.getByRole("toolbar", { name:"Timeline tools" })).getByRole("button", { name: "Audio mixer" });
     expect(audio.getAttribute('aria-pressed')).toBe('true');
@@ -300,7 +357,7 @@ describe("Aether Map", () => {
     fireEvent.click(timeline);
     fireEvent.click(timeline);
     expect(screen.queryByRole('complementary', { name:'Audio mixer' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name:'Document controls' }));
+    openDocumentControls();
     fireEvent.click(screen.getByRole('menuitem', { name:'Export options…' }));
     expect(present('Project bundle')).toBe(true);
   });
@@ -371,7 +428,7 @@ describe("Aether Map", () => {
     fireEvent.pointerUp(host, { clientX: 200, clientY: 200, pointerId: 1 });
     expect(present("Cutout 1")).toBe(true);
     expect(document.querySelector<HTMLElement>(".map-fill")?.style.background).toBe("rgb(0, 0, 0)");
-    changeWorkspace("Visualization");
+    changeWorkspace("Scene");
     const fill = document.querySelector<HTMLElement>(".map-fill");
     expect(fill?.style.background).toMatch(/rgb\(0, 0, 0\)|#000000/);
   });
@@ -389,7 +446,7 @@ describe("Aether Map", () => {
     addLayerSurface();
     expect(document.querySelector('.map-ribbon')).not.toBeNull();
     expect(screen.getByRole('button', {name:'Workspace: Mapping'}).closest('.aui-shell-fltoolbar')).not.toBeNull();
-    changeWorkspace('Visualization');
+    changeWorkspace('Scene');
     expect(screen.getByRole('region', { name: 'Simple visualization workspace' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Advanced editor' }));
     expect(present('Surface 1')).toBe(true);
@@ -401,14 +458,18 @@ describe("Aether Map", () => {
   it("reorders simple layers with undo/redo and preserves their order across editor modes", () => {
     render(<App />);
     addLayerSurface();
-    changeWorkspace('Visualization');
+    changeWorkspace('Scene');
     fireEvent.click(screen.getByRole('button', { name: 'Browse visual gallery' }));
     fireEvent.click(screen.getByRole('button', { name: 'Solid color' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Asset name' }), { target: { value: 'Background' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add visual' }));
+    // Visual layers tree's Add visual (the toolbar surface tray has its own).
+    fireEvent.click(within(document.querySelector('.map-visual-panel-title') as HTMLElement).getByRole('button', { name: 'Add layer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Solid color' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Asset name' }), { target: { value: 'Foreground' } });
-    const order = () => within(screen.getByRole('group', { name: 'Layers, front to back' })).getAllByRole('button').map(b => b.getAttribute('aria-label'));
+    // Front-to-back order as the Visual layers tree shows it.
+    // Front-to-back order as the Visuals cards show it (the default
+    // per-surface visual is listed too; these checks follow the added ones).
+    const order = () => within(screen.getByRole('list', { name: 'Visuals' })).getAllByRole('button', { name: /^Select / }).map(b => b.getAttribute('aria-label')).filter(l => !/^Select Surface \d/.test(l ?? ''));
     expect(order()).toEqual(['Select Foreground', 'Select Background']);
     fireEvent.click(screen.getByRole('button', { name: 'Send to back' }));
     expect(order()).toEqual(['Select Background', 'Select Foreground']);
@@ -421,27 +482,20 @@ describe("Aether Map", () => {
     expect(order()).toEqual(['Select Background', 'Select Foreground']);
   });
 
-  it("defaults Main to one layer per surface and gives each surface V1/A1", () => {
+  it("gives a new show one Main timeline; surfaces get no timeline of their own", () => {
     render(<App />);
     addLayerSurface();
     addLayerSurface();
-    changeWorkspace("Visualization");
+    changeWorkspace("Scene");
     fireEvent.click(screen.getByRole("button", { name: "Advanced editor" }));
-    const timelineButton = within(screen.getByRole("toolbar", { name: "Map workspace dock tabs" })).getByRole("button", { name: "Timeline" });
-    if (timelineButton.getAttribute("aria-pressed") !== "true") fireEvent.click(timelineButton);
-    fireEvent.change(screen.getByRole("combobox", { name: "Timeline mode" }), { target: { value: "advanced" } });
-    expect(document.querySelectorAll(".map-track-head:not(.map-track-head--ruler)")).toHaveLength(3);
-    expect(document.querySelectorAll(".map-clip")).toHaveLength(2);
-    fireEvent.click(within(screen.getByRole('tablist', {name:'Timelines'})).getByRole('tab', {name:'Surface 1'}));
-    expect(document.querySelectorAll('.map-track-head:not(.map-track-head--ruler)')).toHaveLength(2);
-    expect(document.querySelectorAll('.map-clip')).toHaveLength(0);
-
+    const timelines = within(screen.getByRole("tree", { name: "Scenes" })).getAllByRole("treeitem");
+    expect(timelines.map(row => row.textContent)).toEqual([expect.stringContaining("Main")]);
   });
 
   it("adds and targets a simple visual, keeps it in advanced, and undoes the edit across mode switches", () => {
     render(<App />);
     addLayerSurface();
-    changeWorkspace('Visualization');
+    changeWorkspace('Scene');
     fireEvent.click(screen.getByRole('button', { name: 'Browse visual gallery' }));
     fireEvent.click(screen.getByRole('button', { name: 'Solid color' }));
     expect(screen.getByRole('button', { name: 'Assign to Surface 1' }).getAttribute('aria-pressed')).toBe('true');
@@ -471,38 +525,38 @@ describe("component deletion", () => {
   it("deletes a selected cube through the Layers footer, preserves both scenes, and undoes all faces together", () => {
     render(<App />);
     addLayerSurface();
-    fireEvent.click(screen.getAllByRole("button", { name: "New scene" })[0]);
+    treeCommand("New canvas");
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
     fireEvent.click(ribbonTool("Cube"));
     clickRow("Layers", "^Cube 3 layers$");
-    const controls = screen.getAllByRole("group", { name: "Layer controls" })[0];
-    fireEvent.click(within(controls).getByRole("button", { name: "More Layer controls" }));
+    fireEvent.contextMenu(within(layerTree()).getAllByRole("treeitem", { name: /^Cube 3 layers$/ })[0]);
     fireEvent.click(screen.getByRole("menuitem", { name: /^Delete group/ }));
     expect(treeRows().map(row => row.getAttribute("aria-label") ?? row.textContent)).not.toContain("Cube");
-    expect(treeRows()).toHaveLength(3); // two scenes plus the unrelated surface
+    // The unrelated surface stays in Canvas 1; Canvas 2 is empty again.
+    expect(treeRows().map(row => row.textContent?.trim())).toEqual([expect.stringContaining("Surface 1")]); expect(sceneRows()).toHaveLength(2);
     documentCommand("Undo");
-    expect(treeRows()).toHaveLength(7); // group + all three faces restored
-    expect(treeRows().filter(row => row.getAttribute("aria-level") === "1")).toHaveLength(2);
+    expect(treeRows()).toHaveLength(5); // Surface 1, plus the group and all three faces restored
+    expect(treeRows().filter(row => row.getAttribute("aria-level") === "2")).toHaveLength(2);
   });
   it("deletes a whole cube from the toolbar, then only one face when a face is selected", () => {
     render(<App />);
     fireEvent.click(ribbonTool("Cube"));
     fireEvent.click(ribbonTool("Delete"));
-    expect(treeRows()).toHaveLength(1);
+    expect(treeRows()).toHaveLength(0);
     documentCommand("Undo");
     clickRow("Layers", "Cube right");
     fireEvent.click(ribbonTool("Delete"));
-    expect(treeRows()).toHaveLength(4); // scene, group, two faces
+    expect(treeRows()).toHaveLength(3); // group, two faces
   });
   it("deletes the selected box with the canvas Delete key", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Cube variants" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Cube variants" })[0]);
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Box" }));
-    expect(treeRows()).toHaveLength(7);
+    expect(treeRows()).toHaveLength(6);
     fireEvent.keyDown(document.querySelector(".map-canvas-host")!, { key: "Delete" });
-    expect(treeRows()).toHaveLength(1);
+    expect(treeRows()).toHaveLength(0);
     documentCommand("Undo");
-    expect(treeRows()).toHaveLength(7);
+    expect(treeRows()).toHaveLength(6);
   });
 });
 
@@ -510,9 +564,9 @@ describe("component deletion", () => {
 it("deletes the last output from the toolbar without deleting a previously selected cube, and undoes it", () => {
   render(<App />);
   fireEvent.click(ribbonTool("Cube"));
-  const before = treeRows().length;
   expect(screen.queryByRole("button", { name: "Outputs" })).toBeNull();
   const retainedLayerRows = () => within(screen.getByRole("tree", { name: "Layers", hidden: true })).queryAllByRole("treeitem", { hidden: true });
+  const before = retainedLayerRows().length;
   clickRow("Outputs", "Output 1");
   fireEvent.click(ribbonTool("Delete"));
   expect(within(screen.getByRole("tree", { name: "Outputs" })).queryAllByRole("treeitem")).toHaveLength(0);

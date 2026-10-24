@@ -1,0 +1,35 @@
+/* Visual layers rows: the reference's thumbnail + name + duration, inside the
+   standard tree (selection, drag reorder, actions all come from the tree). */
+.map-visual-tree-row { min-height: 52px; }
+.map-visual-tree-row .aui-tree-icon { width: 44px; height: 44px; flex: none; }
+.map-visual-tree-row .aui-tree-icon .map-simple-thumbnail { width: 44px; height: 44px; aspect-ratio: auto; border-radius: 7px; }
+.map-visual-tree-row .aui-tree-label { font-weight: 600; }
+.map-visual-tree-row .aui-tree-badge { color: var(--aether-color-text-dim); }
+
+/* The Visual layers tab: the tree fills, the concept's add actions sit below. */
+.map-visual-layers { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.map-visual-layers > :first-child { flex: 1; min-height: 0; }
+
+/* Visuals tab: the concept's card rows. */
+.map-visual-cards { list-style: none; margin: 0; padding: 4px 6px; display: grid; gap: 6px; align-content: start; overflow-y: auto; }
+.map-visual-card { display: flex; align-items: center; gap: 6px; padding: 6px; border: 1px solid transparent; border-radius: 10px; background: color-mix(in srgb, var(--aether-color-text) 3%, transparent); }
+.map-visual-card.is-selected { border-color: var(--aether-color-accent); background: color-mix(in srgb, var(--aether-color-accent) 10%, transparent); }
+.map-visual-card.is-hidden { opacity: .5; }
+.map-visual-card-grip { flex: none; width: 10px; color: var(--aether-color-text-dim); cursor: grab; font-size: 12px; line-height: 1; }
+.map-visual-card-select { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.map-visual-card-thumb { flex: none; width: 52px; height: 52px; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: #090a12; /* literal-ok: source preview */ }
+.map-visual-card-thumb .map-simple-thumbnail { width: 52px; height: 52px; aspect-ratio: auto; border-radius: 8px; }
+.map-visual-card-text { min-width: 0; display: grid; gap: 4px; }
+.map-visual-card-text strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-visual-card-text small { font-size: 10px; color: var(--aether-color-text-dim); }
+.map-visual-card-menu.aui-menu-trigger { flex: none; width: 24px; min-width: 24px; padding: 0; background: none; border: 0; }
+
+/* Working-surface picker above both views. */
+.map-visual-surface-filter { padding: 6px 8px 2px; }
+
+/* Reference head: "Assets & Layers" + add, then full-width standard tabs. */
+.map-visual-panel-head { display: grid; gap: 10px; padding: 10px 10px 4px; }
+.map-visual-panel-title { display: flex; align-items: center; justify-content: space-between; }
+.map-visual-panel-title strong { font-size: 13px; }
+.map-visual-panel-title .aui-icon-button { border: 1px solid var(--aether-color-border); border-radius: 8px; }
+.map-visual-panel-head .ps-review-conversation-tabs { width: 100%; }

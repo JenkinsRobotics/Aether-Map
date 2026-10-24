@@ -3,6 +3,7 @@ import catalogText from '../../service/aether_map_service/automation-commands.js
 import type { MapShow } from '../document';
 import { visualSource } from '../media-pool';
 import { sourceSummary, surfaceAutomationSummary } from './commands';
+import { describeShowTimeline } from './show-commands';
 
 type ScalarSchema = {
   type: 'string' | 'number' | 'integer'; enum?: unknown[];
@@ -26,7 +27,7 @@ const descriptions: Record<string, string> = {
   'map.clip.edit': 'Duplicate/delete/split/trim a clip. Split and trim need time_s in timeline seconds; respects locks and boundaries. Undoable.',
 };
 const inspectSchema: Schema = { type: 'object', additionalProperties: false, required: [], properties: {
-  section: { type: 'string', enum: ['scenes', 'surfaces', 'timelines', 'tracks', 'assets', 'clips'] },
+  section: { type: 'string', enum: ['scenes', 'surfaces', 'timelines', 'tracks', 'assets', 'clips', 'show'] },
   scene_id: { type: 'string', minLength: 1, maxLength: 128 },
   offset: { type: 'integer', minimum: 0, maximum: 1000000 },
   limit: { type: 'integer', minimum: 1, maximum: 25 },
@@ -106,6 +107,8 @@ export function inspectMap(show: MapShow, args: Record<string, unknown>) {
       timeline_id: v.timelineRefID, asset_id: v.assetID, start_s: v.startS, duration_s: v.durationS,
       in_s: v.inS, loop: v.loop, continuous: !!v.continuous, locked: !!v.locked, enabled: v.enabled !== false,
       targets: v.targets, opacity: v.opacity, mapping: v.mapping, effects: v.effects, placement: v.placement, motion: v.motion, ...sourceSummary(visualSource(show, v)) })); break;
+    // The show timeline: canvas tracks of scene clips (scenes = timelines), and cues.
+    case 'show': listing = describeShowTimeline(show); break;
     default: throw Error('Unknown inspection section.');
   }
   return boundedMapReply({ active_scene_id: show.activeSceneId, active_timeline_id: show.activeTimelineID ?? 'main',

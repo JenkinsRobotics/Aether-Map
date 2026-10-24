@@ -52,7 +52,9 @@ function entry(id: string, label: string, component: unknown, presets: readonly 
 }
 /** Pinned upstream effects plus original generators. Image effects are counted separately. */
 export const SHADERS = [
-  entry("mesh-gradient", "Mesh Gradient", MeshGradient, meshGradientPresets),
+  entry("mesh-gradient", "Mesh Gradient", MeshGradient, [...meshGradientPresets,
+    // The Prism pavilion reference looks, one click from the gallery.
+    { name: "Ink mesh gradient", params: { ...meshGradientPresets[0].params, colors: ["#10142a", "#7c3aed", "#3b82f6", "#9be7ff"], distortion: 0.95, swirl: 0.3, speed: 0.6 } }]),
   entry("static-mesh-gradient", "Static Mesh Gradient", StaticMeshGradient, staticMeshGradientPresets),
   entry("radial-gradient", "Radial Gradient", StaticRadialGradient, staticRadialGradientPresets),
   entry("grain-gradient", "Grain Gradient", GrainGradient, grainGradientPresets),
@@ -68,7 +70,8 @@ export const SHADERS = [
   entry("swirl", "Swirl", Swirl, swirlPresets),
   entry("spiral", "Spiral", Spiral, spiralPresets),
   entry("smoke-ring", "Smoke Ring", SmokeRing, smokeRingPresets),
-  entry("warp", "Warp", Warp, warpPresets),
+  entry("warp", "Warp", Warp, [...warpPresets,
+    { name: "Shader flow", params: { ...warpPresets[0].params, colors: ["#2a0a33", "#ff5ec7", "#8b5cf6", "#ffd1e8"], speed: 0.5, swirl: 0.9, distortion: 0.35 } }]),
   entry("dot-orbit", "Dot Orbit", DotOrbit, dotOrbitPresets),
   entry("dot-grid", "Dot Grid", DotGrid, dotGridPresets),
   entry("color-panels", "Color Panels", ColorPanels, colorPanelsPresets),

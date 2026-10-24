@@ -20,7 +20,7 @@ test('actual App routes canonical MIDI motion to Performance and LED feedback; m
  const input={id:'input',name:'Launch Control XL',onmidimessage:null as ((event:{data:Uint8Array})=>void)|null};
  const output={id:'output',name:'Launch Control XL',send:vi.fn(),close:vi.fn().mockResolvedValue(undefined)};
  Object.defineProperty(navigator,'requestMIDIAccess',{configurable:true,value:vi.fn().mockResolvedValue({inputs:new Map([[input.id,input]]),outputs:new Map([[output.id,output]]),onstatechange:null})});
- const view=render(<App/>);fireEvent.click(screen.getByRole('button',{name:/Workspace:/}));fireEvent.click(screen.getByRole('menuitemradio',{name:'Visualization'}));
+ const view=render(<App/>);fireEvent.click(screen.getByRole('button',{name:/Workspace:/}));fireEvent.click(screen.getByRole('menuitemradio',{name:'Scene'}));
  fireEvent.click(screen.getByRole('button',{name:'Browse visual gallery'}));fireEvent.click(screen.getByRole('button',{name:'Solid color'}));
  fireEvent.click(screen.getByRole('button',{name:'Performance'}));const performance=screen.getByRole('dialog',{name:'Performance'});
  fireEvent.click(within(performance).getByRole('button',{name:'Opacity motion'}));fireEvent.click(within(performance).getByRole('button',{name:'Add modulation'}));

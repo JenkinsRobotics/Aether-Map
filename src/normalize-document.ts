@@ -6,8 +6,9 @@ import type { MapShow } from './document';
 import { normalizeVisuals } from './visual-document';
 import { normalizeMediaPool } from './media-pool';
 import { normalizeSurfaceTimelines } from './surface-timelines';
+import { normalizeShowTimeline } from './show-timeline';
 
 /** One document upgrade path for editor opening, edits and saved-file agents. */
 export function normalizeDocument(show: MapShow): MapShow {
-  return surfaceMotionVersion(visualLookVersion(sourceMotionVersion(visualMotionVersion(normalizeSurfaceTimelines(normalizeMediaPool(normalizeVisuals(show)))))));
+  return normalizeShowTimeline(surfaceMotionVersion(visualLookVersion(sourceMotionVersion(visualMotionVersion(normalizeSurfaceTimelines(normalizeMediaPool(normalizeVisuals(show))))))));
 }

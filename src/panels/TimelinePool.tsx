@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { AetherIcon, Button, Dialog, FieldRow, Menu, TextField } from '@aether/ui';
+import { AetherIcon, Button, Dialog, FieldRow, Menu, TextField, TreePanel, type MenuItem, type TreeControl } from '@aether/ui';
 import { activeScene, type MapShow } from '../document';
 import { canNestTimeline, currentTimelineID, MAIN_TIMELINE, TIMELINE_DRAG_PREFIX, timelineUses } from '../timelines';
 import { POOL_DRAG_TYPE } from '../media-pool';
+import { TreeContextArea } from './TreeContextArea';
 
 export interface TimelinePoolActions {
   onOpen: (id: string) => void;
@@ -55,4 +56,36 @@ export function TimelinePool({ show, query, actions }: { show: MapShow; query: s
       {dialog?.kind === 'delete' ? <p>Delete {dialog.name} and its tracks and clips? Media stays in the pool. You can undo this change.</p> : <FieldRow label="Name"><TextField aria-label="Timeline name" value={dialog?.name ?? ''} onChange={e => setDialog(d => d && ({ ...d, name:e.target.value }))} onKeyDown={e => { if (e.key === 'Enter' && dialog?.name.trim()) submit(); }} /></FieldRow>}
     </Dialog>
   </>;
+}
+
+/** The advanced sidebar's bottom split: timelines hold their own lists, like
+ * scenes. Selecting one switches the list above to it. */
+export function TimelineTree({ show, actions }: { show: MapShow; actions: TimelinePoolActions }) {
+  const [renamingID, setRenamingID] = useState<string | null>(null);
+  const entries = [{ id: MAIN_TIMELINE, name: 'Main', surfaceID: undefined as string | undefined }, ...(show.timelines ?? []).filter(t => t.sceneID === show.activeSceneId)];
+  const current = currentTimelineID(show);
+  const canDelete = (id: string) => id !== MAIN_TIMELINE && !show.timelines?.find(t => t.id === id)?.surfaceID && !timelineUses(show, id);
+  const menu = (id: string): MenuItem[] => [
+    { id: 'open', label: 'Open scene', icon: <AetherIcon name="timeline-tracks" /> },
+    { id: 'append', label: 'Append to current track', icon: <AetherIcon name="plus" />, disabled: !canNestTimeline(show, id) },
+    { id: 'rename', label: 'Rename scene', shortcut: 'F2', icon: <AetherIcon name="notes" />, disabled: id === MAIN_TIMELINE },
+    { id: 'delete', label: 'Delete scene', shortcut: 'Delete', icon: <AetherIcon name="delete" />, danger: true, separatorBefore: true, disabled: !canDelete(id) },
+  ];
+  const command = (id: string, action: string) => {
+    if (action === 'open') actions.onOpen(id);
+    else if (action === 'append') actions.onAppend(id);
+    else if (action === 'rename' && id !== MAIN_TIMELINE) setRenamingID(id);
+    else if (action === 'delete' && canDelete(id)) actions.onRemove(id);
+  };
+  // Header: a name and "+"; row commands are right-click.
+  const create = () => actions.onCreate(`Scene ${(show.timelines?.length ?? 0) + 1}`);
+  const plus: TreeControl[] = [{ id: 'new', label: 'New scene', icon: <AetherIcon name="plus" />, onClick: create }];
+  const createItems = [{ id: 'list-new', label: 'New scene', icon: <AetherIcon name="plus" />, separatorBefore: true }];
+  return <TreeContextArea label="Scene options" items={createItems} onSelect={create}
+    shortcut={key => { const item = menu(current).find(entry => entry.id === (key === 'Delete' ? 'delete' : 'rename') && !entry.disabled); if (item) command(current, item.id); }}><TreePanel ariaLabel="Scenes" rootInset={0} selectedIDs={new Set([current])}
+    nodes={entries.map(t => ({ id: t.id, label: t.name, category: t.surfaceID ? 'Surface scene' : 'Scene', icon: <AetherIcon name="timeline-tracks" /> }))}
+    onSelect={ids => { const id = ids.at(-1); if (id && id !== current) actions.onOpen(id); }} onActivate={actions.onOpen}
+    controls={[]} headerControls={plus} controlsLabel="Scene controls" menuLabel="Scene options" menuItems={id => [...menu(id), ...createItems]}
+    onCommand={(id, action) => action === 'list-new' ? create() : command(id, action)} onAction={command} renamingID={renamingID} onCancelRename={() => setRenamingID(null)}
+    onRename={(id, name) => { if (name.trim()) actions.onRename(id, name.trim()); setRenamingID(null); }} /></TreeContextArea>;
 }

@@ -24,7 +24,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 }) : target, mod));
 //#endregion
 //#region service/aether_map_service/automation-commands.json
-var automation_commands_default = /*#__PURE__*/ JSON.parse("[{\"id\":\"map.show.inspect\",\"title\":\"Inspect Map show\",\"description\":\"Read saved scenes, surfaces, timelines, tracks, reusable assets and clip assignments. Does not inspect unsaved editor state.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128}},\"required\":[\"app\",\"id\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"},{\"id\":\"map.show.evaluate\",\"title\":\"Evaluate Map scene\",\"description\":\"Evaluate a saved scene's Main composition at a time in seconds using the player evaluator. Returns geometry and audio state, not a pixel image or live camera data. Does not play or deploy anything.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"scene_id\",\"time_s\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"evaluate\"},{\"id\":\"map.clip.move\",\"title\":\"Move Map clip\",\"description\":\"Move a saved clip to an existing compatible track and start time. Keeps surface assignments and source identity. Respects locks and nesting rules. Requires latest revision and records recoverable file history; open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":256},\"track_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"start_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1}},\"required\":[\"app\",\"id\",\"clip_id\",\"track_id\",\"start_s\",\"expected_revision\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"move\"},{\"id\":\"map.clip.edit\",\"title\":\"Edit Map clip\",\"description\":\"Duplicate, delete, split or trim a saved clip using Map's timeline commands. Split/trim require time_s in timeline seconds. Respects locks; requires latest revision and records recoverable file history. Open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":256},\"action\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200,\"enum\":[\"duplicate\",\"delete\",\"split\",\"trim-start\",\"trim-end\"]},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1}},\"required\":[\"app\",\"id\",\"clip_id\",\"action\",\"expected_revision\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.scene.create\",\"title\":\"Create Map scene\",\"description\":\"Add a named scene with explicit pixel artboard dimensions to an existing saved show. Preserves editor focus and output bindings. Maximum 256 scenes. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"width_px\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":16384},\"height_px\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":16384}},\"required\":[\"app\",\"id\",\"expected_revision\",\"name\",\"width_px\",\"height_px\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.surface.create\",\"title\":\"Create Map surface\",\"description\":\"Add a named rectangle (default), three-face cube or five-face box to a scene. Compound names must be unique folders. Returns created.surface_id and surface_ids; preserves focus and output bindings. Maximum 1024 surfaces per scene. Requires latest revision and records recoverable history; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"shape\":{\"type\":\"string\",\"enum\":[\"rectangle\",\"cube\",\"box\"]}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"name\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.surface.bounds\",\"title\":\"Set Map surface bounds\",\"description\":\"Set the visible axis-aligned bounding box at mapping time zero in scene pixels. Preserves warped shape, masks, curves and animation keys; respects aspect-ratio locks. Welded corners update atomically; locked neighbours refuse the edit. Returns changed_surface_ids. Requires latest revision/content-edit permission; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"x_px\":{\"type\":\"number\",\"minimum\":-1000000,\"maximum\":1000000},\"y_px\":{\"type\":\"number\",\"minimum\":-1000000,\"maximum\":1000000},\"width_px\":{\"type\":\"number\",\"minimum\":1,\"maximum\":32768},\"height_px\":{\"type\":\"number\",\"minimum\":1,\"maximum\":32768}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"x_px\",\"y_px\",\"width_px\",\"height_px\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.surface.rotate\",\"title\":\"Rotate Map surface\",\"description\":\"Rotate by delta_degrees around the visible bounding-box center at mapping time zero. Preserves masks, curves and animation keys. Welded corners update atomically; locked neighbours refuse the edit. Returns changed_surface_ids. Requires latest revision/content-edit permission; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"delta_degrees\":{\"type\":\"number\",\"minimum\":-360,\"maximum\":360}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"delta_degrees\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.cube.pose\",\"title\":\"Pose Map cube\",\"description\":\"Turn a complete three-face cube in 3D using relative x_degrees/y_degrees/z_degrees, or mode inside-out for the opposite room corner. surface_id identifies any cube face in scene_id. Geometry at time zero remains canonical; preserves face IDs, content, masks and animation keys. Rejects locked, separated, degenerate, folded or hidden faces. Angles are applied X then Y then Z. Inside-out takes no angles. Requires latest revision; open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"mode\":{\"type\":\"string\",\"enum\":[\"rotate\",\"inside-out\"]},\"x_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180},\"y_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180},\"z_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"mode\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.asset.place\",\"title\":\"Place Map asset\",\"description\":\"Place an existing saved media-pool asset on a track at start_s using editor timing and targets. Returns created.clip_id. Refuses locked or incompatible tracks and clips ending beyond seven days. Requires latest revision and content-edit permission. Does not upload media, change live editors or play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"asset_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"track_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"start_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"expected_revision\",\"asset_id\",\"track_id\",\"start_s\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.agent.docs\",\"title\":\"Map agent knowledge\",\"description\":\"Discover executable command schemas, gallery sources and a working program recipe. Use topic tools, gallery, sources or recipes; query filters tools/gallery; name returns an exact command. Read-only.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"topic\":{\"type\":\"string\",\"enum\":[\"tools\",\"gallery\",\"sources\",\"recipes\"]},\"query\":{\"type\":\"string\",\"maxLength\":200},\"name\":{\"type\":\"string\",\"maxLength\":200},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000}},\"required\":[\"app\",\"id\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"},{\"id\":\"map.visual.create\",\"title\":\"Create Map visual\",\"description\":\"Create a reusable source and continuous visual on its own track, using the same simple editor operation. source_json is a JSON object: gallery {kind,id}, color {kind,color}, text {kind,text,color?,size?}, or existing media {kind,media_id}. Defaults to all mapped surfaces of scene_id. Inspect created clip/asset/track IDs. No media upload or device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"source_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"name\",\"source_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.surface.animate\",\"title\":\"Animate Map surface\",\"description\":\"Edit surface bases, animation and modulation with changes_json. Supports opacity, xPx, yPx, scaleX, scaleY, rotationDeg, radiusPx and bendAngleDeg, plus bend_axis horizontal/vertical. Maps merge; null clears a channel or assignment map. Keys use surface timeline seconds; LFO and scene clock use Main scene time. Inspect surface_parameter_specs for bounds. Locked surfaces refuse. No camera, audio, MIDI or output activation.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"changes_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"changes_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.visual.edit\",\"title\":\"Configure Map visual\",\"description\":\"Edit a visual using changes_json. Supports name, opacity, enabled, mapping repeat/span, continuous, loop, start_s, duration_s, source (same specification as create), targets [{scene_id,surface_id?}], placement {xPercent,yPercent,widthPercent,heightPercent,rotationDeg}, effects [{kind,amount,enabled?}], shader {colors?,speed?,scale?,density?,glow?}. Also supports source_parameters, source_motion and motion; discover bounds with inspection. preset {action:store|recall|clear,slot:A|B|C,from_clip_id?} captures full appearance, or {action:random,seed:integer}. Locked clips/tracks refuse; timing and targets remain unchanged unless specified. No device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"changes_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"clip_id\",\"changes_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.show.runprogram\",\"title\":\"Build Map program\",\"description\":\"Run a version 1 JSON program containing 1–32 steps atomically. Each step has id, command, arguments. References {$ref:\\\"earlier.scene_id\\\"} resolve created scene/surface/clip/asset/track IDs. Optional assertions [{scene_id,time_s,layer_count}] must match actual Main composition before one commit. Failure saves nothing. Discover recipes and tools first. No arbitrary code or device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"program_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"program_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.show.verify\",\"title\":\"Verify Map composition\",\"description\":\"Round-trip the show through the canonical parser and evaluate Main at time_s in scene_id. Reports active layer counts, source kinds, opacity, target geometry and missing references. Returns structural/composition evidence, not rendered pixels or media availability. No document changes.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"scene_id\",\"time_s\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"}]");
+var automation_commands_default = /*#__PURE__*/ JSON.parse("[{\"id\":\"map.show.inspect\",\"title\":\"Inspect Map show\",\"description\":\"Read saved scenes, surfaces, timelines, tracks, reusable assets and clip assignments. Does not inspect unsaved editor state.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128}},\"required\":[\"app\",\"id\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"},{\"id\":\"map.show.evaluate\",\"title\":\"Evaluate Map scene\",\"description\":\"Evaluate a saved scene's Main composition at a time in seconds using the player evaluator. Returns geometry and audio state, not a pixel image or live camera data. Does not play or deploy anything.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"scene_id\",\"time_s\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"evaluate\"},{\"id\":\"map.clip.move\",\"title\":\"Move Map clip\",\"description\":\"Move a saved clip to an existing compatible track and start time. Keeps surface assignments and source identity. Respects locks and nesting rules. Requires latest revision and records recoverable file history; open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":256},\"track_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"start_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1}},\"required\":[\"app\",\"id\",\"clip_id\",\"track_id\",\"start_s\",\"expected_revision\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"move\"},{\"id\":\"map.clip.edit\",\"title\":\"Edit Map clip\",\"description\":\"Duplicate, delete, split or trim a saved clip using Map's timeline commands. Split/trim require time_s in timeline seconds. Respects locks; requires latest revision and records recoverable file history. Open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":256},\"action\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200,\"enum\":[\"duplicate\",\"delete\",\"split\",\"trim-start\",\"trim-end\"]},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1}},\"required\":[\"app\",\"id\",\"clip_id\",\"action\",\"expected_revision\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.scene.create\",\"title\":\"Create Map scene\",\"description\":\"Add a named scene with explicit pixel artboard dimensions to an existing saved show. Preserves editor focus and output bindings. Maximum 256 scenes. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"width_px\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":16384},\"height_px\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":16384}},\"required\":[\"app\",\"id\",\"expected_revision\",\"name\",\"width_px\",\"height_px\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.surface.create\",\"title\":\"Create Map surface\",\"description\":\"Add a named rectangle (default), three-face cube or five-face box to a scene. Compound names must be unique folders. Returns created.surface_id and surface_ids; preserves focus and output bindings. Maximum 1024 surfaces per scene. Requires latest revision and records recoverable history; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"shape\":{\"type\":\"string\",\"enum\":[\"rectangle\",\"cube\",\"box\"]}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"name\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.surface.bounds\",\"title\":\"Set Map surface bounds\",\"description\":\"Set the visible axis-aligned bounding box at mapping time zero in scene pixels. Preserves warped shape, masks, curves and animation keys; respects aspect-ratio locks. Welded corners update atomically; locked neighbours refuse the edit. Returns changed_surface_ids. Requires latest revision/content-edit permission; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"x_px\":{\"type\":\"number\",\"minimum\":-1000000,\"maximum\":1000000},\"y_px\":{\"type\":\"number\",\"minimum\":-1000000,\"maximum\":1000000},\"width_px\":{\"type\":\"number\",\"minimum\":1,\"maximum\":32768},\"height_px\":{\"type\":\"number\",\"minimum\":1,\"maximum\":32768}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"x_px\",\"y_px\",\"width_px\",\"height_px\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.surface.rotate\",\"title\":\"Rotate Map surface\",\"description\":\"Rotate by delta_degrees around the visible bounding-box center at mapping time zero. Preserves masks, curves and animation keys. Welded corners update atomically; locked neighbours refuse the edit. Returns changed_surface_ids. Requires latest revision/content-edit permission; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"delta_degrees\":{\"type\":\"number\",\"minimum\":-360,\"maximum\":360}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"delta_degrees\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.cube.pose\",\"title\":\"Pose Map cube\",\"description\":\"Turn a complete three-face cube in 3D using relative x_degrees/y_degrees/z_degrees, or mode inside-out for the opposite room corner. surface_id identifies any cube face in scene_id. Geometry at time zero remains canonical; preserves face IDs, content, masks and animation keys. Rejects locked, separated, degenerate, folded or hidden faces. Angles are applied X then Y then Z. Inside-out takes no angles. Requires latest revision; open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"mode\":{\"type\":\"string\",\"enum\":[\"rotate\",\"inside-out\"]},\"x_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180},\"y_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180},\"z_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"mode\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.asset.place\",\"title\":\"Place Map asset\",\"description\":\"Place an existing saved media-pool asset on a track at start_s using editor timing and targets. Returns created.clip_id. Refuses locked or incompatible tracks and clips ending beyond seven days. Requires latest revision and content-edit permission. Does not upload media, change live editors or play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"asset_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"track_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"start_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"expected_revision\",\"asset_id\",\"track_id\",\"start_s\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.agent.docs\",\"title\":\"Map agent knowledge\",\"description\":\"Discover executable command schemas, gallery sources and a working program recipe. Use topic tools, gallery, sources or recipes; query filters tools/gallery; name returns an exact command. Read-only.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"topic\":{\"type\":\"string\",\"enum\":[\"tools\",\"gallery\",\"sources\",\"recipes\"]},\"query\":{\"type\":\"string\",\"maxLength\":200},\"name\":{\"type\":\"string\",\"maxLength\":200},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000}},\"required\":[\"app\",\"id\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"},{\"id\":\"map.visual.create\",\"title\":\"Create Map visual\",\"description\":\"Create a reusable source and continuous visual on its own track, using the same simple editor operation. source_json is a JSON object: gallery {kind,id}, color {kind,color}, text {kind,text,color?,size?}, or existing media {kind,media_id}. Defaults to all mapped surfaces of scene_id. Inspect created clip/asset/track IDs. No media upload or device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"source_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"name\",\"source_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.surface.animate\",\"title\":\"Animate Map surface\",\"description\":\"Edit surface bases, animation and modulation with changes_json. Supports opacity, xPx, yPx, scaleX, scaleY, rotationDeg, radiusPx and bendAngleDeg, plus bend_axis horizontal/vertical. Maps merge; null clears a channel or assignment map. Keys use surface timeline seconds; LFO and scene clock use Main scene time. Inspect surface_parameter_specs for bounds. Locked surfaces refuse. No camera, audio, MIDI or output activation.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"changes_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"changes_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.visual.edit\",\"title\":\"Configure Map visual\",\"description\":\"Edit a visual using changes_json. Supports name, opacity, enabled, mapping repeat/span, continuous, loop, start_s, duration_s, source (same specification as create), targets [{scene_id,surface_id?}], placement {xPercent,yPercent,widthPercent,heightPercent,rotationDeg}, effects [{kind,amount,enabled?}], shader {colors?,speed?,scale?,density?,glow?}. Also supports source_parameters, source_motion and motion; discover bounds with inspection. preset {action:store|recall|clear,slot:A|B|C,from_clip_id?} captures full appearance, or {action:random,seed:integer}. Locked clips/tracks refuse; timing and targets remain unchanged unless specified. No device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"changes_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"clip_id\",\"changes_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.show.runprogram\",\"title\":\"Build Map program\",\"description\":\"Run a version 1 JSON program containing 1–32 steps atomically. Each step has id, command, arguments. References {$ref:\\\"earlier.scene_id\\\"} resolve created scene/surface/clip/asset/track IDs. Optional assertions [{scene_id,time_s,layer_count}] must match actual Main composition before one commit. Failure saves nothing. Discover recipes and tools first. No arbitrary code or device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"program_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"program_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.show.verify\",\"title\":\"Verify Map composition\",\"description\":\"Round-trip the show through the canonical parser and evaluate Main at time_s in scene_id. Reports active layer counts, source kinds, opacity, target geometry and missing references. Returns structural/composition evidence, not rendered pixels or media availability. No document changes.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"scene_id\",\"time_s\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"},{\"id\":\"map.show.clip.add\",\"title\":\"Add Map scene clip\",\"description\":\"Place a scene on a canvas track of the show timeline. scene_id is a timeline id from inspect, or 'main' for the canvas's own Main. Scenes reuse across canvases by surface role. Requires latest revision and records recoverable file history; open editors must reload. Does not play or deploy.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"canvas_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"start_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"duration_s\":{\"type\":\"number\",\"minimum\":0.1,\"maximum\":604800},\"loop\":{\"type\":\"string\",\"enum\":[\"yes\",\"no\"]}},\"required\":[\"app\",\"id\",\"expected_revision\",\"canvas_id\",\"scene_id\",\"start_s\",\"duration_s\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.show.cue.add\",\"title\":\"Add Map show cue\",\"description\":\"Add a show-control cue: trigger 'timeline' (fires at at_s), 'go' (operator GO, in order) or 'midi' (fires when MIDI CC control rises above zero); action play, pause, stop, jump (to to_s), blackout-on or blackout-off. Requires latest revision and records recoverable file history; open editors must reload. Optional times makes a jump cue a loop that repeats at most that many times per run; condition_control/condition_above make the cue fire only while that MIDI control is above the value.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"trigger\":{\"type\":\"string\",\"enum\":[\"timeline\",\"go\",\"midi\"]},\"cue_action\":{\"type\":\"string\",\"enum\":[\"play\",\"pause\",\"stop\",\"jump\",\"blackout-on\",\"blackout-off\"]},\"at_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"to_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"control\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":127},\"times\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":10000},\"condition_control\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":127},\"condition_above\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":127}},\"required\":[\"app\",\"id\",\"expected_revision\",\"name\",\"trigger\",\"cue_action\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"}]");
 //#endregion
 //#region src/ai/catalog.ts
 var fileArguments = /* @__PURE__ */ new Set([
@@ -166,7 +166,7 @@ var DEFAULT_LFOS = [
 	waveform: "sine"
 }));
 //#endregion
-//#region node_modules/@aether/sketch/src/curves.ts
+//#region node_modules/@aether/sketch/dist-lib/curves.js
 function samplePath(path, tolerance = .25) {
 	const { points, curves, closed } = path;
 	if (!curves?.some(Boolean)) return points;
@@ -193,7 +193,7 @@ function samplePath(path, tolerance = .25) {
 	return result;
 }
 //#endregion
-//#region node_modules/@aether/sketch/src/paint.ts
+//#region node_modules/@aether/sketch/dist-lib/paint.js
 function isVectorGradient(value) {
 	if (!value || typeof value !== "object") return false;
 	const g = value;
@@ -16763,7 +16763,21 @@ function entry(id, label, component, presets) {
 }
 /** Pinned upstream effects plus original generators. Image effects are counted separately. */
 var SHADERS = [
-	entry("mesh-gradient", "Mesh Gradient", MeshGradient, meshGradientPresets),
+	entry("mesh-gradient", "Mesh Gradient", MeshGradient, [...meshGradientPresets, {
+		name: "Ink mesh gradient",
+		params: {
+			...meshGradientPresets[0].params,
+			colors: [
+				"#10142a",
+				"#7c3aed",
+				"#3b82f6",
+				"#9be7ff"
+			],
+			distortion: .95,
+			swirl: .3,
+			speed: .6
+		}
+	}]),
 	entry("static-mesh-gradient", "Static Mesh Gradient", StaticMeshGradient, staticMeshGradientPresets),
 	entry("radial-gradient", "Radial Gradient", StaticRadialGradient, staticRadialGradientPresets),
 	entry("grain-gradient", "Grain Gradient", GrainGradient, grainGradientPresets),
@@ -16779,7 +16793,21 @@ var SHADERS = [
 	entry("swirl", "Swirl", Swirl, swirlPresets),
 	entry("spiral", "Spiral", Spiral, spiralPresets),
 	entry("smoke-ring", "Smoke Ring", SmokeRing, smokeRingPresets),
-	entry("warp", "Warp", Warp, warpPresets),
+	entry("warp", "Warp", Warp, [...warpPresets, {
+		name: "Shader flow",
+		params: {
+			...warpPresets[0].params,
+			colors: [
+				"#2a0a33",
+				"#ff5ec7",
+				"#8b5cf6",
+				"#ffd1e8"
+			],
+			speed: .5,
+			swirl: .9,
+			distortion: .35
+		}
+	}]),
 	entry("dot-orbit", "Dot Orbit", DotOrbit, dotOrbitPresets),
 	entry("dot-grid", "Dot Grid", DotGrid, dotGridPresets),
 	entry("color-panels", "Color Panels", ColorPanels, colorPanelsPresets),
@@ -17869,6 +17897,238 @@ function createInShow(command, show, args) {
 	};
 }
 //#endregion
+//#region src/show-timeline.ts
+/** The show being edited in the Show workspace. */
+var activeShow = (show) => show.shows?.find((p) => p.id === show.activeShowID) ?? show.shows?.[0];
+/** Replace the active show's timeline. */
+function withActiveShow(show, change) {
+	const current = activeShow(show);
+	if (!current) return show;
+	return {
+		...show,
+		shows: show.shows.map((p) => p.id === current.id ? change(p) : p)
+	};
+}
+var finite$1 = (value, fallback) => typeof value === "number" && Number.isFinite(value) ? value : fallback;
+var ACTIONS = [
+	"play",
+	"pause",
+	"stop",
+	"jump",
+	"blackout-on",
+	"blackout-off"
+];
+/** The default show for a document that has none: every canvas plays its Main
+* for the canvas's duration, looping, from 0. */
+function defaultShowTimeline(show) {
+	return {
+		tracks: show.scenes.map((c) => ({
+			id: `track-${c.id}`,
+			canvasID: c.id,
+			clips: [{
+				id: `clip-${c.id}`,
+				sceneID: MAIN_TIMELINE,
+				startS: 0,
+				durationS: c.durationS,
+				inS: 0,
+				loop: true
+			}]
+		})),
+		cues: [],
+		durationS: Math.max(1, ...show.scenes.map((c) => c.durationS))
+	};
+}
+/** Keeps the show in step with the canvases: a new canvas gets a track playing
+* its Main; a deleted canvas's track goes. Pure; returns the same show when
+* nothing changes. */
+function normalizeShowTimeline(input) {
+	let show = input;
+	if (!show.shows?.length) {
+		const { showTimeline, ...rest } = show;
+		show = {
+			...rest,
+			shows: [{
+				id: "show-1",
+				name: "Show 1",
+				...showTimeline ?? defaultShowTimeline(show)
+			}]
+		};
+	}
+	const ids = new Set(show.scenes.map((c) => c.id));
+	let changed = show !== input;
+	const shows = show.shows.map((program) => {
+		const kept = program.tracks.filter((t) => ids.has(t.canvasID));
+		const missing = show.scenes.filter((c) => !kept.some((t) => t.canvasID === c.id));
+		if (kept.length === program.tracks.length && !missing.length) return program;
+		changed = true;
+		return {
+			...program,
+			tracks: [...kept, ...defaultShowTimeline({
+				...show,
+				scenes: missing
+			}).tracks]
+		};
+	});
+	return changed ? {
+		...show,
+		shows
+	} : input;
+}
+function readShows(raw) {
+	if (!Array.isArray(raw)) return void 0;
+	return raw.flatMap((entry, index) => {
+		const timeline = readShowTimeline(entry);
+		const value = entry;
+		return timeline ? [{
+			id: typeof value.id === "string" ? value.id : `show-${index + 1}`,
+			name: typeof value.name === "string" && value.name.trim() ? value.name.trim().slice(0, 120) : `Show ${index + 1}`,
+			...timeline
+		}] : [];
+	});
+}
+function readShowTimeline(raw) {
+	if (!raw || typeof raw !== "object") return void 0;
+	const value = raw;
+	const records = (list) => Array.isArray(list) ? list.filter((x) => !!x && typeof x === "object") : [];
+	return {
+		durationS: Math.max(1, finite$1(value.durationS, 60)),
+		tracks: records(value.tracks).map((t) => ({
+			id: String(t.id),
+			canvasID: String(t.canvasID),
+			clips: records(t.clips).map((c) => ({
+				id: String(c.id),
+				sceneID: String(c.sceneID ?? "main"),
+				startS: Math.max(0, finite$1(c.startS, 0)),
+				durationS: Math.max(.1, finite$1(c.durationS, 10)),
+				inS: Math.max(0, finite$1(c.inS, 0)),
+				...typeof c.showID === "string" ? { showID: c.showID } : {},
+				...c.loop === true ? { loop: true } : {},
+				...typeof c.speed === "number" && c.speed > 0 ? { speed: c.speed } : {},
+				...c.roleOverrides && typeof c.roleOverrides === "object" ? { roleOverrides: Object.fromEntries(Object.entries(c.roleOverrides).filter(([, v]) => typeof v === "string")) } : {}
+			}))
+		})),
+		...Array.isArray(value.audio) ? { audio: records(value.audio).filter((a) => typeof a.mediaId === "string").map((a) => ({
+			id: String(a.id),
+			mediaId: String(a.mediaId),
+			startS: Math.max(0, finite$1(a.startS, 0)),
+			durationS: Math.max(.1, finite$1(a.durationS, 10)),
+			inS: Math.max(0, finite$1(a.inS, 0)),
+			...typeof a.gain === "number" ? { gain: Math.max(0, Math.min(2, a.gain)) } : {}
+		})) } : {},
+		cues: records(value.cues).map((c) => ({
+			id: String(c.id),
+			name: String(c.name ?? "Cue"),
+			trigger: [
+				"timeline",
+				"go",
+				"midi"
+			].includes(String(c.trigger)) ? c.trigger : "go",
+			action: ACTIONS.includes(c.action) ? c.action : "play",
+			...typeof c.atS === "number" ? { atS: Math.max(0, c.atS) } : {},
+			...typeof c.toS === "number" ? { toS: Math.max(0, c.toS) } : {},
+			...typeof c.control === "number" ? { control: Math.round(c.control) } : {},
+			...typeof c.times === "number" && c.times >= 1 ? { times: Math.round(c.times) } : {},
+			...c.when && typeof c.when === "object" && typeof c.when.control === "number" ? { when: {
+				control: Math.round(c.when.control),
+				above: Math.max(0, Math.min(127, Number(c.when.above) || 0))
+			} } : {}
+		}))
+	};
+}
+function newSceneClip(sceneID, startS, durationS) {
+	return {
+		id: nextId("clip"),
+		sceneID,
+		startS,
+		durationS,
+		inS: 0,
+		loop: true
+	};
+}
+//#endregion
+//#region src/automation/show-commands.ts
+/** Show-timeline automation: the same edits the Show workspace makes. No IO. */
+var timelineOf = (show) => activeShow(show) ?? defaultShowTimeline(show);
+var withTimeline = (show, timeline) => withActiveShow(normalizeShowTimeline(show), (program) => ({
+	...program,
+	...timeline
+}));
+function describeShowTimeline(show) {
+	const timeline = timelineOf(show);
+	return {
+		active_show_id: activeShow(show)?.id,
+		player_show_id: show.playerShowID ?? show.shows?.[0]?.id,
+		shows: (show.shows ?? []).map((p) => ({
+			id: p.id,
+			name: p.name
+		})),
+		duration_s: timeline.durationS,
+		tracks: timeline.tracks.map((t) => ({
+			canvas_id: t.canvasID,
+			clips: t.clips.map((c) => ({
+				id: c.id,
+				scene_id: c.sceneID,
+				start_s: c.startS,
+				duration_s: c.durationS,
+				in_s: c.inS,
+				loop: !!c.loop
+			}))
+		})),
+		cues: timeline.cues.map((c) => ({
+			id: c.id,
+			name: c.name,
+			trigger: c.trigger,
+			action: c.action,
+			at_s: c.atS,
+			to_s: c.toS,
+			control: c.control,
+			times: c.times,
+			condition: c.when
+		}))
+	};
+}
+function addShowClip(show, args) {
+	const timeline = timelineOf(show), canvasID = String(args.canvas_id), sceneID = String(args.scene_id);
+	if (!timeline.tracks.some((t) => t.canvasID === canvasID)) throw Error("Canvas not found. Inspect the show first.");
+	if (sceneID !== "main" && !show.timelines?.some((t) => t.id === sceneID)) throw Error("Scene not found. Use a timeline id from inspect, or main.");
+	const clip = {
+		...newSceneClip(sceneID, Number(args.start_s), Number(args.duration_s)),
+		loop: args.loop !== "no"
+	};
+	return withTimeline(show, {
+		...timeline,
+		tracks: timeline.tracks.map((t) => t.canvasID === canvasID ? {
+			...t,
+			clips: [...t.clips, clip]
+		} : t),
+		durationS: Math.max(timeline.durationS, clip.startS + clip.durationS)
+	});
+}
+function addShowCue(show, args) {
+	const timeline = timelineOf(show), trigger = args.trigger, action = args.cue_action;
+	if (trigger === "timeline" && typeof args.at_s !== "number") throw Error("A timeline cue needs at_s.");
+	if (trigger === "midi" && typeof args.control !== "number") throw Error("A MIDI cue needs control (CC number).");
+	if (action === "jump" && typeof args.to_s !== "number") throw Error("A jump cue needs to_s.");
+	const cue = {
+		id: nextId("cue"),
+		name: String(args.name).trim(),
+		trigger,
+		action,
+		...typeof args.at_s === "number" ? { atS: args.at_s } : {},
+		...typeof args.to_s === "number" ? { toS: args.to_s } : {},
+		...typeof args.control === "number" ? { control: args.control } : {},
+		...typeof args.times === "number" ? { times: args.times } : {},
+		...typeof args.condition_control === "number" ? { when: {
+			control: args.condition_control,
+			above: typeof args.condition_above === "number" ? args.condition_above : 0
+		} } : {}
+	};
+	return withTimeline(show, {
+		...timeline,
+		cues: [...timeline.cues, cue]
+	});
+}
+//#endregion
 //#region src/media/chroma-key.ts
 var DEFAULT_CHROMA_KEY = {
 	enabled: true,
@@ -18027,6 +18287,10 @@ function parseShow(bytes) {
 		},
 		...Array.isArray(raw.unassignedFolders) ? { unassignedFolders: readFolders(raw.unassignedFolders) } : {},
 		outputs: readOutputs(raw, output, scenes, activeSceneId, legacyOutputs),
+		...raw.showTimeline ? { showTimeline: readShowTimeline(raw.showTimeline) } : {},
+		...readShows(raw.shows)?.length ? { shows: readShows(raw.shows) } : {},
+		...typeof raw.activeShowID === "string" ? { activeShowID: raw.activeShowID } : {},
+		...typeof raw.playerShowID === "string" ? { playerShowID: raw.playerShowID } : {},
 		...readMix(raw, scenes),
 		...raw.lfos ? { lfos: readLfos(raw.lfos) } : {},
 		surfaceLook: readSurfaceLook(raw, output),
@@ -18052,7 +18316,7 @@ function readScenes(raw) {
 	if (Array.isArray(raw.scenes) && raw.scenes.length > 0) return raw.scenes.filter(isRecord).map(readScene);
 	return [{
 		id: "scene-1",
-		name: "Scene 1",
+		name: "Canvas 1",
 		durationS: isRecord(raw.playback) ? positive(raw.playback.durationS, 60) : 60,
 		surfaces: Array.isArray(raw.surfaces) ? restoreLegacyCompoundShapes(raw.surfaces.filter(isRecord).map(readSurface)) : []
 	}];
@@ -18284,6 +18548,7 @@ function readSurface(raw) {
 		...typeof raw.lockAspectRatio === "boolean" ? { lockAspectRatio: raw.lockAspectRatio } : {},
 		...typeof raw.sequence === "boolean" ? { sequence: raw.sequence } : {},
 		...typeof raw.folder === "string" && raw.folder.trim() ? { folder: raw.folder.trim() } : {},
+		...typeof raw.role === "string" && raw.role.trim() ? { role: raw.role.trim().slice(0, 80) } : {},
 		...typeof raw.compositionAspectRatio === "number" && Number.isFinite(raw.compositionAspectRatio) && raw.compositionAspectRatio >= .05 && raw.compositionAspectRatio <= 20 ? { compositionAspectRatio: raw.compositionAspectRatio } : {},
 		...raw.groupShape === "cube" || raw.groupShape === "box" ? { groupShape: raw.groupShape } : {},
 		...raw.groupShape === null ? { groupShape: null } : {},
@@ -18397,7 +18662,8 @@ function readVisual(value, index) {
 		...value.continuous === true ? { continuous: true } : {},
 		...typeof value.legacyTrack === "string" ? { legacyTrack: value.legacyTrack } : {},
 		...value.mask === true ? { mask: true } : {},
-		...effects.length ? { effects } : {}
+		...effects.length ? { effects } : {},
+		...typeof value.folder === "string" && value.folder.trim() ? { folder: value.folder.trim().slice(0, 80) } : {}
 	};
 }
 function readTargets(value) {
@@ -18580,8 +18846,6 @@ function normalizeVisuals(show) {
 		unassignedSurfaces
 	} : show;
 }
-//#endregion
-//#region src/visual-render.ts
 /** Shared projection for the authoring canvas and every physical output. */
 function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID, inputs = {}, calibration = false) {
 	const show = normalizeVisuals(input);
@@ -18650,6 +18914,7 @@ function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID
 			} : {},
 			source: {
 				...source,
+				fit: source.fit ?? "cover",
 				effects: visual.effects
 			},
 			clips: [],
@@ -18727,8 +18992,9 @@ function timelineAudio(show, timeS) {
 }
 //#endregion
 //#region src/surface-timelines.ts
-/** Surface geometry stays scene-owned. Its sequence is an ordinary reusable
-* timeline, composed by an ordinary nested clip in Main. Run after pool migration. */
+/** Keeps surface timelines that saved shows already have consistent with their
+* surfaces (a moved surface's sequence follows it; a deleted one's stays
+* reusable). New surfaces get none. Run after pool migration. */
 function normalizeSurfaceTimelines(show) {
 	let tracks = [...show.tracks ?? []], visuals = [...show.visuals ?? []];
 	let timelines = [...show.timelines ?? []];
@@ -18761,89 +19027,8 @@ function normalizeSurfaceTimelines(show) {
 		const { surfaceID: _surfaceID, ...rest } = t;
 		return rest;
 	});
-	for (const scene of show.scenes) for (const [index, surface] of scene.surfaces.entries()) {
-		if (surface.kind === "mask" || timelines.some((t) => t.surfaceID === surface.id)) continue;
-		changed = true;
-		const id = `surface-timeline-${surface.id}`, mainID = `surface-track-${surface.id}`;
-		const targets = [{
-			sceneID: scene.id,
-			surfaceID: surface.id
-		}];
-		const child = {
-			id,
-			name: surface.name,
-			sceneID: scene.id,
-			surfaceID: surface.id,
-			durationS: scene.durationS
-		};
-		timelines.push(child);
-		const own = (v) => !v.timelineRefID && v.targets.length === 1 && v.targets[0].sceneID === scene.id && v.targets[0].surfaceID === surface.id;
-		const candidates = tracks.filter((t) => !t.timelineID && t.kind !== "audio" && visuals.some((v) => v.trackID === t.id) && visuals.filter((v) => v.trackID === t.id).every(own));
-		const ranks = candidates.map((t) => tracks.indexOf(t));
-		const first = Math.min(...ranks), last = Math.max(...ranks);
-		const moved = tracks.slice(first, last + 1).some((t) => !candidates.includes(t) && visuals.some((v) => v.trackID === t.id && v.targets.some((a) => a.sceneID === scene.id && (!a.surfaceID || a.surfaceID === surface.id)))) ? [] : candidates;
-		const moving = visuals.filter((v) => moved.some((t) => t.id === v.trackID));
-		const ordered = [...moving].sort((a, b) => a.startS - b.startS);
-		const sequential = moved.every((t) => t.enabled && !t.locked) && ordered.every((v, i) => !v.continuous && (!i || ordered[i - 1].startS + ordered[i - 1].durationS <= v.startS));
-		const videoID = `${id}-video`, audioID = `${id}-audio`;
-		const video = {
-			id: videoID,
-			timelineID: id,
-			name: "V1",
-			kind: "video",
-			targets,
-			enabled: true,
-			locked: false
-		};
-		const audio = {
-			...video,
-			id: audioID,
-			name: "A1",
-			kind: "audio"
-		};
-		const main = {
-			...video,
-			id: mainID,
-			timelineID: void 0,
-			name: surface.name
-		};
-		const insertAt = moved.length ? tracks.indexOf(moved.at(-1)) + 1 : tracks.length;
-		tracks.splice(insertAt, 0, main);
-		if (sequential) {
-			tracks = tracks.filter((t) => !moved.includes(t));
-			visuals = visuals.map((v) => moving.includes(v) ? {
-				...v,
-				trackID: videoID
-			} : v);
-			tracks.push(video);
-		} else {
-			tracks = tracks.map((t) => moved.includes(t) ? {
-				...t,
-				timelineID: id,
-				kind: "video",
-				targets
-			} : t);
-			if (!moved.length) tracks.push(video);
-		}
-		tracks.push(audio);
-		visuals.push({
-			id: `surface-use-${surface.id}`,
-			name: surface.name,
-			timelineRefID: id,
-			trackID: mainID,
-			startS: 0,
-			durationS: scene.durationS,
-			inS: 0,
-			loop: false,
-			targets: [{ sceneID: scene.id }],
-			mapping: "repeat",
-			opacity: 1,
-			color: surface.color ?? layerColor(index)
-		});
-	}
-	const filtered = tracks.filter((t) => !show.scenes.some((s) => s.surfaces.some((v) => v.kind !== "mask") && t.id === `track-default-${s.id}-video` && !visuals.some((v) => v.trackID === t.id)));
-	if (filtered.length !== tracks.length) changed = true;
-	for (const scene of show.scenes) if (!scene.surfaces.some((v) => v.kind !== "mask") && !filtered.some((t) => !t.timelineID && t.kind !== "audio" && t.targets.some((a) => a.sceneID === scene.id))) {
+	const filtered = tracks;
+	for (const scene of show.scenes) if (!filtered.some((t) => !t.timelineID && t.kind !== "audio" && t.targets.some((a) => a.sceneID === scene.id))) {
 		filtered.push({
 			id: `track-default-${scene.id}-video`,
 			name: "V1",
@@ -18866,7 +19051,7 @@ function normalizeSurfaceTimelines(show) {
 //#region src/normalize-document.ts
 /** One document upgrade path for editor opening, edits and saved-file agents. */
 function normalizeDocument(show) {
-	return surfaceMotionVersion(visualLookVersion(sourceMotionVersion(visualMotionVersion(normalizeSurfaceTimelines(normalizeMediaPool(normalizeVisuals(show)))))));
+	return normalizeShowTimeline(surfaceMotionVersion(visualLookVersion(sourceMotionVersion(visualMotionVersion(normalizeSurfaceTimelines(normalizeMediaPool(normalizeVisuals(show))))))));
 }
 //#endregion
 //#region src/features/bundled-loops.ts
@@ -20090,6 +20275,7 @@ function describe(show) {
 		})),
 		timelines: show.timelines ?? [],
 		tracks: show.tracks ?? [],
+		show: describeShowTimeline(show),
 		assets: (show.pool ?? []).map((a) => ({
 			id: a.id,
 			name: a.name,
@@ -20173,6 +20359,18 @@ function runDocumentCommand(command, show, args) {
 		};
 	}
 	if (command === "map.show.inspect") return { result: describe(show) };
+	if (command === "map.show.clip.add" || command === "map.show.cue.add") {
+		const next = normalizeDocument(command === "map.show.clip.add" ? addShowClip(show, args) : addShowCue(show, args));
+		parseShow(serializeShow(next));
+		const timeline = activeShow(next);
+		return {
+			document: next,
+			result: {
+				created: command === "map.show.clip.add" ? { clip_id: timeline.tracks.flatMap((t) => t.clips).at(-1).id } : { cue_id: timeline.cues.at(-1).id },
+				show: describeShowTimeline(next)
+			}
+		};
+	}
 	if (command === "map.show.evaluate") {
 		finiteTime(args.time_s);
 		if (!show.scenes.some((s) => s.id === args.scene_id)) throw new Error("Scene not found.");

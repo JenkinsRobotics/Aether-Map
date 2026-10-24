@@ -128,6 +128,16 @@ export function PropertiesPanel({
         />
       </FieldRow>
 
+      {/* Scenes find surfaces by role, so one scene plays on any canvas. */}
+      <FieldRow label="Role" help="Scenes find this surface by role on any canvas. Leave empty to use its name.">
+        <TextField
+          aria-label="Surface role"
+          placeholder={surface.name}
+          value={surface.role ?? ""}
+          onChange={(event) => onPatch(surface.id, { role: event.target.value || undefined })}
+        />
+      </FieldRow>
+
       <FieldRow label="Layer colour" help="The layer marker and selection outline color.">
         <ColorField ariaLabel="Layer colour" value={surface.color}
           onChange={(value) => onPatch(surface.id, { color: value })} />

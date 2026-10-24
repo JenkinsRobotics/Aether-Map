@@ -2,12 +2,14 @@ import { useVisualMotionInputs } from './live/use-visual-motion-inputs';
 import { TimelineAudioProvider } from './live/TimelineAudioContext';
 import { TimelineAudio } from './panels/TimelineAudio';
 import { sceneVisuals } from './visual-render';
+import { advanceShow, clipAt, playerShow, showForClip, startRun, withShowAudio } from './show-timeline';
 import { ModulationContext } from "./features/ModulationContext";
 import { DEFAULT_LFOS } from "./features/types";
 import { sceneSize } from "./scene-size";
 import { useEffect, useId, useRef, useState } from "react";
 import { sourcePictureStyle, alphaProjectionStyle, placementProjectionStyle } from "./source-picture";
 import { clipStyle } from "./mask/clip";
+import { OutlineEdge, outlineEdged } from "./features/SurfaceGrid";
 import { ClipDefs } from "./mask/clip.tsx";
 import { mappingSurfaceAt, playbackEnded, showTime, transportTime, type ResolvedSurface, type Transport } from "./playback";
 import { watchDeployedLayout } from "./deployed-layout";
@@ -78,6 +80,7 @@ export function OutputView() {
   const heardAt = useRef(0);
   const [linked, setLinked] = useState(true);
   const [timeS, setTimeS] = useState(0);
+  const [showRun, setShowRun] = useState(startRun), run = useRef(showRun);
   const hostRef = useRef<HTMLDivElement>(null);
   const [device, setDevice] = useState(() => ({
     width: innerWidth,
@@ -172,7 +175,10 @@ export function OutputView() {
     let frame = 0;
     const tick = () => {
       const now = clock.current;
-      setTimeS(showTime(now.show, now.source === 'deployed' ? deployedElapsedS(now.schedule,now.transport.anchorMs,Date.now()) : transportTime(now.transport)));
+      const elapsed = now.source === 'deployed' ? deployedElapsedS(now.schedule,now.transport.anchorMs,Date.now()) : transportTime(now.transport);
+      setTimeS(showTime(now.show, elapsed));
+      // A deployed player runs the show on its own, cues included.
+      if (now.source === 'deployed') { run.current = advanceShow(run.current, playerShow(now.show), elapsed, now.show.playback.mode); setShowRun(run.current); }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -225,7 +231,17 @@ export function OutputView() {
   // means evaluation, sizing and surface lookup need no notion of "which output
   // is asking" — one window's scene is simply the active scene, from its view.
   const mapping = outputView(output, previewMode, Boolean(session)) === "mapping";
-  const resolved = bound;
+  // A deployed player plays the show: this output's canvas follows its track
+  // on the show timeline, rendering whichever scene clip is under the playhead.
+  const program = playerShow(show), showLength = program?.durationS ?? 0;
+  const showS = showRun.showS;
+  const showClip = source === 'deployed' && output?.sceneId && showLength ? clipAt(show, output.sceneId, showS, program) : null;
+  const resolved = showClip ? showForClip(bound, output!.sceneId!, showClip.clip) : bound;
+  const frameS = showClip ? showClip.localS : timeS;
+  // Between clips the show is dark on this canvas.
+  const idle = source === 'deployed' && !!output?.sceneId && !!showLength && !showClip;
+  // Cue-driven blackout and pause on a player running the show itself.
+  const dark = show.output.blackout || (source === 'deployed' && showRun.blackout), held = source === 'deployed' && showRun.paused;
   // sceneCrop already shows an unconfigured output the whole scene, for every
   // transport — a monitor window and a wireless one had no business differing.
   const crop = outputRegion(bound, output, { width, height });
@@ -234,23 +250,23 @@ export function OutputView() {
   return (
     <TimelineAudioProvider><ModulationContext.Provider value={{ lfos: show.lfos ?? DEFAULT_LFOS, timeS }}>
     <div ref={hostRef} className="map-output" data-preview={mapping ? "mapping" : "visualization"} data-link={source === "live" ? (linked ? "live" : "lost") : source} onDoubleClick={toggleFullscreen}>
-      {source === 'deployed' && <TimelineAudio show={bound} timeS={timeS} playing={transport.playing && !playbackEnded(bound, timeS)} urls={Object.fromEntries(show.media.map(m => [m.id, `${LOCAL_MEDIA}${m.file}`]))} />}
+      {source === 'deployed' && <TimelineAudio show={showClip || idle ? withShowAudio(bound, program) : bound} timeS={showClip || idle ? showS : timeS} playing={transport.playing && !held && !playbackEnded(bound, timeS)} urls={Object.fromEntries(show.media.map(m => [m.id, `${LOCAL_MEDIA}${m.file}`]))} />}
       <div
         className="map-raster map-output-raster"
         style={{ width, height, transform, clipPath: `polygon(${crop.xPx}px ${crop.yPx}px, ${crop.xPx + crop.widthPx}px ${crop.yPx}px, ${crop.xPx + crop.widthPx}px ${crop.yPx + crop.heightPx}px, ${crop.xPx}px ${crop.yPx + crop.heightPx}px)` }}
       >
         {/* One layer normally; two while a crossfade is riding between scenes. */}
-        {!show.output.blackout && !show.output.testPattern && sceneLayers(resolved).map((layer) => (
+        {!idle && !dark && !show.output.testPattern && sceneLayers(resolved).map((layer) => (
           <div key={layer.scene.id} className="map-mix-layer" style={{ opacity: layer.opacity }}>
-            {(mapping ? layer.scene.surfaces.filter(s => !s.sceneCanvas) : sceneVisuals(bound, layer.scene, timeS, Boolean(session), undefined, motionInputs)).map((surface) => (
+            {(mapping ? layer.scene.surfaces.filter(s => !s.sceneCanvas) : sceneVisuals(resolved, layer.scene, frameS, Boolean(session), undefined, motionInputs)).map((surface) => (
           <OutputSurface
             key={surface.id}
             surface={surface}
             show={resolved}
             base={base}
             urls={mediaUrls}
-            timeS={timeS}
-            playing={transport.playing && !playbackEnded(bound, timeS)}
+            timeS={frameS}
+            playing={transport.playing && !held && !playbackEnded(bound, timeS)}
             mapping={mapping}
             // Only while an editor is driving this window: that is the align
             // step. A deployed show must never paint a pattern onto a building
@@ -280,7 +296,7 @@ export function OutputView() {
           </p>
         </div>
       )}
-      {!show.output.blackout && show.output.testPattern && <TestPattern style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />}
+      {!dark && show.output.testPattern && <TestPattern style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />}
 
     </div>
     </ModulationContext.Provider></TimelineAudioProvider>
@@ -331,6 +347,7 @@ export function OutputSurface({
   }
 
   const src = media ? urls?.[media.file] ?? base + media.file : "";
+  const outlined = Boolean(placeholder && !media && outlineEdged(surface));
 
   return (
     <>
@@ -350,7 +367,9 @@ export function OutputSurface({
           timeS={(surface as ResolvedSurface).mediaTimeS ?? timeS}
           playing={playing}
           placeholder={placeholder}
+          placeholderEdge={!outlined}
         />
+        {outlined && <OutlineEdge surface={surface} look={placeholder!} />}
       </div>
     </>
   );

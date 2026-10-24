@@ -1,7 +1,7 @@
 import './SurfaceAssignments.css';
 import type { Visual } from '../visual-model';
 import { sameVisualTarget, setVisualTarget, setSceneSurfaceTargets } from '../visual-targets';
-import { AetherIcon, Button, SelectField } from "@aether/ui";
+import { AetherIcon, Button } from "@aether/ui";
 import { activeScene, type MapShow, type Point, type Surface } from "../document";
 import { editableLayers } from "../background-layer";
 import { animateSurface } from "../features/animation";
@@ -51,12 +51,8 @@ export function SurfacesStrip({ show, selectedID, timeS, urls, onSelect, onAdd, 
   // add button is where it always is.
   return (
     <div className="map-surfaces" data-assigning={assignment ? true : undefined}>
-      {assignment && <div className="map-surface-assignment-info" title={assignment.visual.locked ? "Asset locked" : "Click surfaces to assign or remove this asset"}>
-        <strong title={assignment.visual.name}>{assignment.visual.name}</strong>
-        <SelectField aria-label="Surface assignment mapping" value={assignment.visual.mapping} disabled={assignment.visual.locked}
-          options={[{ value: 'repeat', label: 'Repeat' }, { value: 'span', label: 'Span' }]}
-          onChange={e => assignment.onChange({ ...assignment.visual, mapping: e.target.value as Visual['mapping'], legacyTrack: undefined })} />
-      </div>}
+      {/* The visual's name and mapping are asset properties: they live in
+          the Properties tab, not in the surface tray (Jonathan). */}
       {/* A labelled group of buttons, not a listbox: a listbox promises arrow-key
           navigation with roving focus, and claiming the role without honouring
           it is worse for a screen reader than plain buttons that Tab reaches.

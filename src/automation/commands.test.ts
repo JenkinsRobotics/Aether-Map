@@ -12,7 +12,7 @@ function fixture() {
   show.scenes[0].surfaces = [newSurface(show.output, 0)];
   show = normalizeDocument(show);
   show = addPoolAsset(show, { mediaId: null, rect: [0, 0, 1920, 1080], fill: '#ff0000' }, 'Red');
-  const track = show.tracks!.find(t => t.timelineID && t.kind === 'video')!;
+  const track = show.tracks!.find(t => !t.timelineID && t.kind === 'video')!;
   show = placePoolAsset(show, show.pool![0].id, track.id, 2);
   const clip = show.visuals!.find(v => !v.timelineRefID)!;
   clip.durationS = 10; clip.inS = 3;
@@ -98,5 +98,21 @@ describe('saved Map agent commands', () => {
       expect(undoHistory(history).present).toBe(before);
       expect(redoHistory(undoHistory(history)).present).toBe(next);
     }
+  });
+});
+
+describe('saved Map show commands', () => {
+  it('adds a scene clip to a canvas track and a cue, and inspects them', () => {
+    const show = normalizeDocument(emptyShow());
+    const content = new TextDecoder().decode(serializeShow(show));
+    const canvas = show.scenes[0].id;
+    const clip = runCommand('map.show.clip.add', content, { app: 'map', id: 'f', expected_revision: 1, canvas_id: canvas, scene_id: 'main', start_s: 70, duration_s: 20 } as never);
+    expect((clip.result.created as { clip_id: string }).clip_id).toBeTruthy();
+    const cue = runCommand('map.show.cue.add', clip.content!, { app: 'map', id: 'f', expected_revision: 2, name: 'Dark', trigger: 'timeline', cue_action: 'blackout-on', at_s: 85 } as never);
+    const inspected = runCommand('map.show.inspect', cue.content!, { app: 'map', id: 'f' } as never).result.show as { duration_s: number; tracks: { clips: unknown[] }[]; cues: { action: string }[] };
+    expect(inspected.duration_s).toBe(90);
+    expect(inspected.tracks[0].clips).toHaveLength(2);
+    expect(inspected.cues[0].action).toBe('blackout-on');
+    expect(() => runCommand('map.show.clip.add', content, { app: 'map', id: 'f', expected_revision: 1, canvas_id: 'nope', scene_id: 'main', start_s: 0, duration_s: 5 } as never)).toThrow(/Canvas not found/);
   });
 });

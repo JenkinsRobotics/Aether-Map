@@ -41,6 +41,22 @@ describe('common layer geometry', () => {
     expect(snapVertex([9, 10], [[10, 12]], 2)).toBeNull();
     expect(snapVertex([9, 10], [[10, 12]], 3)).toEqual([10, 12]);
   });
+  it('falls back to grid lines per axis, and real vertices beat the grid', () => {
+    // No vertex in range: each axis rounds to its nearest 32px line when close.
+    expect(snapVertex([33, 70], [], 3, 32)).toEqual([32, 70]);
+    expect(snapVertex([33, 65], [], 3, 32)).toEqual([32, 64]);
+    expect(snapVertex([40, 70], [], 3, 32)).toBeNull();
+    // A vertex within tolerance wins over a closer grid line.
+    expect(snapVertex([33, 64], [[35, 64]], 3, 32)).toEqual([35, 64]);
+    const b = { x: 30, y: 30, width: 10, height: 10 };
+    // Moving bounds snap their nearest anchor to the grid; no guides for grid.
+    const snap = snapBounds(b, [], 3, undefined, 32);
+    expect(snap.delta).toEqual([2, 2]);
+    expect(snap.guides).toEqual([]);
+    // A geometry target on an axis suppresses that axis's grid snap.
+    const edged = snapBounds(b, [{ x: 29, y: 200, width: 50, height: 10 }], 3, undefined, 32);
+    expect(edged.delta[0]).toBe(-1);
+  });
   it('resizes all eight handles without moving the opposite anchor or collapsing', () => {
     const b = { x: 100, y: 50, width: 200, height: 100 };
     expect(resizeBounds(b, 'nw', [-20, -10], false)).toEqual({ x: 80, y: 40, width: 220, height: 110 });

@@ -144,3 +144,15 @@ test("a show from before the two sides existed carries its one choice into both"
   expect(odd.opacity).toBe(1);
   expect(odd.primary).toBe(DEFAULT_SURFACE_LOOK.external.primary);
 });
+
+test("a pen-drawn (outlined) placeholder edges its outline, not its bounding rectangle", () => {
+  const { show, surface } = bare();
+  const plain = render(<OutputSurface surface={surface} show={show} base="/media/" timeS={0} playing={false} placeholder={DEFAULT_SURFACE_LOOK.external} />);
+  expect(plain.container.querySelector(".map-surface-edge")).toBeNull();
+  expect(plain.container.querySelector(".map-surface-grid > rect[fill=none]")).not.toBeNull();
+  plain.unmount();
+  const outlined = { ...surface, masks: [[[0, 0], [600, 0], [640, 80], [1200, 60], [1200, 700], [0, 720]]] as typeof surface.masks };
+  const view = render(<OutputSurface surface={outlined} show={show} base="/media/" timeS={0} playing={false} placeholder={DEFAULT_SURFACE_LOOK.external} />);
+  expect(view.container.querySelector(".map-surface-grid > rect[fill=none]")).toBeNull();
+  expect(view.container.querySelector(".map-surface-edge polygon")?.getAttribute("points")).toContain("640,80");
+});

@@ -10,7 +10,7 @@ from functools import partial
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-SOURCE = Path(__file__).parents[2] / "aether-player"
+SOURCE = Path(__file__).parents[1] / "player"  # this checkout's player package
 
 
 def load(name):

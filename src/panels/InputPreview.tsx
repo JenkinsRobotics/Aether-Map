@@ -15,7 +15,6 @@ export function InputPreview({ surface, reference, show, urls, timeS, playing, l
   const width = Math.max(1, reference?.width ?? (cropped ? media.width : surface?.source.rect[2] ?? 1280)), height = Math.max(1, reference?.height ?? (cropped ? media.height : surface?.source.rect[3] ?? 720));
   const scale = Math.max(.001, Math.min((size.width - 32) / width, (size.height - 32) / height));
   return <section className="map-input-preview" aria-label="Input preview">
-    <div className="map-preview-heading"><strong>Input</strong><span>{reference?.name ?? surface?.name ?? "Select a feature"}</span></div>
     {paint && <div className="map-pool-paint-tools" aria-label="Paint source tools"><ColorField ariaLabel="Paint colour" value={paint.color} onChange={paint.onColor} /><NumberField aria-label="Paint width" value={paint.widthPx} min={1} max={200} unit="px" onValueChange={v => v !== null && paint.onWidth(v)} /><Button onClick={paint.onDone}>Done painting</Button></div>}
     <div ref={host} className="map-input-image">
       {reference ? <img className="map-input-source" alt="Backdrop input image" src={urls[reference.id]} style={{ width, height, zoom:scale, transform:'translate(-50%, -50%)' }} />

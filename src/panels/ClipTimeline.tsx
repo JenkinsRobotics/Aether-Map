@@ -291,7 +291,7 @@ export function ClipTimeline({
                 </button>
                 <span className="map-cue-action">{describeCue(cue)}</span>
                 <IconButton
-                  label={`Remove cue at ${formatTime(cue.timeS)}`}
+                  label={`Remove surface key at ${formatTime(cue.timeS)}`}
                   onClick={() => onRemoveCue(selected.id, cue.id)}
                 >
                   <AetherIcon name="delete" />

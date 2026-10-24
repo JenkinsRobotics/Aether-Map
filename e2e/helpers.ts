@@ -76,13 +76,14 @@ export async function clickRibbon(page: Page, name: string) {
   if (name === 'Output') {
     await openOutputProperties(page); return;
   }
+  // The Show workspace's lists are in the sidebar: Players opens its manager.
   if (name === 'Devices') {
     await switchWorkspace(page,'Show');
-    await page.getByRole('region',{name:'Show workspace',exact:true}).getByRole('tab',{name:'Players',exact:true}).click(); return;
+    await page.getByRole('button',{name:'Manage players',exact:true}).click(); return;
   }
   if (name === 'New Output') {
     await switchWorkspace(page,'Show');
-    await page.getByRole('region',{name:'Show workspace',exact:true}).getByRole('button',{name:'Add output',exact:true}).click(); return;
+    await page.getByRole('group',{name:'Output controls'}).getByRole('button',{name:'New output',exact:true}).click(); return;
   }
   if (name === 'Play' || name === 'Pause') {
     await openTimeline(page);
@@ -99,8 +100,9 @@ export async function clickRibbon(page: Page, name: string) {
   }
 }
 /** Use the shared header switcher and verify the selected workspace. */
-export async function switchWorkspace(page: Page, name: "Mapping" | "Visualization" | "Sequence" | "Show") {
-  if (name === 'Sequence') name = 'Visualization';
+export async function switchWorkspace(page: Page, name: "Mapping" | "Scene" | "Visualization" | "Sequence" | "Show") {
+  // The Visualization workspace was renamed Scene (2026-10-22).
+  if (name === 'Sequence' || name === 'Visualization') name = 'Scene';
   const current = page.getByRole('button', {name:`Workspace: ${name}`, exact:true});
   if (await current.count()) return;
   await page.getByRole('button', {name:/^Workspace: /}).click();
@@ -249,4 +251,16 @@ export async function createIOProject(page: Page, template = 'ESP32 status indic
   await dialog.getByRole('button', {name: 'Create', exact: true}).click();
   await expect(dialog).toBeHidden();
   await page.getByRole('table', {name: 'Circuit files'}).getByRole('button', {name: `${template}.aetherio`, exact: false}).first().dblclick();
+}
+
+/** Opens a right-sidebar tab without toggling it closed if it is already open. */
+export async function rightTab(page: Page, name: string) {
+  const tab = page.getByRole('toolbar',{name:'Right sidebar tabs'}).getByRole('button',{name,exact:true});
+  if (await tab.getAttribute('aria-pressed') !== 'true') await tab.click();
+}
+/** The Players manager (pairing, deploy, mirror), opened from the Players section. */
+export async function players(page: Page) {
+  const dialog = page.getByRole('dialog',{name:'Devices'});
+  if (!await dialog.isVisible()) await page.getByRole('button',{name:'Manage players',exact:true}).click();
+  return dialog;
 }

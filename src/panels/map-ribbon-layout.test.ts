@@ -36,9 +36,11 @@ test("Mapping owns geometry, Visualization owns visuals and output; every tool r
   const commands = (room: "mapping" | "visualization") => ribbonTabsFor(room).flatMap(tab => tab.groups.flatMap(group => [...group.tools]));
   const mapping = commands("mapping"), visuals = commands("visualization");
   for (const id of ["rect", "ellipse", "cube", "mask", "cutout", "setup-image", "smart-shape-detection"]) expect(mapping).toContain(id);
-  for (const id of ["play", "output"]) {
+  // Play/pause is each workspace's play bar, not a tool. Outputs are Mapping's.
+  for (const id of ["output", "devices", "go"]) {
     expect(visuals).toContain(id); expect(mapping).not.toContain(id);
   }
+  expect(mapping).toContain("new-output");
   for (const id of ["text", "shader", "webcam", "tracker", "paint", "media"]) expect(visuals).not.toContain(id);
   for (const tab of MAP_RIBBON_TABS) for (const group of tab.groups) for (const id of group.tools)
     expect([...mapping, ...visuals]).toContain(id);

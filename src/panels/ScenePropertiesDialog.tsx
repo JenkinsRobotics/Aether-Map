@@ -17,7 +17,7 @@ export function ScenePropertiesDialog({ name: initialName, size, creating, onApp
 }) {
   const draft = useSceneDraft(initialName, size);
   const { name, width, height, valid } = draft;
-  return <Dialog open title={creating ? 'New scene' : 'Scene properties'} onClose={onClose} actions={<>
+  return <Dialog open title={creating ? 'New canvas' : 'Canvas properties'} onClose={onClose} actions={<>
     <Button onClick={onClose}>Cancel</Button>
     <Button primary disabled={!valid} onClick={() => { if (valid) onApply({ name: name.trim(), artboard: artboardOf({ width: Math.round(width!), height: Math.round(height!) }) }); }}>{creating ? 'Create' : 'Apply'}</Button>
   </>}><div className="map-scene-properties">

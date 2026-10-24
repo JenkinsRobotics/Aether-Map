@@ -17,7 +17,7 @@ function Harness({initial=seed(),performance=false,simple=true}:{initial?:MapSho
  const h=useDocumentHistory(initial),show=h.present,v=show.visuals![0];
  const change=(visual:typeof v)=>h.set(s=>normalizeDocument({...s,visuals:s.visuals?.map(p=>p.id===visual.id?visual:p)}));
  return <>{performance?<PerformanceView show={show} urls={{}} selectedID={v.id} timeS={2} playing={false} onSelect={()=>{}} onScene={()=>{}} onChange={change} onPlay={()=>{}} onSeek={()=>{}} onClose={()=>{}} onPickMedia={()=>{}} onUndo={h.undo} onRedo={h.redo} canUndo={h.canUndo} canRedo={h.canRedo} onGestureStart={h.beginGesture} onGestureEnd={h.endGesture}/>
- :<VisualProperties show={show} visual={v} onChange={change} onPickMedia={vi.fn()} onDuplicate={vi.fn()} onMove={vi.fn()} simple={simple}/>}
+ :<VisualProperties show={show} visual={v} onChange={change} onPickMedia={vi.fn()} onDuplicate={vi.fn()} onMove={vi.fn()} simple={simple} timing/>}
  <button onClick={h.undo}>Undo test</button><output data-testid="show">{JSON.stringify(show)}</output></>;
 }
 const value=()=>JSON.parse(screen.getByTestId('show').textContent!) as MapShow;

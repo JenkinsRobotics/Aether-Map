@@ -1,58 +1,74 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emptyShow, newScene, newOutput, type MapShow } from '../document';
-import { ShowWorkspace } from './ShowWorkspace';
-vi.mock('../use-map-devices', () => ({ useMapDevices: () => ({ list: [] }) }));
+import { useState } from 'react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { emptyShow, newScene, type MapShow } from '../document';
+import { normalizeDocument } from '../normalize-document';
+import { createTimeline } from '../timelines';
+import { activeShow, withActiveShow, type ShowTimeline } from '../show-timeline';
+import { CueList, CueProperties, SceneClipProperties, ShowPlaybackFields, ShowTimelinePanel, ShowWorkspace } from './ShowWorkspace';
+vi.mock('../use-map-devices', () => ({ useMapDevices: () => ({ list: [], online: () => false }) }));
 vi.mock('../export-video', () => ({ RECORDING_SIZES: {}, useRecording: () => ({ recording: false, status: '' }), startRecording: vi.fn(), stopRecording: vi.fn() }));
-vi.mock('./ShowPreview', () => ({ ShowPreview: () => <div>Output preview</div> }));
-vi.mock('./DeviceManager', () => ({ DeviceManager: () => null }));
+vi.mock('./ShowPreview', () => ({ ShowPreview: () => <div>Canvas pixels</div> }));
 vi.mock('./WorkspaceTray', () => ({ ExportWorkspace: () => null }));
 afterEach(cleanup);
-function setup(unassigned = false, playing = false) {
-  const front = { ...newScene('Front'), durationS: 30 }, lobby = { ...newScene('Lobby'), durationS: 75 };
-  const output = newOutput('Projector', lobby.id);
-  if (unassigned) delete output.sceneId;
-  const show: MapShow = { ...emptyShow(), scenes: [front, lobby], activeSceneId: front.id, outputs: [output] };
-  const onPatchScene = vi.fn(), onEdit = vi.fn(), onPlay = vi.fn(), onSeek = vi.fn();
-  render(<ShowWorkspace show={show} name="Show" documentID="saved" dirty={false} urls={{}} selectedOutputID={output.id}
-    onSelectOutput={vi.fn()} onAddOutput={vi.fn()} onOpenOutput={vi.fn()} onSave={vi.fn()} onExportProject={vi.fn()} onExportWireframe={vi.fn()}
-    onEdit={onEdit} onPatchScene={onPatchScene} timeS={0} playing={playing} onPlay={onPlay} onSeek={onSeek}/>);
-  return { show, front, lobby, onPatchScene, onEdit, onPlay, onSeek };
-}
-describe('Show playback rules', () => {
-  it('edits the selected output scene even when another scene was being authored', () => {
-    const { lobby, onPatchScene } = setup();
-    expect((screen.getByLabelText('Playback scene') as HTMLSelectElement).value).toBe(lobby.id);
-    const length = screen.getByLabelText('Main show length');
-    expect((length as HTMLInputElement).value).toBe('75');
-    fireEvent.change(length, { target: { value: '90' } });
-    fireEvent.blur(length);
-    expect(onPatchScene).toHaveBeenCalledWith(lobby.id, { durationS: 90 });
-    expect(screen.getByLabelText('Rehearsal position').getAttribute('max')).toBe('75');
-  });
-  it('changes the output assignment without changing the authoring scene', () => {
-    const { show, front, onEdit } = setup();
-    fireEvent.change(screen.getByLabelText('Playback scene'), { target: { value: front.id } });
-    expect(onEdit).toHaveBeenCalledWith({ ...show, outputs: [{ ...show.outputs[0], sceneId: front.id }] });
-  });
-  it('does not rehearse or edit a fallback scene for an unassigned output', () => {
-    const { onPatchScene, onPlay, onSeek } = setup(true);
-    expect((screen.getByLabelText('Playback scene') as HTMLSelectElement).value).toBe('');
-    for (const label of ['Main show length', 'Play rehearsal', 'Restart rehearsal', 'Rehearsal position']) {
-      expect((screen.getByLabelText(label) as HTMLInputElement).disabled).toBe(true);
-    }
-    fireEvent.click(screen.getByLabelText('Play rehearsal'));
-    expect(onPatchScene).not.toHaveBeenCalled();
-    expect(onPlay).not.toHaveBeenCalled();
-    expect(onSeek).not.toHaveBeenCalled();
-  });
-  it('keeps Pause available if the output is unassigned while transport is running', () => {
-    const { onPlay } = setup(true, true);
-    const pause = screen.getByLabelText('Pause rehearsal');
-    expect((pause as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(pause);
-    expect(onPlay).toHaveBeenCalledOnce();
-  });
 
+const seed = () => {
+  const show = emptyShow();
+  return createTimeline(normalizeDocument({ ...show, scenes: [show.scenes[0], { ...newScene('Tree'), durationS: 30 }] }), 'Ghosts');
+};
+function Harness({ initial = seed() }: { initial?: MapShow }) {
+  const [show, setShow] = useState(initial), [clip, setClip] = useState<string | null>(null), [cue, setCue] = useState<string | null>(null);
+  const edit = (change: (t: ShowTimeline) => ShowTimeline) => setShow(s => withActiveShow(s, p => ({ ...p, ...change(p) })));
+  const selected = activeShow(show)!.tracks.flatMap(t => t.clips).find(c => c.id === clip);
+  const selectedCue = activeShow(show)!.cues.find(c => c.id === cue);
+  return <>
+    <ShowWorkspace show={show} urls={{}} timeS={10} playing={false} onPlay={vi.fn()} onSeek={vi.fn()} onGo={vi.fn()} onSelectCanvas={vi.fn()} />
+    <ShowTimelinePanel show={show} timeS={10} selectedClipID={clip} onSelectClip={setClip} onSeek={vi.fn()} onEdit={edit} />
+    {selected && <SceneClipProperties show={show} clip={selected} onEdit={edit} />}
+    <CueList show={show} selectedID={cue} onSelect={setCue} onEdit={edit} />
+    {selectedCue && <CueProperties cue={selectedCue} onEdit={edit} />}
+    <ShowPlaybackFields show={show} onEdit={edit} onPlayback={vi.fn()} />
+    <output data-testid="show">{JSON.stringify(activeShow(show))}</output>
+  </>;
+}
+const timeline = () => JSON.parse(screen.getByTestId('show').textContent!) as ShowTimeline;
+
+it('renders every canvas live with the scene on air, and GO waits for a manual cue', () => {
+  render(<Harness />);
+  const wall = screen.getByRole('list', { name: 'Canvases' });
+  expect(within(wall).getAllByRole('listitem')).toHaveLength(2);
+  expect(within(wall).getByRole('listitem', { name: /Tree: Main/ })).toBeTruthy();
+  expect((screen.getByRole('button', { name: 'GO' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('adds a scene clip to a canvas track and edits it in Properties', () => {
+  render(<Harness />);
+  fireEvent.click(screen.getByRole('button', { name: 'Add a scene clip to Tree' }));
+  const added = timeline().tracks[1].clips.at(-1)!;
+  expect(added.startS).toBe(30);
+  fireEvent.pointerDown(screen.getByRole('button', { name: /^Main on Tree at 0:30/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Clip scene' }), { target: { value: timeline().tracks[1].clips[0].sceneID === 'main' ? seed().timelines!.at(-1)!.id : 'main' } });
+  expect(timeline().tracks[1].clips.at(-1)!.sceneID).not.toBe('main');
+  fireEvent.click(screen.getByRole('button', { name: 'Remove clip' }));
+  expect(timeline().tracks[1].clips).toHaveLength(1);
+});
+
+it('creates cues with a trigger and an action, and sets the show length', () => {
+  render(<Harness />);
+  fireEvent.click(screen.getByRole('button', { name: 'New cue' }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Cue trigger' }), { target: { value: 'timeline' } });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Cue action' }), { target: { value: 'blackout-on' } });
+  expect(timeline().cues[0]).toMatchObject({ trigger: 'timeline', action: 'blackout-on' });
+  const length = screen.getByRole('textbox', { name: 'Show length' });
+  fireEvent.change(length, { target: { value: '120' } }); fireEvent.blur(length);
+  expect(timeline().durationS).toBe(120);
+});
+
+it('adds show audio from the media library and edits it', () => {
+  const show = { ...seed(), media: [{ id: 'song', kind: 'audio' as const, name: 'Song', file: 'song.mp3', bytes: 1, duration: 30, width: 0, height: 0 }] };
+  render(<Harness initial={show} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Add show audio' }));
+  expect(timeline().audio).toEqual([expect.objectContaining({ mediaId: 'song', startS: 0, durationS: 30 })]);
+  fireEvent.pointerDown(screen.getByRole('button', { name: /^Audio Song at/ }));
 });

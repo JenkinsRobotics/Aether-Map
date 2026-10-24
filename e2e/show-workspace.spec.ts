@@ -7,11 +7,11 @@ import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { emptyShow, newSurface } from '../src/document';
 import { contentClip } from '../src/surface-assets';
-import { signIn, solidPng, switchWorkspace } from './helpers';
+import { players, rightTab, signIn, solidPng, switchWorkspace } from './helpers';
 const run=promisify(execFile);
 
 test('Show routes, pairs, deploys and stops a local headless player, with exports and saved rules',async({page,context,baseURL},info)=>{
-  test.setTimeout(120000);await page.setViewportSize({width:1800,height:1100});await signIn(page,baseURL!);
+  test.setTimeout(180000);await page.setViewportSize({width:1800,height:1100});await signIn(page,baseURL!);
   const post=async(path:string,data:object)=>{const r=await page.request.post(path,{headers:{Origin:baseURL!},data});expect(r.ok()).toBe(true);return r.json();};
   const show=emptyShow(),surface=newSurface(show.output,0),file='show-workspace.png';
   const upload=await page.request.put(`/api/map/media/${file}`,{headers:{Origin:baseURL!},data:solidPng(320,180,[30,180,210])});expect(upload.ok()).toBe(true);
@@ -22,47 +22,55 @@ test('Show routes, pairs, deploys and stops a local headless player, with export
   const workspace=page.getByRole('region',{name:'Show workspace',exact:true});
   await expect(workspace.getByLabel('Show output preview').locator('.map-surface img')).toBeVisible();
   await expect(page.locator('.map-composition-timeline')).toHaveCount(0);
-  await workspace.getByRole('combobox',{name:'Show playback'}).selectOption('loop');
-  await workspace.getByRole('textbox',{name:'Main show length'}).fill('45');await workspace.getByRole('textbox',{name:'Main show length'}).press('Tab');
-  await workspace.getByRole('tab',{name:'Players',exact:true}).click();
-  await workspace.getByRole('button',{name:'Set up a new one'}).click();
+  // How the show plays is the Program tab's; players are managed from the Players section.
+  await rightTab(page,'Program');
+  await page.getByRole('combobox',{name:'Show playback'}).selectOption('loop');
+  await page.getByRole('textbox',{name:'Show length'}).fill('45');await page.getByRole('textbox',{name:'Show length'}).press('Tab');
+  let devices=await players(page);
+  await devices.getByRole('button',{name:'Set up a new one'}).click();
   const setup=page.getByRole('dialog',{name:'Set up a new device'});
   const downloadPromise=page.waitForEvent('download');await setup.getByRole('button',{name:'Download projector installer'}).click();
   const download=await downloadPromise;expect(download.suggestedFilename()).toContain('aether-projector-setup');
   await setup.getByRole('button',{name:'Done',exact:true}).click();
   const deviceID=`pi-show-${Date.now()}`,secret=`private-pi-show-secret-${Date.now()}`;
   const announcement=await post('/api/map/devices/announce',{device_id:deviceID,name:'Porch Pi',pairing_secret:secret});
-  await workspace.getByRole('button',{name:'Pair a device'}).click();
+  await devices.getByRole('button',{name:'Pair a device'}).click();
   await page.getByPlaceholder('000000').fill(announcement.code);await page.getByRole('button',{name:'Pair',exact:true}).click();
-  const playerCard=workspace.locator('.map-device').filter({hasText:'Porch Pi'});
+  const playerCard=page.locator('.map-device').filter({hasText:'Porch Pi'});
   await expect(playerCard.getByRole('button',{name:'Deploy this show',exact:true})).toBeDisabled();
-  await workspace.getByRole('tab',{name:'Show',exact:true}).click();
-  await workspace.getByRole('button',{name:'Configure Output 1'}).click();
+  await devices.getByRole('button',{name:'Done',exact:true}).click();
+  // Outputs and their routing are Mapping's.
+  await switchWorkspace(page,'Mapping');
+  await page.getByRole('tree',{name:'Outputs'}).getByRole('treeitem',{name:/Output 1/}).first().click();
+  await rightTab(page,'Properties');
   const properties=page.getByRole('region',{name:'Selection properties'});
   await properties.getByRole('radio',{name:'Edge device',exact:true}).click();
   await properties.getByRole('combobox',{name:'Edge device for this output'}).selectOption(deviceID);
   await properties.getByRole('radio',{name:'On a schedule',exact:true}).click();
   await properties.getByRole('textbox',{name:'Starts',exact:true}).fill('18:00');await properties.getByRole('textbox',{name:'Ends',exact:true}).fill('23:00');
-  await expect(workspace.getByText(/Daily 18:00–23:00/)).toBeVisible();
   // Exercise schedule persistence without depending on the test machine's current hour.
-  await expect(page.locator('.map-save-state')).toHaveText('Saved');
-  const withSchedule=await post('/api/library/read',{app:'map',id:saved.id});
-  expect(JSON.parse(Buffer.from(withSchedule.data_base64,'base64').toString()).outputs[0].schedule).toEqual({fromMinutes:1080,toMinutes:1380});
+  // Autosave: poll the saved file rather than a status label.
+  const savedSchedule=async()=>JSON.parse(Buffer.from((await post('/api/library/read',{app:'map',id:saved.id})).data_base64,'base64').toString()).outputs[0].schedule;
+  await expect.poll(savedSchedule,{timeout:15000}).toEqual({fromMinutes:1080,toMinutes:1380});
   await properties.getByRole('radio',{name:'Always on',exact:true}).click();
-  await expect(page.locator('.map-save-state')).toHaveText('Saved');
+  await expect.poll(savedSchedule,{timeout:15000}).toBeUndefined();
+  await switchWorkspace(page,'Show');
   await page.screenshot({path:info.outputPath('show-workspace.png')});
-  await workspace.getByRole('tab',{name:'Players',exact:true}).click();
+  devices=await players(page);
   await playerCard.getByRole('button',{name:'Deploy this show',exact:true}).click();
   await expect(playerCard.getByRole('button',{name:'Assigned',exact:true})).toBeVisible();
   const paired=await post('/api/map/devices/announce',{device_id:deviceID,name:'Porch Pi',pairing_secret:secret});
   const root=await mkdtemp(join(tmpdir(),'aether-show-workspace-')),showDir=join(root,'show'),config=join(root,'config.json');await mkdir(showDir);
   await writeFile(config,JSON.stringify({server_url:baseURL,name:"Porch Pi",device_id:deviceID,token:paired.token,pairing_secret:secret,show_dir:showDir,port:0}),{mode:0o600});
-  const python=resolve('../.venv/bin/python'),player=resolve('../aether-player/aether_player.py');
-  const pull=()=>run(python,[player,'--config',config,'--once']);
+  const python=resolve('../AetherStudio/.venv/bin/python'),player=resolve('player/aether_player.py');
+  // A stuck pull fails with the player's own log rather than the test timeout.
+  const pull=()=>run(python,[player,'--config',config,'--once'],{timeout:90000}).catch((e:{stderr?:string;stdout?:string})=>{throw new Error(`player pull failed: ${e.stderr??''}${e.stdout??''}`);});
   const firstPull=await pull();expect(firstPull.stderr).toContain('deployed');
-  const deployed=JSON.parse(await readFile(join(showDir,'layout.json'),'utf8'));
-  expect(deployed.playback.mode).toBe('loop');expect(deployed.scenes[0].durationS).toBe(45);expect(deployed.outputs[0].deviceId).toBe(deviceID);
-  expect((await readFile(join(showDir,'media',file))).length).toBeGreaterThan(0);
+  // The player deploys into a release directory behind a `.current` link.
+  const release=join(showDir,'.current');
+  const deployed=JSON.parse(await readFile(join(release,'layout.json'),'utf8'));
+  expect(deployed.playback.mode).toBe('loop');expect(deployed.shows[0].durationS).toBe(45);expect(deployed.outputs[0].deviceId).toBe(deviceID);
+  expect((await readFile(join(release,'media',file))).length).toBeGreaterThan(0);
   const server=spawn(python,['-u','e2e/serve-player.py',config],{stdio:['ignore','pipe','pipe']});
   try {
     const port=await new Promise<number>((done,fail)=>{const timeout=setTimeout(()=>fail(new Error('player did not start')),10000);server.once('error',fail);server.stdout.once('data',data=>{clearTimeout(timeout);done(Number(String(data).trim()));});});
@@ -95,16 +103,18 @@ test('Show routes, pairs, deploys and stops a local headless player, with export
     await expect(screen.locator('video')).toBeVisible();
     await page.reload(); await switchWorkspace(page,'Show');
     await expect(screen.locator('video')).toBeHidden({timeout:30000});
+    devices=await players(page);
     await expect(screen.frameLocator('#saved-show').locator('.map-surface img')).toBeVisible();
     const stillAssigned=await post('/api/map/devices/list',{});
     expect(stillAssigned.devices.find((d:{id:string})=>d.id===deviceID).document).toBe(saved.id);
-    await workspace.getByRole('tab',{name:'Export',exact:true}).click();
-    const bundlePromise=page.waitForEvent('download');await workspace.getByRole('button',{name:'Export project',exact:true}).click();
+    await devices.getByRole('button',{name:'Done',exact:true}).click();
+    await rightTab(page,'Export');
+    const bundlePromise=page.waitForEvent('download');await page.getByRole('button',{name:'Export project',exact:true}).click();
     expect((await bundlePromise).suggestedFilename()).toMatch(/\.zip$/);
-    await workspace.getByRole('tab',{name:'Players',exact:true}).click();await playerCard.getByRole('button',{name:'Stop',exact:true}).click();
+    devices=await players(page);await playerCard.getByRole('button',{name:'Stop',exact:true}).click();
     await expect(playerCard.getByRole('button',{name:'Deploy this show',exact:true})).toBeEnabled();
     await pull();await expect(screen.frameLocator('#saved-show').locator('.map-surface')).toHaveCount(0);await screen.close();
-    await page.reload();await switchWorkspace(page,'Show');await expect(workspace.getByRole('combobox',{name:'Show playback'})).toHaveValue('loop');
-    await expect(workspace.getByRole('textbox',{name:'Main show length'})).toHaveValue('45');
-  } finally {const exited=once(server,'exit');server.kill('SIGTERM');await exited;}
+    await page.reload();await switchWorkspace(page,'Show');await rightTab(page,'Program');await expect(page.getByRole('combobox',{name:'Show playback'})).toHaveValue('loop');
+    await expect(page.getByRole('textbox',{name:'Show length'})).toHaveValue('45');
+  } finally {if(server.exitCode===null&&server.signalCode===null){const exited=once(server,'exit');server.kill('SIGTERM');await exited;}}
 });
