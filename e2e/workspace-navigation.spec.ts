@@ -35,13 +35,15 @@ test('Mapping, Scene and Show each own their job and share one file row',async({
   await rightTab(page,'Export');
   await expect(page.getByRole('region',{name:'Record an output'})).toBeVisible();
   await page.screenshot({path:info.outputPath('show.png')});
-  // The one file row: the document, then its Show, Canvas and Scene entries.
+  // The one file row: the document, then its Show and Scene entries. Canvases
+  // are not files; they live in Mapping's layer tree.
   const files=page.locator('.aui-studio-aux-toolbar').getByRole('button',{name:'Open files'});
   if(await files.getAttribute('aria-pressed')!=='true')await files.click();
   const row=page.getByRole('tablist',{name:'Open shows'});
-  for(const kind of ['Show','Canvas','Scene']) await expect(row.getByRole('tab').filter({hasText:kind}).first()).toBeVisible();
-  await row.getByRole('tab').filter({hasText:'Canvas'}).first().click();
-  await expect(page.getByRole('button',{name:'Workspace: Mapping',exact:true})).toBeVisible();
+  for(const kind of ['Show','Scene']) await expect(row.getByRole('tab').filter({hasText:kind}).first()).toBeVisible();
+  await expect(row.getByRole('tab').filter({hasText:/^Canvas/})).toHaveCount(0);
+  await row.getByRole('tab').filter({hasText:'Scene'}).first().click();
+  await expect(page.getByRole('button',{name:'Workspace: Scene',exact:true})).toBeVisible();
   // Narrow windows keep the page from scrolling sideways.
   for(const width of [1200,900]) {
     await page.setViewportSize({width,height:900});

@@ -1,6 +1,7 @@
 import { DrawnMedia } from '../features/DrawnMedia';
 import { useState } from 'react';
-import { AetherIcon, Button, IconButton, NumberField, Slider } from '@aether/ui';
+import { AetherIcon, Button, IconButton, Slider } from '@aether/ui';
+import { TransportLength } from './TransportLength';
 import type { MapShow, Surface } from '../document';
 import type { Visual } from '../visual-model';
 import { visualSource } from '../media-pool';
@@ -62,7 +63,7 @@ export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, 
         <IconButton appearance="plain" label="Restart preview" onClick={() => onSeek(0)}><AetherIcon name="undo" /></IconButton>
         <IconButton appearance="plain" label={playing ? 'Pause preview' : 'Play preview'} onClick={onPlay}><AetherIcon name={playing ? 'pause' : 'play'} /></IconButton>
         <span>{formatTime(timeS)}</span><Slider className="map-simple-seek" showValue={false} ariaLabel="Preview position" min={0} max={show.playback.mode === 'continuous' ? Math.max(duration, Math.ceil(timeS)) : duration} step={.1} value={timeS} onChange={onSeek} />
-        {onLength ? <NumberField className="map-transport-length" aria-label="Scene duration" value={duration} min={1} max={86400} unit="s" precision={1} onValueChange={v => v !== null && onLength(v)} /> : <span>{formatTime(duration)}</span>}
+        {onLength ? <TransportLength durationS={duration} label="Scene duration" format={formatTime} onLength={onLength} /> : <span>{formatTime(duration)}</span>}
         {onPlayback && <IconButton appearance="plain" label="Loop" aria-pressed={looping} onClick={() => onPlayback(looping ? 'continuous' : 'loop')}><AetherIcon name="refresh" /></IconButton>}
       </div>
       {!!show.output.blackout && <p className="map-simple-notice">Output is blacked out. Turn off Blackout in the Show workspace to see visuals.</p>}

@@ -9,6 +9,7 @@ import { sceneSize } from "./scene-size";
 import { useEffect, useId, useRef, useState } from "react";
 import { sourcePictureStyle, alphaProjectionStyle, placementProjectionStyle } from "./source-picture";
 import { clipStyle } from "./mask/clip";
+import { OutlineEdge, outlineEdged } from "./features/SurfaceGrid";
 import { ClipDefs } from "./mask/clip.tsx";
 import { mappingSurfaceAt, playbackEnded, showTime, transportTime, type ResolvedSurface, type Transport } from "./playback";
 import { watchDeployedLayout } from "./deployed-layout";
@@ -346,6 +347,7 @@ export function OutputSurface({
   }
 
   const src = media ? urls?.[media.file] ?? base + media.file : "";
+  const outlined = Boolean(placeholder && !media && outlineEdged(surface));
 
   return (
     <>
@@ -365,7 +367,9 @@ export function OutputSurface({
           timeS={(surface as ResolvedSurface).mediaTimeS ?? timeS}
           playing={playing}
           placeholder={placeholder}
+          placeholderEdge={!outlined}
         />
+        {outlined && <OutlineEdge surface={surface} look={placeholder!} />}
       </div>
     </>
   );

@@ -1137,6 +1137,10 @@
   fill: var(--aether-color-bg-panel);
   stroke: var(--aether-color-accent);
 }
+/* The pen is over its first node: the next click closes the shape. */
+.map-draft circle.is-closing { fill: var(--aether-color-accent); }
+/* A drawing point snapped to a vertex or grid line. */
+.map-snap-marker { fill: none; stroke: var(--aether-color-warning, #f59e0b); }
 
 .map-canvas-hint {
   position: absolute;
@@ -1609,6 +1613,16 @@
 /* The layers panel's list/cards view switch. */
 /* Scene's tool row: one button per source kind, above the surface row. */
 .map-scene-tool-row { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
-.map-scene-tools { display: flex; flex-wrap: wrap; gap: 4px; }
-/* A transport's end time doubles as its length field. */
-.map-transport-length { width: 88px; flex: none; }
+/* The standard tool families in a plain row (the shared group stretches to fill one). */
+.map-scene-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+/* A transport's end time doubles as its length: plain text until clicked. */
+.map-transport-length { flex: none; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: text; }
+.map-transport-length:hover { color: var(--aether-color-text); text-decoration: underline dotted; }
+.map-transport-length-field { flex: none; width: 88px; }
+
+/* Empty-space right-click for a tree; adds no box of its own. */
+.map-tree-context-area { display: contents; }
+/* A custom outline's placeholder edge, in canvas pixels; the clip keeps its inner half. */
+.map-surface-edge { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.map-scene-tools .aui-studio-tool-family { flex-direction: column; align-items: center; gap: 2px; }
+.map-scene-tools .aui-studio-tool-label { display: block; font-size: 10px; color: var(--aether-color-text-dim); }

@@ -6,6 +6,7 @@ import { visualAssets } from '../visual-assets';
 import { visualSource } from '../media-pool';
 import { VisualThumbnail } from './SimpleVisualWorkspace';
 import './VisualAssetsPanel.css';
+import { TreeContextArea } from './TreeContextArea';
 
 const ICONS = { Shader: 'palette', Text: 'text', Webcam: 'webcam', Tracker: 'tracker', Drawing: 'draw', Colour: 'palette', Media: 'file-clip', 'Test pattern': 'surface-map', Timeline: 'timeline-tracks' } as const;
 const GROUP = 'group:';
@@ -119,18 +120,16 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
       { id: 'delete', label: 'Delete asset', shortcut: 'Delete', icon: <AetherIcon name="delete" />, disabled: locked(asset) },
     ];
   };
-  const controls: TreeControl[] = [
-    { id: 'add', label: addLabel, icon: <AetherIcon name="new" />, onClick: onAdd },
-    ...menu(selectedID ?? '').map(item => ({ id: item.id, label: item.label, icon: item.icon, disabled: !selected || item.disabled,
-      shortcut: item.id === 'rename' ? 'F2' as const : item.id === 'delete' ? 'Delete' as const : undefined,
-      onClick: () => selected && command(selected.id, item.id) })),
-  ];
+  // Header: a name and "+"; the rest is right-click (or Delete/F2 on a row).
+  const controls: TreeControl[] = [{ id: 'add', label: addLabel, icon: <AetherIcon name="plus" />, onClick: onAdd }];
+  const createItems = [{ id: 'list-add', label: addLabel, icon: <AetherIcon name="plus" />, separatorBefore: true }];
+  const runShortcut = (key: 'Delete' | 'F2') => { const item = selected && menu(selected.id).find(entry => entry.id === (key === 'Delete' ? 'delete' : 'rename') && !entry.disabled); if (selected && item) command(selected.id, item.id); };
   if (view === 'cards') return <VisualCards ariaLabel={ariaLabel} assets={[...assets].reverse()} selectedID={selectedID}
     menu={menu} command={command} onSelect={select} locked={id => locked(assets.find(a => a.id === id))}
     detail={asset => duration(asset.clip as Visual)}
     thumbnail={asset => urls ? <VisualThumbnail source={visualSource(show, asset.clip as Visual)} show={show} urls={urls} /> : icon(asset.kind)}
     onDrop={(id, targetID, before) => { const asset = assets.find(a => a.id === id); if (asset && !locked(asset) && id !== targetID) onDrop(asset.surface.id, id, targetID, targetID, before); }} />;
-  return <TreePanel ariaLabel={ariaLabel} nodes={nodes} rootInset={0} revealSelection
+  return <TreeContextArea label="Asset options" items={createItems} onSelect={onAdd} shortcut={runShortcut}><TreePanel ariaLabel={ariaLabel} nodes={nodes} rootInset={0} revealSelection
     filterOptions={Object.keys(ICONS).map(kind => ({ id: kind, label: kind }))}
     selectedIDs={new Set(selected ? [selected.id] : [])}
     canMove={(id, targetID, position) => {
@@ -152,14 +151,14 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
       if (folderOf(target) !== folderOf(asset)) setFolder(asset, folderOf(target));
     }}
     onSelect={ids => { const id = ids.at(-1); if (id && !id.startsWith(GROUP)) select(id); }} onActivate={id => { if (!id.startsWith(GROUP)) select(id); }}
-    controls={controls} controlsLabel="Asset controls" menuLabel="Asset options" menuItems={menu}
-    onCommand={command} onAction={command} renamingID={renamingID} onCancelRename={() => setRenamingID(null)}
+    controls={[]} headerControls={controls} controlsLabel="Asset controls" menuLabel="Asset options" menuItems={id => [...menu(id), ...createItems]}
+    onCommand={(id, action) => action === 'list-add' ? onAdd() : command(id, action)} onAction={command} renamingID={renamingID} onCancelRename={() => setRenamingID(null)}
     onRename={(id, name) => {
       const trimmed = name.trim();
       if (id.startsWith(GROUP)) { if (trimmed) members(id).forEach(a => setFolder(a, trimmed)); }
       else { const asset = assets.find(a => a.id === id); if (asset?.clip && !locked(asset)) onChange(asset.surface.id, { ...asset.clip, name }); }
       setRenamingID(null);
-    }} />;
+    }} /></TreeContextArea>;
 }
 
 type Asset = ReturnType<typeof visualAssets>[number];

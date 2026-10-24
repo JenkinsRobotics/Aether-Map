@@ -264,11 +264,12 @@ describe("SurfaceCanvas", () => {
       onDrawShape: (shape) => added.push(shape),
     });
     const host = container.querySelector(".map-canvas-host")!;
-    fireEvent.pointerDown(host, { button: 0, clientX: 100, clientY: 100, pointerId: 1 });
-    fireEvent.pointerMove(host, { clientX: 300, clientY: 220, pointerId: 1 });
+    // Alt draws freely (no snapping), so the profile is exactly the drag.
+    fireEvent.pointerDown(host, { button: 0, clientX: 100, clientY: 100, pointerId: 1, altKey: true });
+    fireEvent.pointerMove(host, { clientX: 300, clientY: 220, pointerId: 1, altKey: true });
     // The preview follows the pointer before release.
     expect(container.querySelector(".map-draft polygon")).not.toBeNull();
-    fireEvent.pointerUp(host, { clientX: 300, clientY: 220, pointerId: 1 });
+    fireEvent.pointerUp(host, { clientX: 300, clientY: 220, pointerId: 1, altKey: true });
     expect(added).toHaveLength(1);
     expect(added[0]).toEqual([
       [100, 100],

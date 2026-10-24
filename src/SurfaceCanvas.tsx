@@ -1,3 +1,4 @@
+import { OutlineEdge, outlineEdged } from "./features/SurfaceGrid";
 import { useVisualMotionInputs } from './live/use-visual-motion-inputs';
 import { useContextCommands } from '@aether/ui';
 import { sceneVisuals } from './visual-render';
@@ -28,6 +29,7 @@ import type { OutputCrop } from "./features/types";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
 import { sourcePictureStyle, alphaProjectionStyle, placementProjectionStyle } from "./source-picture";
 import { animateSurface } from "./features/animation";
+import { snapVertex } from "./layer-transform";
 import { SurfaceMedia } from "./SurfaceMedia";
 import { clipStyle } from "./mask/clip";
 import { evaluateSurface, mappingSurfaceAt, type ResolvedSurface } from "./playback";
@@ -165,6 +167,8 @@ export function SurfaceCanvas({
   const snapping = mappingPreferences?.snapping ?? true;
   const xray = xrayProp ?? false;
   const [draft, setDraft] = useState<Draft | null>(null);
+  /** Where a drawing tool's pointer snapped, for the on-canvas marker. */
+  const [drawSnap, setDrawSnap] = useState<[number, number] | null>(null);
   const { width, height } = sceneSize(show);
   // Every scene is on the canvas, side by side. Only the active artboard is
   // interactive: clicking another one makes it active first, which is why
@@ -430,6 +434,20 @@ export function SurfaceCanvas({
   };
 
   const preview = draft ? previewShape(draft) : null;
+  /** Drawing snaps to real vertices (other layers, the canvas corners, the
+   * pen's own points), then the grid; Alt or Snap off draws freely. */
+  const snapDrawing = (at: [number, number], free: boolean): [number, number] => {
+    if (!snapping || free) { setDrawSnap(null); return at; }
+    const targets = editableLayers(show).filter(s => s.enabled)
+      .flatMap(s => { const v = animateSurface(s, timeS, surfaceMotion); return [...v.corners, ...v.masks.flat()]; });
+    targets.push([0, 0], [width, 0], [width, height], [0, height], ...(draft?.tool === "pen" ? draft.points : []));
+    const hit = snapVertex(at, targets, (mappingPreferences?.snapDistancePx ?? 8) / scale, gridOn ? GRID_SIZE : undefined);
+    setDrawSnap(hit);
+    return hit ?? at;
+  };
+  // The pen closes on its first node: show it before the click does it.
+  const penClosing = draft?.tool === "pen" && draft.points.length >= 3
+    && Math.hypot(draft.cursor[0] - draft.points[0][0], draft.cursor[1] - draft.points[0][1]) <= 12 / scale;
 
   return (
     <div
@@ -482,7 +500,7 @@ export function SurfaceCanvas({
         if (drawing && event.button === 0) {
           event.preventDefault();
           (event.currentTarget as Element).setPointerCapture(event.pointerId);
-          const at = toRaster(event);
+          const at = snapDrawing(toRaster(event), event.altKey);
           const constrained = event.shiftKey;
           setDraft((current) =>
             tool === "pen" ? penPointerDown(current, at, 12 / scale, scale) : beginDraft(tool, at, constrained),
@@ -499,7 +517,7 @@ export function SurfaceCanvas({
           return;
         }
         interaction.move(event);
-        if (draft) setDraft(moveDraft(draft, toRaster(event), event.shiftKey));
+        if (draft) setDraft(moveDraft(draft, snapDrawing(toRaster(event), event.altKey), event.shiftKey));
       }}
       onPointerUp={(event) => {
         if (panRef.current) {
@@ -524,7 +542,7 @@ export function SurfaceCanvas({
               [originX - destination.x, originY - destination.y]);
           }
         });
-        if (draft) settle(endDraft(draft, toRaster(event), event.shiftKey), event.shiftKey && (draft.tool === "rect" || draft.tool === "ellipse"));
+        if (draft) settle(endDraft(draft, snapDrawing(toRaster(event), event.altKey), event.shiftKey), event.shiftKey && (draft.tool === "rect" || draft.tool === "ellipse"));
       }}
       onLostPointerCapture={() => interaction.finish()}
       onPointerCancel={() => {
@@ -708,7 +726,7 @@ export function SurfaceCanvas({
                 activeBoard?.scene.id ?? show.activeSceneId, editableLayers(show), [originX, originY])} />
           {preview && preview.length > 0 && (
             <g className="map-draft">
-              {draft?.tool === "pen" || draft?.tool === "freehand" ? (
+              {(draft?.tool === "pen" && !penClosing) || draft?.tool === "freehand" ? (
                 <polyline
                   points={preview.map((p) => p.join(",")).join(" ")}
                   strokeWidth={2 / scale}
@@ -727,12 +745,15 @@ export function SurfaceCanvas({
                 draft.points.map((p, index) => (
                   <circle
                     key={index}
+                    className={index === 0 && penClosing ? "is-closing" : undefined}
                     cx={p[0]}
                     cy={p[1]}
-                    r={(index === 0 ? 8 : 5) / scale}
+                    r={(index === 0 ? (penClosing ? 11 : 8) : 5) / scale}
                     strokeWidth={2 / scale}
                   />
                 ))}
+              {drawSnap && !penClosing && <rect className="map-snap-marker" x={drawSnap[0] - 5 / scale} y={drawSnap[1] - 5 / scale}
+                width={10 / scale} height={10 / scale} strokeWidth={1.5 / scale} transform={`rotate(45 ${drawSnap[0]} ${drawSnap[1]})`} />}
             </g>
           )}
           {outputRegionBelongsTo(board.scene.id) && (
@@ -903,6 +924,7 @@ function SurfaceLayer({
   if (!surface.enabled || (mapping && surface.sceneCanvas)) return null;
 
   const alignment = mapping && !showVisual;
+  const outlined = (alignment || !url) && outlineEdged(surface);
   let style: React.CSSProperties;
   try {
     style = sourcePictureStyle(surface, alignment ? undefined : media, alignment);
@@ -935,7 +957,9 @@ function SurfaceLayer({
           timeS={timeS}
           playing={playing}
           placeholder={look}
+          placeholderEdge={!outlined}
         />
+        {outlined && look && <OutlineEdge surface={surface} look={look} />}
       </div>
     </>
   );

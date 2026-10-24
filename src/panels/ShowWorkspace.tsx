@@ -5,11 +5,13 @@ import { formatTime } from '../cues';
 import { useMapDevices } from '../use-map-devices';
 import { ExportWorkspace } from './WorkspaceTray';
 import { ShowPreview } from './ShowPreview';
+import { TransportLength } from './TransportLength';
 import { RECORDING_SIZES, startRecording, stopRecording, useRecording, type RecordingSize } from '../export-video';
 import { MAIN_TIMELINE } from '../timelines';
 import { activeShow, clipAt, newSceneClip, sceneDuration, showForClip, surfaceRole, type CueAction, type CueTrigger, type SceneClip, type ShowAudioClip, type ShowCue, type ShowTimeline } from '../show-timeline';
 import { nextId } from '../document';
 import './ShowWorkspace.css';
+import { TreeContextArea } from './TreeContextArea';
 
 type EditTimeline = (change: (timeline: ShowTimeline) => ShowTimeline) => void;
 const sceneOptions = (show: MapShow) => [{ value: MAIN_TIMELINE, label: 'Main' }, ...(show.timelines ?? []).map(t => ({ value: t.id, label: t.name })),
@@ -51,8 +53,8 @@ export function ShowWorkspace({ show, urls, timeS, playing, onPlay, onSeek, onGo
       <IconButton label="Restart show" onClick={() => onSeek(0)}><AetherIcon name="undo" /></IconButton>
       <IconButton label={playing ? 'Pause show' : 'Play show'} onClick={onPlay}><AetherIcon name={playing ? 'pause' : 'play'} /></IconButton>
       <span>{formatTime(timeS)}</span>
-      <Slider ariaLabel="Show position" min={0} max={duration} step={.1} value={Math.min(timeS, duration)} onChange={onSeek} />
-      {onLength ? <NumberField className="map-transport-length" aria-label="Show duration" value={duration} min={1} unit="s" precision={1} onValueChange={v => v !== null && onLength(v)} /> : <span>{formatTime(duration)}</span>}
+      <Slider showValue={false} ariaLabel="Show position" min={0} max={duration} step={.1} value={Math.min(timeS, duration)} onChange={onSeek} />
+      {onLength ? <TransportLength durationS={duration} label="Show duration" format={formatTime} onLength={onLength} /> : <span>{formatTime(duration)}</span>}
       <Button primary disabled={!goCues.length} onClick={onGo} title={goCues.length ? 'Run the next manual cue' : 'Add a GO cue to use this'}>GO</Button>
     </div>
   </section>;
@@ -182,12 +184,16 @@ export const describeShowCue = (cue: ShowCue) => `${CUE_ACTIONS.find(a => a.valu
 export function CueList({ show, selectedID, onSelect, onEdit }: { show: MapShow; selectedID: string | null; onSelect: (id: string | null) => void; onEdit: EditTimeline }) {
   const cues = activeShow(show)?.cues ?? [];
   const add = () => { const id = nextId('cue'); onEdit(t => ({ ...t, cues: [...t.cues, { id, name: `Cue ${t.cues.length + 1}`, trigger: 'go', action: 'play' }] })); onSelect(id); };
-  const controls: TreeControl[] = [{ id: 'new', label: 'New cue', icon: <AetherIcon name="new" />, onClick: add },
-    { id: 'delete', label: 'Delete cue', icon: <AetherIcon name="delete" />, disabled: !selectedID, onClick: () => { onEdit(t => ({ ...t, cues: t.cues.filter(c => c.id !== selectedID) })); onSelect(null); } }];
+  // Header: a name and "+"; Delete is right-click on a cue (or the Delete key).
+  const remove = (id: string) => { onEdit(t => ({ ...t, cues: t.cues.filter(c => c.id !== id) })); onSelect(null); };
+  const plus: TreeControl[] = [{ id: 'new', label: 'New cue', icon: <AetherIcon name="plus" />, onClick: add }];
+  const createItems = [{ id: 'list-new', label: 'New cue', icon: <AetherIcon name="plus" />, separatorBefore: true }];
   const nodes: TreeNode[] = cues.map(c => ({ id: c.id, label: c.name, category: 'Cue', icon: <AetherIcon name={c.trigger === 'go' ? 'play' : c.trigger === 'midi' ? 'sliders' : 'history'} />,
     badge: c.trigger === 'timeline' ? formatTime(c.atS ?? 0) : c.trigger === 'midi' ? `CC ${c.control ?? '–'}` : 'GO' }));
-  return <TreePanel ariaLabel="Cues" rootInset={0} nodes={nodes} selectedIDs={new Set(selectedID ? [selectedID] : [])}
-    onSelect={ids => onSelect(ids.at(-1) ?? null)} controls={controls} controlsLabel="Cue controls" emptyState={<span>No cues yet — New cue adds one</span>} />;
+  return <TreeContextArea label="Cue options" items={createItems} onSelect={add} shortcut={key => { if (key === 'Delete' && selectedID) remove(selectedID); }}><TreePanel ariaLabel="Cues" rootInset={0} nodes={nodes} selectedIDs={new Set(selectedID ? [selectedID] : [])}
+    onSelect={ids => onSelect(ids.at(-1) ?? null)} controls={[]} headerControls={plus} controlsLabel="Cue controls" menuLabel="Cue options"
+    menuItems={() => [{ id: 'delete', label: 'Delete cue', icon: <AetherIcon name="delete" />, shortcut: 'Delete' as const, danger: true }, ...createItems]}
+    onCommand={(id, action) => action === 'delete' ? remove(id) : add()} emptyState={<span>No cues yet — + adds one</span>} /></TreeContextArea>;
 }
 
 /** Properties for a selected cue. */

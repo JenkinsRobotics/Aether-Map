@@ -3,6 +3,7 @@ import { AetherIcon, Button, Dialog, FieldRow, Menu, TextField, TreePanel, type 
 import { activeScene, type MapShow } from '../document';
 import { canNestTimeline, currentTimelineID, MAIN_TIMELINE, TIMELINE_DRAG_PREFIX, timelineUses } from '../timelines';
 import { POOL_DRAG_TYPE } from '../media-pool';
+import { TreeContextArea } from './TreeContextArea';
 
 export interface TimelinePoolActions {
   onOpen: (id: string) => void;
@@ -76,14 +77,15 @@ export function TimelineTree({ show, actions }: { show: MapShow; actions: Timeli
     else if (action === 'rename' && id !== MAIN_TIMELINE) setRenamingID(id);
     else if (action === 'delete' && canDelete(id)) actions.onRemove(id);
   };
-  const controls: TreeControl[] = [
-    { id: 'new', label: 'New scene', icon: <AetherIcon name="new" />, onClick: () => actions.onCreate(`Scene ${(show.timelines?.length ?? 0) + 1}`) },
-    ...menu(current).map(item => ({ id: item.id, label: item.label, icon: item.icon, disabled: item.disabled, onClick: () => command(current, item.id) })),
-  ];
-  return <TreePanel ariaLabel="Scenes" rootInset={0} selectedIDs={new Set([current])}
+  // Header: a name and "+"; row commands are right-click.
+  const create = () => actions.onCreate(`Scene ${(show.timelines?.length ?? 0) + 1}`);
+  const plus: TreeControl[] = [{ id: 'new', label: 'New scene', icon: <AetherIcon name="plus" />, onClick: create }];
+  const createItems = [{ id: 'list-new', label: 'New scene', icon: <AetherIcon name="plus" />, separatorBefore: true }];
+  return <TreeContextArea label="Scene options" items={createItems} onSelect={create}
+    shortcut={key => { const item = menu(current).find(entry => entry.id === (key === 'Delete' ? 'delete' : 'rename') && !entry.disabled); if (item) command(current, item.id); }}><TreePanel ariaLabel="Scenes" rootInset={0} selectedIDs={new Set([current])}
     nodes={entries.map(t => ({ id: t.id, label: t.name, category: t.surfaceID ? 'Surface scene' : 'Scene', icon: <AetherIcon name="timeline-tracks" /> }))}
     onSelect={ids => { const id = ids.at(-1); if (id && id !== current) actions.onOpen(id); }} onActivate={actions.onOpen}
-    controls={controls} controlsLabel="Scene controls" menuLabel="Scene options" menuItems={menu}
-    onCommand={command} onAction={command} renamingID={renamingID} onCancelRename={() => setRenamingID(null)}
-    onRename={(id, name) => { if (name.trim()) actions.onRename(id, name.trim()); setRenamingID(null); }} />;
+    controls={[]} headerControls={plus} controlsLabel="Scene controls" menuLabel="Scene options" menuItems={id => [...menu(id), ...createItems]}
+    onCommand={(id, action) => action === 'list-new' ? create() : command(id, action)} onAction={command} renamingID={renamingID} onCancelRename={() => setRenamingID(null)}
+    onRename={(id, name) => { if (name.trim()) actions.onRename(id, name.trim()); setRenamingID(null); }} /></TreeContextArea>;
 }

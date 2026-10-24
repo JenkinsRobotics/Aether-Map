@@ -8,14 +8,14 @@ import { readShowTabs, reorderShowTabs, showTabURL, showTabLabel, storeShowTabs,
 import './ShowFileTabs.css';
 
 /** One entry of the open document: its Show, Canvases and Scenes, typed. */
-export interface DocumentEntry { id: string; label: string; kind: 'show' | 'canvas' | 'scene'; icon: ReactElement }
-const KIND_LABEL = { show: 'Show', canvas: 'Canvas', scene: 'Scene' } as const;
+export interface DocumentEntry { id: string; label: string; kind: 'show' | 'scene'; icon: ReactElement }
+const KIND_LABEL = { show: 'Show', scene: 'Scene' } as const;
 
 /** The one file row: open files and, for the open document, its typed entries
  * (Show · Scene · Canvas), as CAD's tray lists Part Studios and Assemblies.
  * "+" asks what to create. */
 export function ShowFileTabs({ file, saveState, connection, onSaveCopy, contents, status, fileActions, entries = [], activeEntry, onEntry, onCreate }: { file: StoredFile | null; saveState: SaveState; connection: DocumentConnection; onSaveCopy: () => void; status?:string; fileActions?:ReactNode; contents: Omit<DocumentFileManagerProps,"connection">;
-  entries?: readonly DocumentEntry[]; activeEntry?: string; onEntry?: (entry: DocumentEntry) => void; onCreate?: (kind: 'canvas' | 'scene' | 'show' | 'file') => void }) {
+  entries?: readonly DocumentEntry[]; activeEntry?: string; onEntry?: (entry: DocumentEntry) => void; onCreate?: (kind: 'scene' | 'show' | 'file') => void }) {
   const [creating, setCreating] = useState(false);
   const [owner, setOwner] = useState<string | null>(null);
   const [tabs, setTabs] = useState<OpenShowTab[]>([]);
@@ -80,10 +80,9 @@ export function ShowFileTabs({ file, saveState, connection, onSaveCopy, contents
         {saveState.message && <Button onClick={onSaveCopy} title={saveState.message}>Save a copy</Button>}
       </div>} />
     {error && <div className="map-file-tabs-error" role="alert">{error}</div>}
-    {creating && <NewDesignDialog title="What do you want to create?" onClose={()=>setCreating(false)} onCreate={kind=>{setCreating(false);if(kind==='file')void navigate("/map/index.html?new=show");else onCreate?.(kind as 'canvas'|'scene'|'show');}} kinds={[
+    {creating && <NewDesignDialog title="What do you want to create?" onClose={()=>setCreating(false)} onCreate={kind=>{setCreating(false);if(kind==='file')void navigate("/map/index.html?new=show");else onCreate?.(kind as 'scene'|'show');}} kinds={[
       {id:'scene',title:'Scene',summary:'Reusable animation and visualization',description:'Layers with their own timeline. Play it on any canvas from the Show.',icon:<AetherIcon name="palette"/>},
       {id:'show',title:'Show',summary:'A production',description:'Scene clips on canvas tracks, with cues. A document can hold several shows, like setlists.',icon:<AetherIcon name="play"/>},
-      {id:'canvas',title:'Canvas',summary:'A projection space',description:'An artboard with mapped surfaces, routed to outputs in Mapping.',icon:<AetherIcon name="scene"/>},
       {id:'file',title:'Map document',summary:'A new, separate file',description:'Starts an empty Aether Map document with its own show.',icon:<AetherIcon name="file-show"/>},
     ]}/>}
 

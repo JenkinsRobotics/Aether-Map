@@ -96,11 +96,16 @@ const documentCommand = (name: string) => {
   openDocumentControls();
   fireEvent.click(screen.getAllByRole("menuitem", { name: new RegExp(`^${name}`) })[0]);
 };
-/** Rows of the one content tree: scenes at the root, everything else beneath. */
-const treeRows = () =>
-  within(screen.getAllByRole("tree", { name: "Layers" })[0]).queryAllByRole("treeitem");
-const sceneRows = () =>
-  within(screen.getAllByRole("tree", { name: "Canvases" })[0]).queryAllByRole("treeitem");
+/** Mapping's one artboard tree: canvases at the root, the open (active)
+ * canvas's layers beneath it. */
+const layerTree = () => screen.getAllByRole("tree", { name: "Layers" })[0];
+const treeRows = () => within(layerTree()).queryAllByRole("treeitem").filter(row => row.getAttribute("aria-level") !== "1");
+const sceneRows = () => within(layerTree()).queryAllByRole("treeitem").filter(row => row.getAttribute("aria-level") === "1");
+/** Right-click on the tree's empty space, then a creation command. */
+const treeCommand = (name: string) => {
+  fireEvent.contextMenu(layerTree());
+  fireEvent.click(screen.getByRole("menuitem", { name }));
+};
 const absent = (text: string | RegExp) => screen.queryAllByText(text).length === 0;
 /** A row in one of the trees, not the same name wherever else it appears. */
 const clickRow = (tree: string, name: string) =>
@@ -155,7 +160,7 @@ describe("Aether Map", () => {
       const inspector = screen.getByRole("region", { name: "Selection properties" });
       expect((within(inspector).getByLabelText("Surface name") as HTMLInputElement).value).toBe("Surface 1");
       expect(within(inspector).queryByLabelText("Scene shown on this output")).toBeNull();
-      clickRow("Canvases", "Canvas 1");
+      clickRow("Layers", "Canvas 1");
       addLayerSurface();
       expect((within(inspector).getByLabelText("Surface name") as HTMLInputElement).value).toBe("Surface 2");
       expect(within(inspector).queryByLabelText("Scene length")).toBeNull();
@@ -205,7 +210,7 @@ describe("Aether Map", () => {
       addLayerSurface();
       clickRow("Layers", "Surface 1");
       expect(present("Corners")).toBe(true);
-      clickRow("Canvases", "Canvas 1");
+      clickRow("Layers", "Canvas 1");
       // Check the rail itself: a feature window may independently stay open
       // while Properties follows the selected scene.
       expect(present("Visibility")).toBe(true);
@@ -218,17 +223,27 @@ describe("Aether Map", () => {
 
     it("offers hide and suppress on the selected scene", () => {
       render(<App />);
-      clickRow("Canvases", "Canvas 1");
+      clickRow("Layers", "Canvas 1");
       expect(screen.getAllByLabelText(/Hidden/).length).toBeGreaterThan(0);
       expect(screen.getAllByLabelText(/Suppressed/).length).toBeGreaterThan(0);
     });
 
     it("tells you whether anything is projecting the selected scene", () => {
       render(<App />);
-      clickRow("Canvases", "Canvas 1");
+      clickRow("Layers", "Canvas 1");
       // A new show aims its one output at its one scene.
       expect(present(/Projecting on Output 1/)).toBe(true);
     });
+  });
+
+  it("Scene and Show offer the backdrop toggle in the view tools, like Mapping", () => {
+    render(<App />);
+    for (const name of ["Scene", "Show"] as const) {
+      fireEvent.click(screen.getByRole('button',{name:/Workspace:/})); fireEvent.click(screen.getByRole('menuitemradio',{name}));
+      const tools = screen.getAllByRole("toolbar", { name: "View tools" })[0];
+      // No backdrop imported yet: present, but nothing to toggle.
+      expect(within(tools).getByRole("button", { name: "Backdrop image" }).hasAttribute("disabled")).toBe(true);
+    }
   });
 
   it("keeps the crossfader out of the content tree", () => {
@@ -239,14 +254,15 @@ describe("Aether Map", () => {
     expect(within(tree.parentElement!).queryByLabelText("Scene to fade toward")).toBeNull();
   });
 
-  it("splits the list: the active scene's layers above, Scenes below", () => {
+  it("is one artboard tree: each canvas holds its layers, with a single + in the header", () => {
     render(<App />);
     addLayerSurface();
-    // Layers lists only the active scene's contents, as roots.
     const surface = treeRows().find((row) => row.textContent?.includes("Surface 1"))!;
-    expect(surface.getAttribute("aria-level")).toBe("1");
-    expect(treeRows().some((row) => row.textContent?.includes("Canvas 1"))).toBe(false);
+    expect(surface.getAttribute("aria-level")).toBe("2");
     expect(sceneRows().map((row) => row.textContent)).toEqual([expect.stringContaining("Canvas 1")]);
+    expect(screen.queryByRole("tree", { name: "Canvases" })).toBeNull();
+    const header = screen.getAllByRole("group", { name: "Layer controls" })[0];
+    expect(within(header).getAllByRole("button").map(b => b.getAttribute("aria-label"))).toEqual(["New Surface"]);
   });
 
   it("mounts with a scene and an empty layer list", () => {
@@ -273,7 +289,7 @@ describe("Aether Map", () => {
 
   it("adds a scene and makes it the active one", () => {
     render(<App />);
-    fireEvent.click(screen.getAllByRole("button", { name: "New canvas" })[0]);
+    treeCommand("New canvas");
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
     expect(sceneRows()).toHaveLength(2);
     // The new scene is active, and it starts empty.
@@ -283,11 +299,12 @@ describe("Aether Map", () => {
   it("keeps each scene's surfaces separate: selecting a scene switches the list", () => {
     render(<App />);
     addLayerSurface();
-    fireEvent.click(screen.getAllByRole("button", { name: "New canvas" })[0]);
+    treeCommand("New canvas");
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
-    expect(treeRows()).toHaveLength(0);
-    clickRow("Canvases", "Canvas 1");
-    expect(treeRows().map((row) => row.textContent)).toEqual([expect.stringContaining("Surface 1")]);
+    // Each canvas holds its own: Surface 1 sits under Canvas 1, Canvas 2 is empty.
+    clickRow("Layers", "Canvas 1");
+    const rows = within(layerTree()).queryAllByRole("treeitem").map(row => `${row.getAttribute("aria-level")}:${row.textContent?.trim()}`);
+    expect(rows).toEqual([expect.stringMatching(/^1:Canvas 1/), expect.stringMatching(/^2:Surface 1/), expect.stringMatching(/^1:Canvas 2/)]);
   });
 
   it("opens the Visual gallery from the sidebar + in advanced, as in simple", () => {
@@ -508,19 +525,18 @@ describe("component deletion", () => {
   it("deletes a selected cube through the Layers footer, preserves both scenes, and undoes all faces together", () => {
     render(<App />);
     addLayerSurface();
-    fireEvent.click(screen.getAllByRole("button", { name: "New canvas" })[0]);
+    treeCommand("New canvas");
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
     fireEvent.click(ribbonTool("Cube"));
     clickRow("Layers", "^Cube 3 layers$");
-    const controls = screen.getAllByRole("group", { name: "Layer controls" })[0];
-    fireEvent.click(within(controls).getByRole("button", { name: "More Layer controls" }));
+    fireEvent.contextMenu(within(layerTree()).getAllByRole("treeitem", { name: /^Cube 3 layers$/ })[0]);
     fireEvent.click(screen.getByRole("menuitem", { name: /^Delete group/ }));
     expect(treeRows().map(row => row.getAttribute("aria-label") ?? row.textContent)).not.toContain("Cube");
-    // Scene 2 is the list; the unrelated surface stays in Scene 1.
-    expect(treeRows()).toHaveLength(0); expect(sceneRows()).toHaveLength(2);
+    // The unrelated surface stays in Canvas 1; Canvas 2 is empty again.
+    expect(treeRows().map(row => row.textContent?.trim())).toEqual([expect.stringContaining("Surface 1")]); expect(sceneRows()).toHaveLength(2);
     documentCommand("Undo");
-    expect(treeRows()).toHaveLength(4); // group + all three faces restored
-    expect(treeRows().filter(row => row.getAttribute("aria-level") === "1")).toHaveLength(1);
+    expect(treeRows()).toHaveLength(5); // Surface 1, plus the group and all three faces restored
+    expect(treeRows().filter(row => row.getAttribute("aria-level") === "2")).toHaveLength(2);
   });
   it("deletes a whole cube from the toolbar, then only one face when a face is selected", () => {
     render(<App />);
@@ -548,9 +564,9 @@ describe("component deletion", () => {
 it("deletes the last output from the toolbar without deleting a previously selected cube, and undoes it", () => {
   render(<App />);
   fireEvent.click(ribbonTool("Cube"));
-  const before = treeRows().length;
   expect(screen.queryByRole("button", { name: "Outputs" })).toBeNull();
   const retainedLayerRows = () => within(screen.getByRole("tree", { name: "Layers", hidden: true })).queryAllByRole("treeitem", { hidden: true });
+  const before = retainedLayerRows().length;
   clickRow("Outputs", "Output 1");
   fireEvent.click(ribbonTool("Delete"));
   expect(within(screen.getByRole("tree", { name: "Outputs" })).queryAllByRole("treeitem")).toHaveLength(0);

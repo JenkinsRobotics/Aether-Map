@@ -54,8 +54,8 @@ test('a timeline is added from the gallery like any asset and listed with the me
 },15000);
 test('Scene tool row adds visuals beside the surface row; several files import at once; Add to project only pools them',async()=>{
  begin();
- const tools=screen.getByRole('toolbar',{name:'Add visual'});
- expect(within(tools).getAllByRole('button').map(b=>b.textContent?.trim())).toEqual(['Image','Video','Camera','Colour','Text','Drawing','Generator']);
+ const tools=screen.getByRole('group',{name:'Add visual'});
+ expect(within(tools).getAllByRole('button').map(b=>b.getAttribute('aria-label'))).toEqual(['Image','Video','Camera','Colour','Text','Drawing','Generator']);
  expect(screen.getByRole('region',{name:'Apply to surfaces'})).toBeTruthy();
  fireEvent.click(within(tools).getByRole('button',{name:'Camera'}));
  expect(order()).toEqual(['Select Webcam']);
@@ -75,8 +75,9 @@ test('Scene tool row adds visuals beside the surface row; several files import a
 },20000);
 test('the Scene transport end time sets the scene length',()=>{
  begin();
+ fireEvent.click(screen.getByRole('button',{name:/^Scene duration: /}));
  const length=screen.getByRole('textbox',{name:'Scene duration'});
- fireEvent.change(length,{target:{value:'45'}});fireEvent.blur(length);
- expect((screen.getByRole('textbox',{name:'Scene duration'}) as HTMLInputElement).value).toMatch(/^45/);
+ fireEvent.change(length,{target:{value:'45'}});fireEvent.keyDown(length,{key:'Enter'});
+ expect(screen.getByRole('button',{name:'Scene duration: 0:45.0'})).toBeTruthy();
  expect(screen.getByRole('slider',{name:'Preview position'}).outerHTML).toMatch(/max="45"|valuemax="45"/);
 });

@@ -33,7 +33,7 @@ export function MapViewTools({ workspace, onPerformance, grid, onGrid, xray, onX
   ];
   const outputTools = [
     { id: "input", label: "Input preview", icon: <AetherIcon name="monitor" />, pressed: showInput },
-    ...(workspace === "visualization" ? [{ id: "backdrop", label: "Backdrop image", icon: <AetherIcon name="image" />, pressed: backdrop === true, disabled: backdrop === null }] : []),
+    ...(workspace !== "mapping" ? [{ id: "backdrop", label: "Backdrop image", icon: <AetherIcon name="image" />, pressed: backdrop === true, disabled: backdrop === null }] : []),
     ...(workspace === "visualization" && onPerformance ? [{ id: "performance", label: "Performance", icon: <AetherIcon name="sliders" /> }] : []),
     { id: "blackout", label: "Blackout", icon: <AetherIcon name="hidden" />, pressed: blackout },
   ];

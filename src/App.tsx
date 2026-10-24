@@ -53,7 +53,6 @@ import { ColorPanel } from "./panels/ColorPanel";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AetherIcon,
-  type AetherIconName,
   Inspector,
   InspectorSection,
   ToolIcon,
@@ -360,14 +359,14 @@ export default function App() {
     if (fileRef.current) { fileRef.current.accept = accept; fileRef.current.click(); }
   };
   // Scene's tool row: make a visual from each kind of source, then apply it with the surface row.
-  const sceneTools: { id: string; label: string; icon: AetherIconName; run: () => void }[] = [
-    { id: 'image', label: 'Image', icon: 'image', run: () => openMediaPicker({ kind: 'simple' }, 'image/*') },
-    { id: 'video', label: 'Video', icon: 'file-video', run: () => openMediaPicker({ kind: 'simple' }, 'video/*') },
-    { id: 'camera', label: 'Camera', icon: 'webcam', run: () => addSceneVisual(poolSource('webcam', sceneSize(show)), 'Webcam') },
-    { id: 'colour', label: 'Colour', icon: 'palette', run: () => addSceneVisual(poolSource('colour', sceneSize(show)), 'Colour') },
-    { id: 'text', label: 'Text', icon: 'text', run: () => addSceneVisual(poolSource('text', sceneSize(show)), 'Text') },
-    { id: 'drawing', label: 'Drawing', icon: 'brush', run: () => addSceneVisual(poolSource('paint', sceneSize(show)), 'Paint') },
-    { id: 'generator', label: 'Generator', icon: 'sparkles', run: addVisual },
+  const sceneTools: { id: string; label: string; icon: React.ReactNode; run: () => void }[] = [
+    { id: 'image', label: 'Image', icon: <ToolIcon name="import" />, run: () => openMediaPicker({ kind: 'simple' }, 'image/*') },
+    { id: 'video', label: 'Video', icon: <AetherIcon name="file-video" />, run: () => openMediaPicker({ kind: 'simple' }, 'video/*') },
+    { id: 'camera', label: 'Camera', icon: <ToolIcon name="webcam" />, run: () => addSceneVisual(poolSource('webcam', sceneSize(show)), 'Webcam') },
+    { id: 'colour', label: 'Colour', icon: <ToolIcon name="fill" />, run: () => addSceneVisual(poolSource('colour', sceneSize(show)), 'Colour') },
+    { id: 'text', label: 'Text', icon: <ToolIcon name="text" />, run: () => addSceneVisual(poolSource('text', sceneSize(show)), 'Text') },
+    { id: 'drawing', label: 'Drawing', icon: <ToolIcon name="freehand" />, run: () => addSceneVisual(poolSource('paint', sceneSize(show)), 'Paint') },
+    { id: 'generator', label: 'Generator', icon: <ToolIcon name="ai-generate" />, run: addVisual },
   ];
   const galleryIntent = () => gallery && gallery !== 'add' ? { kind: 'replace-visual' as const, targetID: gallery } : { kind: 'simple' as const };
   const workspaceShell = useRef<WorkspaceShellHandle>(null);
@@ -1256,7 +1255,7 @@ export default function App() {
   runCueRef.current = runCue;
   // One LayersPanel factory: Mapping's Layers/Scenes, Visualization's scene
   // picker and the Show workspace's Scenes section share its commands.
-  const layersPanel = (view: "layers" | "scenes" | "scene-picker") => <LayersPanel view={view}
+  const layersPanel = (view: "tree" | "layers" | "scenes" | "scene-picker") => <LayersPanel view={view}
               onTreeEdit={edit}
               showAssets={false}
               show={show}
@@ -1308,10 +1307,10 @@ export default function App() {
               onNewFolder={newFolder}
             />;
   const showScenes = layersPanel("scene-picker");
-  // The one file row's entries for this document: its Show, Canvases and Scenes.
+  // The one file row's entries for this document: its Shows and Scenes.
+  // Canvases are not files: they live in Mapping's layer tree (artboards).
   const documentEntries: DocumentEntry[] = [
     ...(show.shows ?? []).map(p => ({ id: `show:${p.id}`, label: p.name, kind: 'show' as const, icon: <AetherIcon name="play" /> })),
-    ...show.scenes.map(c => ({ id: `canvas:${c.id}`, label: c.name, kind: 'canvas' as const, icon: <AetherIcon name="scene" /> })),
     { id: `scene:${MAIN_TIMELINE}`, label: 'Main', kind: 'scene', icon: <AetherIcon name="timeline-tracks" /> },
     ...(show.timelines ?? []).map(t => ({ id: `scene:${t.id}`, label: t.name, kind: 'scene' as const, icon: <AetherIcon name="timeline-tracks" /> })),
   ];
@@ -1339,8 +1338,9 @@ export default function App() {
         grid={mappingPreferences.grid} onGrid={()=>setMappingPreferences({grid:!mappingPreferences.grid})}
         xray={xray} onXray={()=>setXray(v=>!v)}
         snap={mappingPreferences.snapping} onSnap={()=>setMappingPreferences({snapping:!mappingPreferences.snapping})}
-        backdrop={scene?.setupBackground ? scene.setupBackground.visible : null}
-        onBackdrop={()=>edit(current=>({...current,scenes:current.scenes.map(item=>item.id===current.activeSceneId&&item.setupBackground?{...item,setupBackground:{...item.setupBackground,visible:!item.setupBackground.visible}}:item)}))}
+        // Show's wall shows every canvas, so its toggle switches all their backdrops.
+        backdrop={mode === 'show' ? (show.scenes.some(s => s.setupBackground) ? show.scenes.some(s => s.setupBackground?.visible) : null) : scene?.setupBackground ? scene.setupBackground.visible : null}
+        onBackdrop={()=>edit(current=>{const on=!current.scenes.some(s=>(mode==='show'||s.id===current.activeSceneId)&&s.setupBackground?.visible);return {...current,scenes:current.scenes.map(item=>(mode==='show'||item.id===current.activeSceneId)&&item.setupBackground?{...item,setupBackground:{...item.setupBackground,visible:mode==='show'?on:!item.setupBackground.visible}}:item)};})}
         blackout={Boolean(show.output.blackout)} onBlackout={()=>edit(s=>({...s,output:{...s.output,blackout:!s.output.blackout}}))}/> }}
       // One shell per room: remounting on switch applies that room's defaults,
       // and the storage key keeps each room's own remembered layout.
@@ -1353,12 +1353,12 @@ export default function App() {
       sidebarVariant={sidebarVariant}
       preservePanelContent
       bottom={dockWidget === "files" ? <ShowFileTabs file={file} saveState={saveState} connection={documentConnection} onSaveCopy={()=>rename(true)} status={error||status} fileActions={<span ref={setFileMenuTarget}/>}
-        entries={documentEntries} activeEntry={mode==='show'?`show:${activeShow(show)?.id}`:mode==='mapping'?`canvas:${show.activeSceneId}`:`scene:${currentTimelineID(show)}`}
+        entries={documentEntries} activeEntry={mode==='show'?`show:${activeShow(show)?.id}`:mode==='mapping'?undefined:`scene:${currentTimelineID(show)}`}
         onEntry={entry=>{const [kind,id]=[entry.kind,entry.id.slice(entry.id.indexOf(':')+1)];
-          if(kind==='show'){if(id!==activeShow(show)?.id)edit(s=>({...s,activeShowID:id}));enterMode('show');}else if(kind==='canvas'){enterMode('mapping');selectScene(id);}
+          if(kind==='show'){if(id!==activeShow(show)?.id)edit(s=>({...s,activeShowID:id}));enterMode('show');}
           else{enterMode('visualization');if(id!==currentTimelineID(show))openTimeline(id);}}}
-        onCreate={kind=>{if(kind==='show'){edit(s=>{const n=normalizeShowTimeline(s),p=newShowProgram(n,`Show ${(n.shows?.length??0)+1}`);return {...n,shows:[...(n.shows??[]),p],activeShowID:p.id};});enterMode('show');return;}if(kind==='canvas')setSceneDraft({id:null,name:`Canvas ${show.scenes.length+1}`,size:artboardSize});
-          else{edit(s=>createTimeline(s,`Scene ${(show.timelines?.length??0)+2}`));enterMode('visualization');}}} contents={{activeID:show.activeSceneId, documentGroups:[{id:"scenes",label:"Scenes",items:show.scenes.map(scene=>({id:scene.id,name:scene.name,kind:"scene",detail:"Scene",icon:<AetherIcon name="scene"/>}))}], onOpenItem:item=>selectScene(item.id)}}/>
+        onCreate={kind=>{if(kind==='show'){edit(s=>{const n=normalizeShowTimeline(s),p=newShowProgram(n,`Show ${(n.shows?.length??0)+1}`);return {...n,shows:[...(n.shows??[]),p],activeShowID:p.id};});enterMode('show');return;}
+          {edit(s=>createTimeline(s,`Scene ${(show.timelines?.length??0)+2}`));enterMode('visualization');}}} contents={{activeID:show.activeSceneId, documentGroups:[{id:"scenes",label:"Scenes",items:show.scenes.map(scene=>({id:scene.id,name:scene.name,kind:"scene",detail:"Scene",icon:<AetherIcon name="scene"/>}))}], onOpenItem:item=>selectScene(item.id)}}/>
         // The surfaces widget keeps Map's own rendered strip (selected surface
         // highlighted), not the generic parts footer.
         : dockWidget === "surfaces" ? surfaceStrip
@@ -1396,7 +1396,7 @@ export default function App() {
             {/* Visualization: one asset set, two views — the List tree and the
                 Visuals cards — filtered to a working surface. No layers or
                 outputs tree here; that is Mapping's general list tree. */}
-            {((panel: (view: "layers" | "scenes" | "scene-picker") => React.ReactNode) => mode === "visualization"
+            {((panel: (view: "tree" | "layers" | "scenes" | "scene-picker") => React.ReactNode) => mode === "visualization"
             // Visualization mirrors Mapping's three sections: Media (visuals
             // only — never a timeline container), Scenes, then Timelines.
             // Selecting a scene or a timeline switches the media list.
@@ -1410,8 +1410,9 @@ export default function App() {
               <TreePanelSplit primaryLabel="Canvases" secondaryLabel="Scenes" storageKey="aether-map.scenes-timelines-split" collapsible={["primary", "secondary"]} defaultCollapsed={["primary", "secondary"]} primary={panel("scene-picker")}
                 secondary={<TimelineTree show={show} actions={timelineActions}/>}/>}/>
             :
-            <TreePanelSplit primaryLabel="Layers" secondaryLabel="Canvases and outputs" storageKey="aether-map.layers-scenes-split" primary={panel("layers")} secondary={
-              <TreePanelSplit primaryLabel="Canvases" secondaryLabel="Outputs" storageKey="aether-map.scenes-outputs-split" collapsible={["primary", "secondary"]} defaultCollapsed={["primary"]} primary={panel("scenes")} secondary={
+            // Mapping: one artboard tree (each canvas holds its layers and
+            // backdrop, as in Affinity/Illustrator), outputs beneath it.
+            <TreePanelSplit primaryLabel="Layers" secondaryLabel="Outputs" storageKey="aether-map.layers-outputs-split" collapsible={["secondary"]} primary={panel("tree")} secondary={
             // The asset list tree lives only in Visualization's Visual layers
             // tab; this split is the general list tree: layers over outputs.
             <OutputsPanel show={show} selectedID={selectedOutputID} displays={displays}
@@ -1419,7 +1420,7 @@ export default function App() {
               onSelect={selectOutput} onAdd={addOutput} onPatch={patchOutput}
               onDelete={deleteOutput} onOpen={openOutputWindow} onClose={closeOutput}
               onDevices={() => setManagingDevices(true)} showName={file?.name?.replace(/\.aethermap$/i, "") || "Show"} />
-            } />} />)(layersPanel)}
+            } />)(layersPanel)}
           </>),
         },
         ...(scene ? [{ id: "agent", title: "Aether Agent", icon: <AetherIcon name="aether" />,
@@ -1558,8 +1559,13 @@ export default function App() {
       // surface strip — pick a visual, click surfaces to apply it.
       toolbar={
         <MapRibbon onGo={runNextGo} toolRow={mode === 'visualization' ? <div className="map-scene-tool-row">
-          <div className="map-scene-tools" role="toolbar" aria-label="Add visual">
-            {sceneTools.map(tool => <Button key={tool.id} appearance="flat" onClick={tool.run}><AetherIcon name={tool.icon} />{tool.label}</Button>)}
+          {/* The standard tool bar icon row (same markup the shared tool bar draws),
+              kept above the surface row: the shared tool row replaces it otherwise. */}
+          <div className="map-scene-tools" role="group" aria-label="Add visual">
+            {sceneTools.map(tool => <span key={tool.id} className="aui-studio-tool-family" data-tool-id={tool.id}>
+              <IconButton label={tool.label} size="large" appearance="rounded" title={tool.label} onClick={tool.run}>{tool.icon}</IconButton>
+              <span className="aui-studio-tool-label" aria-hidden="true">{tool.label}</span>
+            </span>)}
           </div>
           <section className="map-apply-surfaces" aria-label="Apply to surfaces">
           <div className="map-apply-surfaces-title"><strong>Apply to surfaces</strong><span>Click a surface to turn this visual on or off.</span></div>
