@@ -18938,8 +18938,6 @@ function evaluateSurface(surface, timeS, media = [], context = {}) {
 function clamp01(value) {
 	return Math.min(1, Math.max(0, value));
 }
-//#endregion
-//#region src/visual-render.ts
 /** Shared projection for the authoring canvas and every physical output. */
 function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID, inputs = {}, calibration = false) {
 	const show = normalizeVisuals(input);
@@ -19008,6 +19006,7 @@ function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID
 			} : {},
 			source: {
 				...source,
+				fit: source.fit ?? "cover",
 				effects: visual.effects
 			},
 			clips: [],
