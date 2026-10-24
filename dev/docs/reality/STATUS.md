@@ -1,5 +1,18 @@
 # Aether Map status
 
+## Installed release — 2026-10-23 (r20)
+
+`map-visualizer-20261023-r20` builds on r19's Scene fixes (backdrop toggle,
+tool row, fill-by-default visuals, multi-import, "Add to project", editable
+lengths).
+- **Sidebars:** Mapping's artboard tree (canvases hold their layers); quiet
+  tree headers ("+", the rest on right-click); no canvases in the file row.
+- **Drawing:** pen snapping and close preview; outline-following placeholder
+  edges.
+- **Show:** the backdrop toggle.
+- **Not yet:** dragging content inside a surface on the canvas (placement is in
+  Properties → Transform).
+
 ## Installed release — 2026-10-23 (r18)
 
 `map-visualizer-20261023-r18`: a deployed player now runs the show's timeline
