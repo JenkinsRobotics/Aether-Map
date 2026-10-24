@@ -65,10 +65,12 @@ export function placeTimeline(show: MapShow, id: string, trackID: string, startS
 
 /** Resolve nested schedules without duplicating sources or saved child clips.
  * Each use has its own clock and identity; child surface assignments remain intact. */
-export interface ScheduledVisual { visual: Visual; track?: VisualTrack; timeS: number; gain: number }
+export interface ScheduledVisual { visual: Visual; track?: VisualTrack; timeS: number; gain: number;
+  /** A nested scene applied to surfaces: its whole picture is projected onto each of these surfaces. */
+  hosts?: string[] }
 export function scheduledVisuals(show: MapShow, timeS: number, id = currentTimelineID(show), inputs:VisualMotionInputs={}): ScheduledVisual[] {
   const result: ScheduledVisual[] = [];
-  const visit = (timelineID: string, time: number, path: string[], opacity: number, gain: number) => {
+  const visit = (timelineID: string, time: number, path: string[], opacity: number, gain: number, hosts?: string[]) => {
     const tracks = timelineTracks(show, timelineID), ranks = new Map(tracks.map((t, i) => [t.id, i]));
     const solo = tracks.some(t => t.kind === 'audio' && t.enabled && t.solo);
     const clips = timelineVisuals(show, timelineID).sort((a, b) => (ranks.get(a.trackID ?? '') ?? -1) - (ranks.get(b.trackID ?? '') ?? -1));
@@ -81,8 +83,10 @@ export function scheduledVisuals(show: MapShow, timeS: number, id = currentTimel
         const child = show.timelines?.find(t => t.id === visual.timelineRefID);
         if (!child || path.includes(child.id) || time < visual.startS || time >= visual.startS + visual.durationS) continue;
         const clock = visualSourceTime(show,visual,time);
-        visit(child.id, clock, [...path, visual.id, child.id], opacity * visual.opacity, gain);
-      } else result.push({ visual: path.length ? { ...visual, id: `${path.join('/')}/${visual.id}`, opacity: visual.opacity * opacity, legacyTrack: visual.legacyTrack ? `${path.join('/')}/${visual.legacyTrack}` : undefined } : visual, track, timeS: time, gain });
+        // ponytail: only the outermost surface-hosting nest applies; deeper hosts are ignored.
+        const surfaces = visual.targets.flatMap(t => t.surfaceID ? [t.surfaceID] : []);
+        visit(child.id, clock, [...path, visual.id, child.id], opacity * visual.opacity, gain, hosts ?? (surfaces.length ? surfaces : undefined));
+      } else result.push({ visual: path.length ? { ...visual, id: `${path.join('/')}/${visual.id}`, opacity: visual.opacity * opacity, legacyTrack: visual.legacyTrack ? `${path.join('/')}/${visual.legacyTrack}` : undefined } : visual, track, timeS: time, gain, ...(hosts ? { hosts } : {}) });
     }
   };
   visit(id, timeS, [], 1, 1);

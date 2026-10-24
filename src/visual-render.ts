@@ -20,7 +20,24 @@ export function sceneVisuals(input: MapShow, scene: Scene, timeS: number, placeh
   const geometry = show.scenes.find(s => s.id === scene.id) ?? scene;
   const context = { ...inputs, lfos: show.lfos, sceneTimeS: timeS, ...(calibration ? { modulation: false as const } : {}) };
   const occupied = new Set<string>();
-  const rendered = scheduledVisuals(show, timeS, undefined, inputs).flatMap(({ visual, track, timeS }) => {
+  const w = scene.artboard?.widthPx ?? show.output.width, h = scene.artboard?.heightPx ?? show.output.height;
+  // A nested scene on surfaces: its pictures (canvas space) project onto each host surface.
+  const hosted = (pictures: ResolvedSurface[], hosts: string[]) => hosts.flatMap(id => {
+    const found = geometry.surfaces.find(s => s.id === id);
+    if (!found || !found.enabled || (onlySurfaceID && onlySurfaceID !== id)) return [];
+    const host = evaluateSurface(found, calibration ? 0 : timeS, show.media, context);
+    const toHost = solveHomography(quadCorners([0, 0, w, h]), host.corners), map = (p: Point) => project(toHost, p);
+    const outline = host.masks.length || host.shape === 'ellipse' || host.radiusPx ? targetShapes(host) : [];
+    return pictures.map(p => ({ ...p, id: `${p.id}@${id}`, corners: p.corners.map(map) as Surface['corners'],
+      // ponytail: a picture with its own outline keeps it (mapped), not intersected with the host's.
+      masks: p.masks.length || p.shape === 'ellipse' || p.radiusPx ? targetShapes(p).map(m => m.map(map)) : outline,
+      shape: undefined, radiusPx: undefined, maskCurves: undefined, bend: undefined, opacity: p.opacity * host.opacity }));
+  });
+  const rendered = scheduledVisuals(show, timeS, undefined, inputs).flatMap(({ visual, track, timeS, hosts }) => {
+    const out = place(visual, track, timeS);
+    return hosts ? hosted(out, hosts) : out;
+  });
+  function place(visual: ReturnType<typeof scheduledVisuals>[number]['visual'], track: ReturnType<typeof scheduledVisuals>[number]['track'], timeS: number): ResolvedSurface[] {
     if (track?.kind === 'audio' || track?.enabled === false) return [];
     const source = visualSource(show, visual);
     if (show.media.some(m => m.id === source.mediaId && m.kind === 'audio')) return [];
@@ -28,7 +45,6 @@ export function sceneVisuals(input: MapShow, scene: Scene, timeS: number, placeh
     if (visual.legacyTrack) { if (occupied.has(visual.legacyTrack)) return []; occupied.add(visual.legacyTrack); }
     const targets = visual.targets.filter(t => t.sceneID === scene.id).flatMap(t => {
       if (t.surfaceID) { const surface = geometry.surfaces.find(s => s.id === t.surfaceID); return surface ? [evaluateSurface(surface, calibration ? 0 : timeS, show.media, context)] : []; }
-      const w = scene.artboard?.widthPx ?? show.output.width, h = scene.artboard?.heightPx ?? show.output.height;
       return [{ ...newSurface({ width: w, height: h }, 0), id: scene.id, corners: [[0, 0], [w, 0], [w, h], [0, h]] as Surface['corners'], mediaTimeS: timeS }];
     });
     if (!targets.length) return [];
@@ -53,7 +69,7 @@ export function sceneVisuals(input: MapShow, scene: Scene, timeS: number, placeh
       if (prior) prior.masks = [...prior.masks, ...picture.masks]; else merged.push(picture);
     }
     return merged;
-  });
+  }
   const targets = timelineVisuals(show).flatMap(v => v.targets).filter(t => t.sceneID === scene.id);
   const empty = placeholders && !targets.some(t => !t.surfaceID) ? geometry.surfaces.filter(s => !targets.some(t => t.surfaceID === s.id)).map(s => evaluateSurface(s, calibration ? 0 : timeS, show.media, context)) : [];
   return [...empty, ...rendered];

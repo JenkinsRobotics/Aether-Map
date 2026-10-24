@@ -1152,7 +1152,7 @@ export default function App() {
   // One selection and one target editor shared by the compact tray and timeline.
   const surfaceStrip = (
     <SurfacesStrip
-      assignment={mode === "visualization" && selectedVisual && !selectedVisual.timelineRefID && show.tracks?.find(t => t.id === selectedVisual.trackID)?.kind !== "audio" ? { visual: selectedVisual, onChange: visual => assets.change(visual.id, visual, null) } : undefined}
+      assignment={mode === "visualization" && selectedVisual && show.tracks?.find(t => t.id === selectedVisual.trackID)?.kind !== "audio" ? { visual: selectedVisual, onChange: visual => assets.change(visual.id, visual, null) } : undefined}
       show={show}
       selectedID={selectedID}
       timeS={mode === "mapping" ? 0 : timeS}

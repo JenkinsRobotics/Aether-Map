@@ -22,7 +22,7 @@ export function VisualInspector({ show, visual, timelines = false, placementFram
   const nested = !!visual.timelineRefID;
   const track = show.tracks?.find(t => t.id === visual.trackID);
   if (track?.kind === 'audio') return <VisualProperties visual={visual} show={show} onChange={onChange} onPickMedia={onPickMedia} onDuplicate={onDuplicate} onMove={() => {}} />;
-  const kind = nested ? 'Timeline' : sourceKind(visualSource(show, visual));
+  const kind = nested ? 'Scene' : sourceKind(visualSource(show, visual));
   const layerIDs = [...new Set(simpleVisuals(show).map(v => v.trackID))];
   const layerIndex = layerIDs.indexOf(visual.trackID);
   const scene = show.scenes.find(s => s.id === show.activeSceneId);
@@ -85,7 +85,7 @@ export function VisualInspector({ show, visual, timelines = false, placementFram
           onChange={mapping => onChange({ ...visual, mapping: mapping as Visual['mapping'], legacyTrack: undefined })}
           options={[{ id: 'repeat', label: 'Copy on each' }, { id: 'span', label: 'One across all' }]} />
       </FieldRow>}
-      {nested && <p className="map-hint">Uses {show.timelines?.find(t => t.id === visual.timelineRefID)?.name}. Its own surface assignments apply; open it from the Timelines section to edit them.</p>}
+      {nested && <p className="map-hint">Plays the scene {show.timelines?.find(t => t.id === visual.timelineRefID)?.name}. On Entire scene its own surface assignments apply; on chosen surfaces its whole picture is projected onto each of them, like a generator.</p>}
     </InspectorSection>
   </section>;
 }
