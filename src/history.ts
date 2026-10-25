@@ -100,6 +100,8 @@ export interface DocumentHistory<T> {
   set: (next: T | ((current: T) => T), key?: string) => void;
   /** Replace the document and drop history — opening a different file. */
   reset: (next: T) => void;
+  /** Derived housekeeping (not an edit): changes the present without an undo step. */
+  amend: (next: (current: T) => T) => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -122,6 +124,7 @@ export function useDocumentHistory<T>(initial: T | (() => T)): DocumentHistory<T
   const beginGesture = useCallback(() => setState(beginHistoryGesture), []);
   const endGesture = useCallback((cancel = false) => setState((current) => endHistoryGesture(current, cancel)), []);
   const reset = useCallback((next: T) => setState(initialHistory(next)), []);
+  const amend = useCallback((next: (current: T) => T) => setState(current => amendHistory(current, next(current.present))), []);
   const undo = useCallback(() => setState(undoHistory), []);
   const redo = useCallback(() => setState(redoHistory), []);
   const restoreCheckpoint = useCallback((checkpoint: History<T>, next: T) => setState(restoreHistoryCheckpoint(checkpoint, next)), []);
@@ -134,11 +137,17 @@ export function useDocumentHistory<T>(initial: T | (() => T)): DocumentHistory<T
     present: state.present,
     set,
     reset,
+    amend,
     undo,
     redo,
     canUndo: state.past.length > 0,
     canRedo: state.future.length > 0,
   };
+}
+
+/** Housekeeping the document derives (not an edit): change the present, record nothing. */
+export function amendHistory<T>(state: History<T>, next: T): History<T> {
+  return { ...state, present: next };
 }
 
 export function restoreHistoryCheckpoint<T>(checkpoint: History<T>, next: T): History<T> {

@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest';
 import { emptyShow, newScene, newSurface, quadCorners, type MapShow } from './document';
-import { canNestTimeline, createTimeline, currentTimelineID, MAIN_TIMELINE, placeTimeline, timelineVisuals, removeSceneTimelines, timelineTracks, validateTimelines } from './timelines';
+import { canNestTimeline, createTimeline, currentTimelineID, MAIN_TIMELINE, placeTimeline, timelineDuration, timelineVisuals, removeSceneTimelines, timelineTracks, validateTimelines } from './timelines';
 import { clipPictures, sceneVisuals } from './visual-render';
-import { assignClip, clipUses, createClip, duplicateClip, ensureSurfaceTracks, isClip, projectClips, surfaceTrack, wrapInClip } from './compound-clips';
+import { assignClip, clipUses, createClip, duplicateClip, setClipOnSurfaces, ensureSurfaceTracks, isClip, projectClips, surfaceTrack, wrapInClip } from './compound-clips';
 import { parseShow, serializeShow } from './show-file';
 import type { Visual } from './visual-model';
 import { normalizeDocument } from './normalize-document';
@@ -220,4 +220,23 @@ it('a visual added inside a clip aims at no surface', () => {
   const { show, clip } = assignFixture();
   const next = addSimpleVisual({ ...show, activeTimelineID: clip }, { mediaId: null, rect: [0, 0, 10, 10], fill: '#00f' }, 'Blue');
   expect(timelineVisuals(next, clip).at(-1)!.targets).toEqual([]);
+});
+
+it('setClipOnSurfaces adds and removes whole-length uses to match the surface row', () => {
+  const { show, clip, sceneID } = assignFixture();
+  const on = setClipOnSurfaces(show, MAIN_TIMELINE, clip, [{ sceneID, surfaceID: 'wall' }, { sceneID, surfaceID: 'tall' }]);
+  expect(clipUses(on, clip)).toHaveLength(2);
+  const use = on.visuals!.find(v => v.timelineRefID === clip)!;
+  expect(use.startS).toBe(0); expect(use.loop).toBe(true); expect(use.durationS).toBe(timelineDuration(on, MAIN_TIMELINE));
+  const off = setClipOnSurfaces(on, MAIN_TIMELINE, clip, [{ sceneID, surfaceID: 'tall' }]);
+  expect(clipUses(off, clip)).toEqual([{ sceneID, surfaceID: 'tall' }]);
+  expect(setClipOnSurfaces(off, MAIN_TIMELINE, clip, [{ sceneID, surfaceID: 'tall' }])).toBe(off);
+});
+
+it('surface tracks are marked, survive save, and an ordinary one-surface track is not one', () => {
+  const { show } = assignFixture();
+  const legacy = { ...show, tracks: [...(show.tracks ?? []), { id: 'old', name: 'Old', kind: 'video' as const, targets: [{ sceneID: show.activeSceneId, surfaceID: 'wall' }], enabled: true, locked: false }] };
+  expect(surfaceTrack(legacy, MAIN_TIMELINE, 'wall')).toBeUndefined();
+  const next = parseShow(serializeShow(ensureSurfaceTracks(legacy, MAIN_TIMELINE)));
+  expect(surfaceTrack(next, MAIN_TIMELINE, 'wall')!.assign).toBe(true);
 });

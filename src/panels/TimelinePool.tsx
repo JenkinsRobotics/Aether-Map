@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AetherIcon, Button, Dialog, FieldRow, Menu, TextField, TreePanel, type MenuItem, type TreeControl } from '@aether/ui';
 import { activeScene, type MapShow } from '../document';
-import { canNestTimeline, currentTimelineID, MAIN_TIMELINE, TIMELINE_DRAG_PREFIX, timelineUses } from '../timelines';
+import { canNestTimeline, currentTimelineID, isClip, MAIN_TIMELINE, TIMELINE_DRAG_PREFIX, timelineUses } from '../timelines';
 import { POOL_DRAG_TYPE } from '../media-pool';
 import { TreeContextArea } from './TreeContextArea';
 
@@ -62,7 +62,8 @@ export function TimelinePool({ show, query, actions }: { show: MapShow; query: s
  * scenes. Selecting one switches the list above to it. */
 export function TimelineTree({ show, actions }: { show: MapShow; actions: TimelinePoolActions }) {
   const [renamingID, setRenamingID] = useState<string | null>(null);
-  const entries = [{ id: MAIN_TIMELINE, name: 'Main', surfaceID: undefined as string | undefined }, ...(show.timelines ?? []).filter(t => t.sceneID === show.activeSceneId)];
+  // Scenes only: clips live in the Media pool.
+  const entries = [{ id: MAIN_TIMELINE, name: 'Main', surfaceID: undefined as string | undefined }, ...(show.timelines ?? []).filter(t => t.sceneID === show.activeSceneId && !isClip(t))];
   const current = currentTimelineID(show);
   const canDelete = (id: string) => id !== MAIN_TIMELINE && !show.timelines?.find(t => t.id === id)?.surfaceID && !timelineUses(show, id);
   const menu = (id: string): MenuItem[] => [

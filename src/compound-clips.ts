@@ -1,5 +1,5 @@
 import { activeScene, nextId, type MapShow, type Rect, type Surface } from './document';
-import { isClip, MAIN_TIMELINE, placeTimeline, type Board, type MapTimeline } from './timelines';
+import { isClip, MAIN_TIMELINE, placeTimeline, timelineDuration, type Board, type MapTimeline } from './timelines';
 import type { VisualTrack } from './media-pool';
 import type { VisualTarget } from './visual-model';
 import { addSimpleVisual } from './simple-visuals';
@@ -50,10 +50,10 @@ export function migrateTimelinesToClips(show: MapShow): MapShow {
 const sceneCanvas = (show: MapShow, sceneTimelineID: string) =>
   sceneTimelineID === MAIN_TIMELINE ? show.activeSceneId : show.timelines?.find(t => t.id === sceneTimelineID)?.sceneID;
 
-/** A scene's track for one surface: a video track aimed at exactly that surface. */
-export function surfaceTrack(show: MapShow, sceneTimelineID: string, surfaceID: string): VisualTrack | undefined {
+/** A scene's track for one surface (none: the whole canvas): a video track aimed at exactly that. */
+export function surfaceTrack(show: MapShow, sceneTimelineID: string, surfaceID?: string): VisualTrack | undefined {
   const sceneID = sceneCanvas(show, sceneTimelineID);
-  return show.tracks?.find(t => (t.timelineID ?? MAIN_TIMELINE) === sceneTimelineID && t.kind !== 'audio'
+  return show.tracks?.find(t => t.assign && (t.timelineID ?? MAIN_TIMELINE) === sceneTimelineID && t.kind !== 'audio'
     && t.targets.length === 1 && t.targets[0].sceneID === sceneID && t.targets[0].surfaceID === surfaceID);
 }
 
@@ -63,7 +63,7 @@ export function ensureSurfaceTracks(show: MapShow, sceneTimelineID: string): Map
   if (!canvas) return show;
   const missing = canvas.surfaces.filter(s => !s.sceneCanvas && s.kind !== 'mask' && !surfaceTrack(show, sceneTimelineID, s.id));
   if (!missing.length) return show;
-  return { ...show, tracks: [...(show.tracks ?? []), ...missing.map((s): VisualTrack => ({ id: nextId('track'), name: s.name, kind: 'video',
+  return { ...show, tracks: [...(show.tracks ?? []), ...missing.map((s): VisualTrack => ({ id: nextId('track'), name: s.name, kind: 'video', assign: true,
     ...(sceneTimelineID === MAIN_TIMELINE ? {} : { timelineID: sceneTimelineID }), targets: [{ sceneID: canvas.id, surfaceID: s.id }], enabled: true, locked: false }))] };
 }
 
@@ -113,4 +113,31 @@ export function duplicateClip(show: MapShow, clipID: string): MapShow {
     timelines: [...(show.timelines ?? []), { ...structuredClone(clip), id, name: `${clip.name} copy` }],
     tracks: [...(show.tracks ?? []), ...tracks.map(t => ({ ...structuredClone(t), id: trackIDs.get(t.id)!, timelineID: id }))],
     visuals: [...(show.visuals ?? []), ...(show.visuals ?? []).filter(v => trackIDs.has(v.trackID ?? '')).map(v => ({ ...structuredClone(v), id: nextId('visual'), trackID: trackIDs.get(v.trackID!)! }))] };
+}
+
+/** The surface row with a pool clip picked: the clip plays, looping for the
+ * scene's whole length, on exactly these targets of this scene. */
+export function setClipOnSurfaces(show: MapShow, sceneTimelineID: string, clipID: string, targets: VisualTarget[]): MapShow {
+  const sceneID = sceneCanvas(show, sceneTimelineID);
+  const want = targets.filter(t => t.sceneID === sceneID);
+  const key = (t: VisualTarget) => t.surfaceID ?? '';
+  const inScene = new Set((show.tracks ?? []).filter(t => (t.timelineID ?? MAIN_TIMELINE) === sceneTimelineID).map(t => t.id));
+  const uses = (show.visuals ?? []).filter(v => v.timelineRefID === clipID && inScene.has(v.trackID ?? ''));
+  const has = new Set(uses.flatMap(v => v.targets.map(key)));
+  const keep = new Set(want.map(key));
+  let next: MapShow = uses.some(v => !v.targets.some(t => keep.has(key(t))))
+    ? { ...show, visuals: show.visuals!.filter(v => !uses.includes(v) || v.targets.some(t => keep.has(key(t)))) } : show;
+  for (const target of want.filter(t => !has.has(key(t)))) {
+    let track = surfaceTrack(next, sceneTimelineID, target.surfaceID);
+    if (!track) {
+      next = { ...next, tracks: [...(next.tracks ?? []), { id: nextId('track'), name: target.surfaceID ? next.scenes.find(s => s.id === sceneID)?.surfaces.find(s => s.id === target.surfaceID)?.name ?? 'Surface' : 'Whole canvas',
+        kind: 'video', assign: true, ...(sceneTimelineID === MAIN_TIMELINE ? {} : { timelineID: sceneTimelineID }), targets: [{ ...target }], enabled: true, locked: false }] };
+      track = next.tracks!.at(-1)!;
+    }
+    const placed = assignClip(next, clipID, track.id, 0);
+    if (placed === next) continue;
+    const id = placed.visuals!.at(-1)!.id;
+    next = { ...placed, visuals: placed.visuals!.map(v => v.id === id ? { ...v, loop: true, durationS: timelineDuration(placed, sceneTimelineID) } : v) };
+  }
+  return next;
 }

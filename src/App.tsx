@@ -151,9 +151,11 @@ import { useCameraCleanup } from "./live/output-live";
 import { MapRibbon, type SceneToolKind } from "./panels/MapRibbon";
 import { ShowFileTabs, type DocumentEntry } from "./panels/ShowFileTabs";
 import { MapDocumentHeader, MapWorkspaceControls } from "./panels/MapDocumentHeader";
-import { createClip, duplicateClip, projectClips } from "./compound-clips";
+import { assignClip, createClip, duplicateClip, ensureSurfaceTracks, isClip, projectClips, setClipOnSurfaces } from "./compound-clips";
+import { SurfacePlayback } from "./panels/SurfacePlayback";
 import { ClipBoard } from "./panels/ClipBoard";
 import { ClipPoolTree } from "./panels/ClipPoolTree";
+import type { Visual } from "./visual-model";
 import { ClipProperties } from "./panels/ClipProperties";
 import { MapCameraControls, MapViewTools } from "./panels/MapViewTools";
 import { assetCredit, type AssetResult } from "./assets/openverse";
@@ -355,17 +357,17 @@ export default function App() {
   const [fileMenuTarget, setFileMenuTarget] = useState<HTMLSpanElement | null>(null);
   const [xray, setXray] = useState(false);
   // Visualization's left panel: standard tabs, Surfaces tree | Visual layers.
-  const [vizPanelTab, setVizPanelTab] = useState<"list" | "visuals">("visuals");
   // Content and Scene: Media pool (the project's clips) | Visuals (what the clip holds).
   const [poolTab, setPoolTab] = useState<Record<"content" | "visualization", "pool" | "visuals">>(() => {
-    const read = (key: string) => { try { return localStorage.getItem(key) === 'visuals' ? 'visuals' as const : 'pool' as const; } catch { return 'pool' as const; } };
-    return { content: read('aether-map.content-tab'), visualization: read('aether-map.scene-tab') };
+    const read = (key: string, fallback: "pool" | "visuals") => { try { const v = localStorage.getItem(key); return v === 'pool' || v === 'visuals' ? v : fallback; } catch { return fallback; } };
+    return { content: read('aether-map.content-tab', 'pool'), visualization: read('aether-map.scene-tab', 'visuals') };
   });
+  // Scene: the pool clip picked to assign (the surface row then places it).
+  const [scenePickID, setScenePickID] = useState<string | null>(null);
   const pickPoolTab = (room: "content" | "visualization", tab: "pool" | "visuals") => {
     setPoolTab(current => ({ ...current, [room]: tab }));
     try { localStorage.setItem(room === 'content' ? 'aether-map.content-tab' : 'aether-map.scene-tab', tab); } catch { /* Optional preference. */ }
   };
-  const vizTab = vizPanelTab;
   // "+" opens the Visual gallery in both editors.
   // The one visual gallery, both editors: 'add', or the visual being replaced.
   const [gallery, setGallery] = useState<'add' | string | null>(null);
@@ -510,8 +512,12 @@ export default function App() {
     [document_],
   );
 
+  // Scene's advanced timeline: a track per surface of the canvas, to drop clips on.
+  const surfaceKey = mode === 'visualization' && !simple ? `${currentTimelineID(stored)}:${activeScene(stored).surfaces.map(s => s.id).join(',')}` : '';
+  // Derived housekeeping, not an edit: it never takes an undo step, and comes back after undo.
+  useEffect(() => { if (surfaceKey && ensureSurfaceTracks(stored, currentTimelineID(stored)) !== stored) document_.amend(s => ensureSurfaceTracks(s, currentTimelineID(s))); }, [surfaceKey, stored, document_]);
   // Content always has a clip to work on: the first visit makes one and opens it.
-  useEffect(() => { if (mode === 'content' && !projectClips(stored).length) { edit(s => createClip(s, 'Clip 1')); setOpenClipID(null); } }, [mode, stored, edit]);
+  useEffect(() => { if (mode === 'content' && !projectClips(stored).length) { document_.amend(s => projectClips(s).length ? s : createClip(s, 'Clip 1')); setOpenClipID(null); } }, [mode, stored, document_]);
 
   const undo = useCallback(() => {
     // Independent assets keep their identity when target edits are undone.
@@ -669,7 +675,7 @@ export default function App() {
     let track = timelineTracks(next).find(t => t.id === (requestedTrackID ?? selectedTrackID)
       && t.targets.some(t => t.sceneID === scene.id) && (requestedTrackID || (t.kind ?? 'video') === kind));
     if (requestedTrackID && !track) return;
-    track ??= timelineTracks(next).find(t => (t.kind ?? 'video') === kind && !t.locked && t.targets.some(t => t.sceneID === target.sceneID));
+    track ??= timelineTracks(next).find(t => (t.kind ?? 'video') === kind && !t.locked && !t.assign && t.targets.some(t => t.sceneID === target.sceneID));
     if (!track) { next = addVisualTrack(next, [target], undefined, kind); track = next.tracks!.at(-1)!; }
     const child = currentTimelineID(next) === MAIN_TIMELINE && !assetID.startsWith(TIMELINE_DRAG_PREFIX)
       ? next.timelines?.find(t => t.surfaceID && track!.targets.some(a => a.surfaceID === t.surfaceID)) : undefined;
@@ -678,7 +684,8 @@ export default function App() {
       if (!childTrack || track.locked) return;
       track = childTrack; next = { ...next, activeTimelineID:child.id };
     }
-    const placed = assetID.startsWith(TIMELINE_DRAG_PREFIX) ? placeTimeline(next, assetID.slice(TIMELINE_DRAG_PREFIX.length), track.id, startS) : placePoolAsset(next, assetID, track.id, startS);
+    const timelineID = assetID.startsWith(TIMELINE_DRAG_PREFIX) ? assetID.slice(TIMELINE_DRAG_PREFIX.length) : undefined;
+    const placed = timelineID ? (isClip(next.timelines?.find(t => t.id === timelineID)) ? assignClip(next, timelineID, track.id, startS) : placeTimeline(next, timelineID, track.id, startS)) : placePoolAsset(next, assetID, track.id, startS);
     if (placed === next) return;
     edit(() => placed); setSelectedTrackID(track.id); setWorkspace('timeline');
     const clip = placed.visuals!.at(-1)!; selectAsset(clip.id, clip.id);
@@ -1179,9 +1186,16 @@ export default function App() {
   };
 
   // One selection and one target editor shared by the compact tray and timeline.
+  // A pool clip picked in Scene: the surface row says where it plays in this scene.
+  const scenePick = mode === 'visualization' && scenePickID ? projectClips(show).find(c => c.id === scenePickID) : undefined;
+  const pickAssignment = scenePick && {
+    visual: { id: `pick:${scenePick.id}`, name: scenePick.name, startS: 0, durationS: scenePick.durationS, inS: 0, loop: true, mapping: 'repeat' as const, color: '#8175cf', opacity: 1,
+      targets: (show.visuals ?? []).filter(v => v.timelineRefID === scenePick.id && timelineTracks(show).some(t => t.id === v.trackID)).flatMap(v => v.targets) },
+    onChange: (visual: Visual) => edit(s => setClipOnSurfaces(s, currentTimelineID(s), scenePick.id, visual.targets)),
+  };
   const surfaceStrip = (
     <SurfacesStrip
-      assignment={mode === "visualization" && selectedVisual && show.tracks?.find(t => t.id === selectedVisual.trackID)?.kind !== "audio" ? { visual: selectedVisual, onChange: visual => assets.change(visual.id, visual, null) } : undefined}
+      assignment={mode === "visualization" && selectedVisual && show.tracks?.find(t => t.id === selectedVisual.trackID)?.kind !== "audio" ? { visual: selectedVisual, onChange: visual => assets.change(visual.id, visual, null) } : pickAssignment || undefined}
       show={show}
       selectedID={selectedID}
       timeS={mode === "mapping" ? 0 : timeS}
@@ -1433,8 +1447,8 @@ export default function App() {
               ? <div className="map-visual-panel-head">
                   <div className="map-visual-panel-title"><strong>Layers</strong>
                     <IconButton label="Add layer" onClick={addVisual}><AetherIcon name="plus"/></IconButton></div>
-                  <SegmentedControl className="ps-review-conversation-tabs" ariaLabel="Panel view" value={vizTab} onChange={value=>setVizPanelTab(value as typeof vizPanelTab)}
-                    options={[{id:"list",label:"Surfaces",icon:<AetherIcon name="list-tree"/>},{id:"visuals",label:"Visuals",icon:<AetherIcon name="palette"/>}]}/>
+                  <SegmentedControl className="ps-review-conversation-tabs" ariaLabel="Scene panel view" value={poolTab.visualization} onChange={value=>pickPoolTab('visualization', value as "pool" | "visuals")}
+                    options={[{id:"pool",label:"Media pool",icon:<AetherIcon name="timeline-tracks"/>},{id:"visuals",label:"Visuals",icon:<AetherIcon name="palette"/>}]}/>
                 </div>
               : null}
             {/* Visual layers: the visual list tree, identical in simple and
@@ -1456,15 +1470,32 @@ export default function App() {
             // Visualization mirrors Mapping's three sections: Media (visuals
             // only — never a timeline container), Scenes, then Timelines.
             // Selecting a scene or a timeline switches the media list.
-            ? <TreePanelSplit primaryLabel="Layers" secondaryLabel="Canvases and scenes" storageKey="aether-map.media-scenes-split" primary={
+            ? (poolTab.visualization === 'pool'
+              ? <TreePanelSplit primaryLabel="Media pool" secondaryLabel="Canvases and scenes" storageKey="aether-map.scene-pool-split" primary={
+                  <ClipPoolTree show={show} selectedID={scenePickID} onSelect={id => { setScenePickID(id); setSelectedClipID(null); setSelectedID(null); }}
+                    onCreate={() => { enterMode('content'); newClip(); }} onRename={(id, name) => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, name } : t) }))}
+                    onDuplicate={id => edit(s => duplicateClip(s, id))} onRemove={id => { edit(s => removeTimeline(s, id)); if (id === scenePickID) setScenePickID(null); }}
+                    onFolder={(id, folder) => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, folder } : t) }))} />} secondary={
+                  <TreePanelSplit primaryLabel="Canvases" secondaryLabel="Scenes" storageKey="aether-map.scenes-timelines-split" collapsible={["primary", "secondary"]} defaultCollapsed={["primary", "secondary"]} primary={panel("scene-picker")}
+                    secondary={<TimelineTree show={show} actions={timelineActions}/>}/>}/>
+              // A picked clip's contents, for reference: it is edited in Content.
+              : scenePick ? <div className="map-visual-layers">
+                  <VisualAssetsPanel ariaLabel="Clip visuals" view="tree" urls={urls} show={{ ...show, activeTimelineID: scenePick.id }} selectedID={null}
+                    onSelect={() => {}} onChange={() => {}} onRemove={() => {}} onDuplicate={() => {}} onMove={() => {}} onDrop={() => {}} onAdd={() => {}} />
+                  <div className="map-feature-buttons">
+                    <Button primary onClick={() => { setOpenClipID(scenePick.id); enterMode('content'); }}>Edit in Content</Button>
+                    <Button onClick={() => setScenePickID(null)}>Scene visuals</Button>
+                  </div>
+                </div>
+              : <TreePanelSplit primaryLabel="Layers" secondaryLabel="Canvases and scenes" storageKey="aether-map.media-scenes-split" primary={
               <div className="map-visual-layers">
-                <VisualAssetsPanel ariaLabel={vizTab === "visuals" ? "Visuals" : "Visual list"} view={vizTab === "visuals" ? "cards" : "tree"}
+                <VisualAssetsPanel ariaLabel="Visuals" view="cards"
                   sceneID={show.activeSceneId} addLabel="Add layer" urls={urls} show={show} selectedID={selectedClipID} onSelect={selectAsset}
                   onChange={assets.change} onRemove={assets.remove} onDuplicate={assets.duplicate} onMove={assets.move} onDrop={assets.drop}
                   onAdd={addVisual} />
               </div>} secondary={
               <TreePanelSplit primaryLabel="Canvases" secondaryLabel="Scenes" storageKey="aether-map.scenes-timelines-split" collapsible={["primary", "secondary"]} defaultCollapsed={["primary", "secondary"]} primary={panel("scene-picker")}
-                secondary={<TimelineTree show={show} actions={timelineActions}/>}/>}/>
+                secondary={<TimelineTree show={show} actions={timelineActions}/>}/>}/>)
             :
             // Mapping: one artboard tree (each canvas holds its layers and
             // backdrop, as in Affinity/Illustrator), outputs beneath it.
@@ -1551,6 +1582,8 @@ export default function App() {
               onMasks={setMasks}
             />
           )}
+            {mode === 'visualization' && focus === 'layer' && selected && !selectedVisual && <SurfacePlayback show={show} sceneTimelineID={currentTimelineID(show)} surface={selected} timeS={timeS}
+              onChange={use => assets.change(use.id, use, `use:${use.id}`)} onOpenClip={id => { setOpenClipID(id); enterMode('content'); }} />}
             {mode === 'visualization' && focus === 'layer' && selected && !selectedVisual && <SurfaceAnimationProperties surface={selected} timeS={timeS} onSeek={seek} onPatch={patchSurface} onAddCue={addCue} onRemoveCue={removeCue} />}
             {mode === "mapping" && focus === "layer" && !selectedVisual && <InspectorSection title="Combine surfaces" defaultOpen={false}><RegionControls show={show} selectedID={selectedID} selectedIDs={selectedLayerIDs} onEdit={edit} onSelect={selectSurface} /></InspectorSection>}
             {mode === "mapping" && focus === "layer" && !selectedVisual && <MappingControls show={show} selectedID={selectedID}

@@ -14,6 +14,8 @@ export interface PoolAsset {
 }
 export type TrackKind = 'video' | 'audio';
 export interface VisualTrack {
+  /** A scene's per-surface assignment track (made by the Scene workspace). */
+  assign?: boolean;
   timelineID?: string;
   eq?: import("./live/timeline-audio-engine").TrackEQ;
   kind?: TrackKind;

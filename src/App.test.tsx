@@ -464,11 +464,9 @@ describe("Aether Map", () => {
     expect(screen.getByRole('region', { name: 'Simple visualization workspace' })).toBeTruthy();
     changeWorkspace('Content');
     expect(screen.getByText(/^Clip 1 · /)).toBeTruthy();
-    // The only history entry is making Clip 1: Undo removes it, Content makes a
-    // fresh one, and nothing is left to redo. A recorded switch would be redoable.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Undo' })[0]);
-    const redo = screen.getAllByRole('button', { name: 'Redo' })[0];
-    expect(redo.hasAttribute('disabled') || redo.getAttribute('aria-disabled') === 'true').toBe(true);
+    // Neither the first clip nor the switches are edits: there is nothing to undo.
+    const undo = screen.getAllByRole('button', { name: 'Undo' })[0];
+    expect(undo.hasAttribute('disabled') || undo.getAttribute('aria-disabled') === 'true').toBe(true);
   });
 
   it("Content's sidebar: Media pool lists clips, and a colour added in Content lands in the open clip only", () => {
@@ -482,6 +480,23 @@ describe("Aether Map", () => {
     expect(within(screen.getByRole('tree', { name: 'Clip visuals' })).getByRole('treeitem', { name: /Colour/ })).toBeTruthy();
     changeWorkspace('Scene');
     expect(screen.queryByRole('treeitem', { name: /^Colour/ })).toBeNull();
+  });
+
+  it("Scene assigns a Media pool clip with the surface row and shows its contents read-only", () => {
+    render(<App />);
+    addLayerSurface();
+    changeWorkspace('Content');
+    fireEvent.click(within(screen.getByRole('region', { name: 'Map tools' })).getByRole('button', { name: 'Colour' }));
+    changeWorkspace('Scene');
+    const tabs = screen.getByRole('radiogroup', { name: 'Scene panel view' });
+    fireEvent.click(within(tabs).getByRole('radio', { name: /Media pool/ }));
+    fireEvent.click(screen.getByRole('treeitem', { name: /Clip 1/ }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Asset surface assignments' })).getByRole('button', { name: /Surface 1/ }));
+    expect(screen.getByRole('treeitem', { name: /Clip 1/ }).textContent).toContain('1 surface');
+    fireEvent.click(within(tabs).getByRole('radio', { name: /Visuals/ }));
+    expect(within(screen.getByRole('tree', { name: 'Clip visuals' })).getByRole('treeitem', { name: /Colour/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit in Content' }));
+    expect(screen.getByText(/^Clip 1 · /)).toBeTruthy();
   });
 
   it("reorders simple layers with undo/redo and preserves their order across editor modes", () => {

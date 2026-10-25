@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialHistory, pushHistory, redoHistory, restoreHistoryCheckpoint, undoHistory } from "./history";
+import { amendHistory, initialHistory, pushHistory, redoHistory, restoreHistoryCheckpoint, undoHistory } from "./history";
 
 const t0 = 1_000_000;
 
@@ -103,4 +103,13 @@ describe("undo and redo", () => {
     expect(state.past).toEqual(["a"]);
     expect(undoHistory(state).present).toBe("a");
   });
+});
+
+it('amend changes the present without recording a step or losing redo', () => {
+  let state = pushHistory(initialHistory(1), 2, null, 0);
+  state = undoHistory(state);
+  const amended = amendHistory(state, 10);
+  expect(amended.present).toBe(10);
+  expect(amended.past).toEqual(state.past);
+  expect(amended.future).toEqual(state.future);
 });
