@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { MAP_RIBBON_TABS, MAP_RIBBON_VARIANTS, MAP_TOOL_ENTRYPOINTS, ribbonTabsFor, readRibbonTab } from "./map-ribbon-layout";
+import { MAP_RIBBON_TABS, MAP_RIBBON_VARIANTS, MAP_TOOL_ENTRYPOINTS, MAP_WORKSPACES, ribbonTabsFor, readRibbonTab } from "./map-ribbon-layout";
 
 test("every declared Map tool resolves to its ribbon or Media Pool route", () => {
   const primary = MAP_RIBBON_TABS.flatMap(tab => tab.groups.flatMap(group => group.tools));
@@ -46,4 +46,9 @@ test("Mapping owns geometry, Visualization owns visuals and output; every tool r
     expect([...mapping, ...visuals]).toContain(id);
   expect(readRibbonTab("mapping")).toBe("create");
   expect(readRibbonTab("visualization")).toBe("media");
+});
+
+test("workspaces read Mapping, Content, Scene, Show; Content builds visuals only", () => {
+  expect(MAP_WORKSPACES.map(w => w.label)).toEqual(["Mapping", "Content", "Scene", "Show"]);
+  expect(ribbonTabsFor("content").map(tab => tab.id)).toEqual(["media"]);
 });

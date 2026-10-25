@@ -39,3 +39,7 @@
 .map-placement-handles { overflow: visible; pointer-events: none; }
 .map-placement-box { fill: transparent; stroke: var(--aether-color-accent); vector-effect: non-scaling-stroke; pointer-events: all; cursor: move; }
 .map-placement-handle { fill: var(--aether-color-bg-panel); stroke: var(--aether-color-accent); pointer-events: all; cursor: nwse-resize; }
+/* Content workspace: the clip's board, labelled like a Mapping canvas. */
+.map-clip-board-host { aspect-ratio: auto; width: 100%; height: 100%; background: transparent; }
+.map-clip-board { background: #000; /* literal-ok: an unlit board */ box-shadow: 0 0 0 1px var(--aether-color-accent); }
+.map-clip-board-label { position: absolute; padding: 1px 6px; font-size: 11px; color: var(--aether-color-text-on-accent, #fff); background: var(--aether-color-accent); border-radius: 2px; }

@@ -29,7 +29,7 @@ export function MapRibbon(p: {
   onSetupImage: () => void;
   showInput: boolean; onInput: () => void; blackout: boolean; onBlackout: () => void;
 }) {
-  const [tabs, setTabs] = useState(() => ({ mapping: readRibbonTab("mapping"), visualization: readRibbonTab("visualization"), show: readRibbonTab("show") }));
+  const [tabs, setTabs] = useState(() => ({ mapping: readRibbonTab("mapping"), content: readRibbonTab("content"), visualization: readRibbonTab("visualization"), show: readRibbonTab("show") }));
   const availableTabs = ribbonTabsFor(p.workspace);
   const activeTab = tabs[p.workspace];
   const [variants, setVariants] = useState<Record<keyof typeof MAP_RIBBON_VARIANTS, MapRibbonCommand>>(() => {

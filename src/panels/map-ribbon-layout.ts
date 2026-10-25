@@ -4,10 +4,12 @@ import type { CompoundShape } from "../features/shape-groups";
 import type { FeatureKind } from "../features/types";
 import type { MaskTool } from "../mask/tools";
 
-export type MapWorkspace = "mapping" | "visualization" | "show";
+export type MapWorkspace = "mapping" | "content" | "visualization" | "show";
 
 export const MAP_WORKSPACES = [
   { id: "mapping", label: "Mapping" },
+  // Content builds compound clips; Scene assigns them to surfaces.
+  { id: "content", label: "Content" },
   { id: "visualization", label: "Scene" },
   { id: "show", label: "Show" },
 ] as const;
@@ -44,7 +46,7 @@ export const MAP_RIBBON_TABS = [
 
 /** Each command has one catalogue entry; rooms expose only their relevant tabs. */
 export function ribbonTabsFor(workspace: MapWorkspace) {
-  return MAP_RIBBON_TABS.filter(tab => workspace === "mapping" ? tab.id === "create" : workspace === "show" ? tab.id === "output" : tab.id !== "create");
+  return MAP_RIBBON_TABS.filter(tab => workspace === "mapping" ? tab.id === "create" : workspace === "show" ? tab.id === "output" : workspace === "content" ? tab.id === "media" : tab.id !== "create");
 }
 
 export type MapRibbonTab = (typeof MAP_RIBBON_TABS)[number]["id"];

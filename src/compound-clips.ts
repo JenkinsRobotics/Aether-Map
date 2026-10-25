@@ -7,7 +7,7 @@ import { addSimpleVisual } from './simple-visuals';
 export { isClip };
 
 /** Every compound clip in the project, in document order. */
-export function projectClips(show: MapShow): MapTimeline[] {
+export function projectClips(show: MapShow): (MapTimeline & { board: Board })[] {
   return (show.timelines ?? []).filter(isClip);
 }
 

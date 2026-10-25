@@ -12,7 +12,7 @@ export function readTrayPanels(mode: MapWorkspace): WorkspaceID[] {
     }
     if (localStorage.getItem(`${TRAY_KEY(mode)}.collapsed`) === 'true') return [];
   } catch { /* Layout preferences are optional. */ }
-  return mode === 'mapping' ? ['surfaces'] : ['surfaces', 'timeline', 'audio'];
+  return mode === 'mapping' ? ['surfaces'] : mode === 'content' ? ['timeline', 'audio'] : ['surfaces', 'timeline', 'audio'];
 }
 export function trayHeightKind(open: readonly WorkspaceID[]): WorkspaceID {
   return open.includes('timeline') ? 'timeline' : 'surfaces';

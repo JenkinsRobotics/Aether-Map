@@ -61,7 +61,7 @@ function ribbonTool(label: string) {
   return within(screen.getByRole('region', {name:'Map tools'})).getAllByRole('button', {name:label})[0];
 }
 
-function changeWorkspace(name: "Mapping" | "Scene") {
+function changeWorkspace(name: "Mapping" | "Content" | "Scene") {
   fireEvent.click(screen.getByRole('button',{name:/Workspace:/}));
   fireEvent.click(screen.getByRole('menuitemradio',{name}));
 }
@@ -453,6 +453,22 @@ describe("Aether Map", () => {
     expect(screen.getAllByLabelText('Search Pixabay or paste a link').length).toBeGreaterThan(0);
     changeWorkspace('Mapping');
     expect(present('Surface 1')).toBe(true);
+  });
+
+  it("Content opens a clip on its board, and switching workspaces records nothing to undo", () => {
+    render(<App />);
+    changeWorkspace('Content');
+    expect(screen.getByLabelText('Clip board')).toBeTruthy();
+    expect(screen.getByText(/^Clip 1 · \d+ × \d+$/)).toBeTruthy();
+    changeWorkspace('Scene');
+    expect(screen.getByRole('region', { name: 'Simple visualization workspace' })).toBeTruthy();
+    changeWorkspace('Content');
+    expect(screen.getByText(/^Clip 1 · /)).toBeTruthy();
+    // The only history entry is making Clip 1: Undo removes it, Content makes a
+    // fresh one, and nothing is left to redo. A recorded switch would be redoable.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Undo' })[0]);
+    const redo = screen.getAllByRole('button', { name: 'Redo' })[0];
+    expect(redo.hasAttribute('disabled') || redo.getAttribute('aria-disabled') === 'true').toBe(true);
   });
 
   it("reorders simple layers with undo/redo and preserves their order across editor modes", () => {

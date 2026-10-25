@@ -151,6 +151,9 @@ import { useCameraCleanup } from "./live/output-live";
 import { MapRibbon, type SceneToolKind } from "./panels/MapRibbon";
 import { ShowFileTabs, type DocumentEntry } from "./panels/ShowFileTabs";
 import { MapDocumentHeader, MapWorkspaceControls } from "./panels/MapDocumentHeader";
+import { createClip, projectClips } from "./compound-clips";
+import { ClipBoard } from "./panels/ClipBoard";
+import { ClipProperties } from "./panels/ClipProperties";
 import { MapCameraControls, MapViewTools } from "./panels/MapViewTools";
 import { assetCredit, type AssetResult } from "./assets/openverse";
 import type { MapWorkspace } from "./panels/map-ribbon-layout";
@@ -204,7 +207,15 @@ function migrateOutputsSidebar() {
 export default function App() {
   useState(migrateOutputsSidebar);
   const document_ = useDocumentHistory<MapShow>(() => normalizeDocument(emptyShow()));
-  const show = document_.present;
+  const [mode, setMode] = useState<MapWorkspace>("mapping");
+  // Content edits one compound clip: the app sees it as the active timeline, but
+  // which clip is open is the editor's, not the document's (no undo entry), and
+  // the scene timeline Scene was on is left exactly where it was.
+  const [openClipID, setOpenClipID] = useState<string | null>(null);
+  const stored = document_.present;
+  const openClip = mode === 'content' ? (projectClips(stored).find(t => t.id === (openClipID ?? stored.activeClipID)) ?? projectClips(stored)[0]) : undefined;
+  const show = useMemo(() => openClip ? { ...stored, activeTimelineID: openClip.id } : stored, [stored, openClip]);
+  const contentClipRef = useRef<string | undefined>(undefined); contentClipRef.current = openClip?.id;
   const assistantSessions = useMapAssistantSessions();
   // Remembered like the layout and the timeline height beside it. Map reloads
   // on save and on rename, so a preference held only in component state comes
@@ -236,7 +247,6 @@ export default function App() {
    * physical thing; Visualization is content and playback. Same document,
    * different layout — the way Aether Animation switches workspaces.
    */
-  const [mode, setMode] = useState<MapWorkspace>("mapping");
   const [visualEditor, setVisualEditor] = useState<'simple' | 'advanced'>(() => {
     try { return localStorage.getItem('aether-map.visual-editor') === 'advanced' ? 'advanced' : 'simple'; }
     catch { return 'simple'; }
@@ -298,7 +308,7 @@ export default function App() {
   const [nameDraft, setNameDraft] = useState("");
   const [naming, setNaming] = useState(false);
   const [copying, setCopying] = useState(false);
-  const [openByMode, setOpenByMode] = useState(() => ({ mapping:readTrayPanels('mapping'), visualization:readTrayPanels('visualization'), show:[] as WorkspaceID[] }));
+  const [openByMode, setOpenByMode] = useState(() => ({ mapping:readTrayPanels('mapping'), content:readTrayPanels('content'), visualization:readTrayPanels('visualization'), show:[] as WorkspaceID[] }));
   const openPanels = openByMode[mode], workspace = trayHeightKind(openPanels);
   const [timelineToolbarHost, setTimelineToolbarHost] = useState<HTMLDivElement | null>(null);
   const [mixerTrackID, setMixerTrackID] = useState<string | null>(null);
@@ -405,6 +415,7 @@ export default function App() {
     }
     setMode(next);
     if (next === 'show') { setFocus('output'); setSelectedPoolID(null); setBottomWidget('timeline'); }
+    if (next === 'content') { setFocus('layer'); setSelectedPoolID(null); setBottomWidget('timeline'); }
     setTool("select");
     setCutout(false);
     setSelectedClipID(null);
@@ -478,11 +489,18 @@ export default function App() {
 
   const edit = useCallback(
     (next: MapShow | ((current: MapShow) => MapShow), coalesceKey?: string) => {
-      document_.set(current => normalizeDocument(maintainCornerWelds(current, typeof next === 'function' ? next(current) : next)), coalesceKey);
+      document_.set(current => {
+        const clipID = contentClipRef.current, base = clipID ? { ...current, activeTimelineID: clipID } : current;
+        const out = normalizeDocument(maintainCornerWelds(base, typeof next === 'function' ? next(base) : next));
+        return clipID ? { ...out, activeTimelineID: current.activeTimelineID } : out;
+      }, coalesceKey);
       setDirty(true);
     },
     [document_],
   );
+
+  // Content always has a clip to work on: the first visit makes one and opens it.
+  useEffect(() => { if (mode === 'content' && !projectClips(stored).length) { edit(s => createClip(s, 'Clip 1')); setOpenClipID(null); } }, [mode, stored, edit]);
 
   const undo = useCallback(() => {
     // Independent assets keep their identity when target edits are undone.
@@ -669,7 +687,7 @@ export default function App() {
 
   const addFeature = (kind: FeatureKind) => {
     setTool("select");
-    if (mode === 'visualization' && kind !== 'surface' && kind !== 'mask') {
+    if ((mode === 'visualization' || mode === 'content') && kind !== 'surface' && kind !== 'mask') {
       const visual = newVisual(show, newFeature(kind, artboardSize, 0).source,
         focus === 'layer' && selectedVisual ? selectedVisual.targets.map(t => ({ ...t })) : focus === 'layer' && selected ? (selectedLayerIDs.includes(selected.id) ? selectedLayerIDs : [selected.id]).filter(id => surfaces.some(s => s.id === id && s.kind !== 'mask')).map(surfaceID => ({ sceneID: scene.id, surfaceID })) : [{ sceneID: scene.id }], timeS);
       edit(current => ({ ...current, visuals: [...(current.visuals ?? []), visual] }));
@@ -1472,6 +1490,8 @@ export default function App() {
             : backgroundSelected ? <section aria-label="Backdrop layer properties">
                 <SetupBackgroundPanel show={show} onChange={changeBackground} />
               </section>
+            : mode === 'content' && openClip && !selectedVisual ? <ClipProperties key={`${openClip.id}:${openClip.board.widthPx}x${openClip.board.heightPx}`} show={show} clip={openClip}
+                onChange={patch => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === openClip.id ? { ...t, ...patch } : t) }), `clip:${openClip.id}`)} />
             : selectedPool ? <PoolProperties asset={selectedPool} show={show} onChange={changePool} onPaint={() => { setTool('paint'); setShowInput(true); }} />
             // One Properties for both editors; only timeline timing differs.
             : selectedVisual ? <VisualInspector key={selectedVisual.id} visual={selectedVisual} show={show} timelines={!simple}
@@ -1523,7 +1543,7 @@ export default function App() {
         },
         // Effects apply to the selected visual: the right sidebar's Effects tab
         // is VisualProperties' own standard effects editor, scoped.
-        ...(mode === "visualization" ? [{
+        ...(mode === "visualization" || mode === "content" ? [{
           id: "effects", title: "Effects", icon: <AetherIcon name="sparkles" />,
           content: selectedVisual && !selectedVisual.timelineRefID
             ? <div className="ps-properties"><VisualProperties only="effects" timing={!simple} visual={selectedVisual} show={show} onChange={(visual, key) => assets.change(visual.id, visual, key)}
@@ -1552,7 +1572,7 @@ export default function App() {
               placementFrame={visualTabs.mapping !== 'span' ? previewSurface?.source.rect : undefined}
               onChange={(visual, key) => assets.change(visual.id, visual, key)} onPickMedia={() => {}} onDuplicate={() => {}} onMove={() => {}} />
             : <TransformPanel surface={transformLayer} output={artboardSize} timeS={mode === "mapping" ? 0 : timeS} onPatch={patchLayer} /> },
-        ...(mode === "visualization" ? [{ id: "color", title: "Appearance", icon: <AetherIcon name="palette" />,
+        ...(mode === "visualization" || mode === "content" ? [{ id: "color", title: "Appearance", icon: <AetherIcon name="palette" />,
           content: visualTabs ? <VisualProperties only="appearance" simple timing={!simple} visual={visualTabs} show={show}
               onChange={(visual, key) => assets.change(visual.id, visual, key)} onPickMedia={() => {}} onDuplicate={() => {}} onMove={() => {}} />
             : <ColorPanel key={selectedID} surface={transformLayer} backdrop={backgroundSelected} onPatch={patchLayer} /> }] : []),
@@ -1589,7 +1609,11 @@ export default function App() {
       <div ref={stageRef} className={`map-stage${mode === 'visualization' ? ' map-production-workspace' : ''}`}>
         {/* Visualization's center, both editors: the selected scene's render
             fills the space, input side by side; advanced adds the timeline. */}
-        {mode === 'visualization' ? <SimpleVisualWorkspace showInput={showInput} show={show} urls={urls} selectedID={selectedClipID} timeS={timeS} playing={transport.playing}
+        {mode === 'content' ? (openClip ? <ClipBoard show={show} clipID={openClip.id} urls={urls} timeS={timeS} playing={transport.playing}
+            placement={selectedVisual && timelineVisuals(show, openClip.id).some(v => v.id === selectedVisual.id) && !selectedVisual.timelineRefID
+              ? { visual: selectedVisual, onChange: placement => assets.change(selectedVisual.id, setVisualMotionBase(selectedVisual, placement, true), 'placement-drag') } : undefined} />
+          : <div className="map-show-preview" aria-label="Clip board" />)
+        : mode === 'visualization' ? <SimpleVisualWorkspace showInput={showInput} show={show} urls={urls} selectedID={selectedClipID} timeS={timeS} playing={transport.playing}
           onPlay={togglePlay} onSeek={seek} onBrowse={addVisual} onPlayback={mode => edit(current => ({ ...current, playback: { mode } }))} onChange={(visual, key) => assets.change(visual.id, visual, key)} onLength={v => edit(current => withTimelineDuration(current, v), 'scene-length')}
           renderSurface={renderSurface}
           onPlacement={(visual, placement) => assets.change(visual.id, setVisualMotionBase(visual, placement, true), 'placement-drag')}

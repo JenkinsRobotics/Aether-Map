@@ -16,7 +16,7 @@ const canvasCommand = (id: string) => {
 export function MapViewTools({ workspace, onPerformance, grid, onGrid, xray, onXray, snap, onSnap, backdrop, onBackdrop, showInput, onInput, blackout, onBlackout, surfaceRow = false, onSurfaceRow }: {
   /** Scene: the Apply-to-surfaces row. */
   surfaceRow?: boolean; onSurfaceRow?: () => void;
-  workspace: "mapping" | "visualization" | "show";
+  workspace: "mapping" | "content" | "visualization" | "show";
   /** Opens the live performance view (visualization). */
   onPerformance?: () => void;
   grid: boolean; onGrid: () => void;
@@ -36,7 +36,7 @@ export function MapViewTools({ workspace, onPerformance, grid, onGrid, xray, onX
   const outputTools = [
     { id: "input", label: "Input preview", icon: <AetherIcon name="monitor" />, pressed: showInput },
     ...(workspace === "visualization" && onSurfaceRow ? [{ id: "surfaces", label: "Surface row", icon: <AetherIcon name="surface" />, pressed: surfaceRow }] : []),
-    ...(workspace !== "mapping" ? [{ id: "backdrop", label: "Backdrop image", icon: <AetherIcon name="image" />, pressed: backdrop === true, disabled: backdrop === null }] : []),
+    ...(workspace !== "mapping" && workspace !== "content" ? [{ id: "backdrop", label: "Backdrop image", icon: <AetherIcon name="image" />, pressed: backdrop === true, disabled: backdrop === null }] : []),
     ...(workspace === "visualization" && onPerformance ? [{ id: "performance", label: "Performance", icon: <AetherIcon name="sliders" /> }] : []),
     { id: "blackout", label: "Blackout", icon: <AetherIcon name="hidden" />, pressed: blackout },
   ];
