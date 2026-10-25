@@ -349,4 +349,8 @@
   git tag -a v0.1.0-alpha.3 -m "Aether Map 0.1.0-alpha.3: Content workspace builds clips; Scene assigns them to surfaces"
   ```
 
-Installing alpha.3 on the server waits for Studio's per-app update path (owned by the Studio agent). Do not run the old whole-installation promote scripts.
+- [ ] **Step 5: Release.** Follow `RELEASING.md`.
+  - Build the player downloads into a fresh `build/player`.
+  - From `../AetherStudio`, run `app_update.py stage --app map` with `--frontend dist`, `--worker`, `--downloads` and `--backward-compatible`. The working tree must be clean.
+  - Check `status`, then `activate` with the returned release ID (the next `alpha-0.1.N`, which Studio assigns), the SHA-256 and `--expected-current`.
+  - Activation only replaces Map, with no restart. Never run the old whole-installation promote scripts.
