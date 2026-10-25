@@ -52,6 +52,12 @@ export function serializeShow(show: MapShow): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(surfaceMotionVersion(visualLookVersion(sourceMotionVersion(visualMotionVersion(show)))), null, 2));
 }
 
+/** A compound clip's board: both sides positive, whole pixels. */
+function readBoard(value: unknown): { widthPx: number; heightPx: number } | undefined {
+  if (!isRecord(value) || !(Number(value.widthPx) > 0) || !(Number(value.heightPx) > 0)) return undefined;
+  return { widthPx: Math.round(Number(value.widthPx)), heightPx: Math.round(Number(value.heightPx)) };
+}
+
 export function parseShow(bytes: Uint8Array | string): MapShow {
   const text = typeof bytes === "string" ? bytes : new TextDecoder().decode(bytes);
   let raw: unknown;
@@ -63,7 +69,7 @@ export function parseShow(bytes: Uint8Array | string): MapShow {
   if (!isRecord(raw)) throw new Error("This file is not an Aether Map show.");
   // 1 and 2 are migrated to 3 below; anything newer was written by a later
   // Aether Map and guessing at it would corrupt the file on the next save.
-  if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3 && raw.version !== 4 && raw.version !== 5 && raw.version !== 6 && raw.version !== 7 && raw.version !== 8 && raw.version !== 9 && raw.version !== 10 && raw.version !== 11 && raw.version !== 12) {
+  if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3 && raw.version !== 4 && raw.version !== 5 && raw.version !== 6 && raw.version !== 7 && raw.version !== 8 && raw.version !== 9 && raw.version !== 10 && raw.version !== 11 && raw.version !== 12 && raw.version !== 13) {
     throw new Error(`Unsupported show version ${String(raw.version)}.`);
   }
   // What an output with no `sceneId` means is exactly what changed in 3: before
@@ -86,8 +92,9 @@ export function parseShow(bytes: Uint8Array | string): MapShow {
     ...(raw.audioOutput ? { audioOutput:readAudioOutput(raw.audioOutput) } : {}),
     ...(raw.timelineMode === 'advanced' || raw.timelineMode === 'standard' ? { timelineMode: raw.timelineMode } : {}),
     ...(typeof raw.activeTimelineID === 'string' ? { activeTimelineID: raw.activeTimelineID } : {}),
-    ...(Array.isArray(raw.timelines) ? { timelines: raw.timelines.filter(isRecord).map(t => ({ id: String(t.id), name: String(t.name ?? 'Timeline'), ...(typeof t.surfaceID === 'string' ? { surfaceID: t.surfaceID } : {}), sceneID: String(t.sceneID), durationS: positive(t.durationS, DEFAULT_DURATION_S) })) } : {}),
-    version: raw.version === 12 ? 12 : raw.version === 11 ? 11 : raw.version === 10 ? 10 : raw.version === 9 ? 9 : raw.version === 8 ? 8 : raw.version === 7 ? 7 : raw.version === 6 ? 6 : raw.version === 5 ? 5 : raw.version === 4 ? 4 : 3,
+    ...(Array.isArray(raw.timelines) ? { timelines: raw.timelines.filter(isRecord).map(t => ({ id: String(t.id), name: String(t.name ?? 'Timeline'), ...(typeof t.surfaceID === 'string' ? { surfaceID: t.surfaceID } : {}), sceneID: String(t.sceneID), durationS: positive(t.durationS, DEFAULT_DURATION_S), ...(readBoard(t.board) ? { board: readBoard(t.board)! } : {}) })) } : {}),
+    ...(typeof raw.activeClipID === 'string' ? { activeClipID: raw.activeClipID } : {}),
+    version: raw.version === 13 ? 13 : raw.version === 12 ? 12 : raw.version === 11 ? 11 : raw.version === 10 ? 10 : raw.version === 9 ? 9 : raw.version === 8 ? 8 : raw.version === 7 ? 7 : raw.version === 6 ? 6 : raw.version === 5 ? 5 : raw.version === 4 ? 4 : 3,
     ...(Array.isArray(raw.pool) ? { pool: raw.pool.filter(isRecord).filter(a => typeof a.id === 'string' && isRecord(a.source)).map(a => ({ id: String(a.id), name: String(a.name ?? 'Asset'), ...(typeof a.folder === 'string' ? { folder: a.folder } : {}), source: readSource(a.source as Record<string, unknown>) })) } : {}),
     ...(Array.isArray(raw.tracks) ? { tracks: raw.tracks.filter(isRecord).filter(t => typeof t.id === 'string').map(t => ({ id: String(t.id), ...(typeof t.timelineID === 'string' ? { timelineID: t.timelineID } : {}), name: String(t.name ?? 'V1'), kind: t.kind === 'audio' ? 'audio' as const : 'video' as const, volume: typeof t.volume === 'number' ? clamp01(t.volume) : 1, solo: t.solo === true, ...(t.eq ? { eq: readTrackEQ(t.eq) } : {}), targets: readTargets(t.targets), enabled: t.enabled !== false, locked: t.locked === true })) } : {}),
     ...(Array.isArray(raw.visuals) ? { visuals: raw.visuals.map(readVisual).filter((v): v is Visual => v !== null) } : {}),
@@ -108,7 +115,7 @@ export function parseShow(bytes: Uint8Array | string): MapShow {
     ...(raw.lfos ? { lfos: readLfos(raw.lfos) } : {}),
     surfaceLook: readSurfaceLook(raw, output),
     media: Array.isArray(raw.media) ? raw.media.filter(isRecord).map(readMedia) : [],
-    unassignedSurfaces: (raw.version === 3 || raw.version === 4 || raw.version === 5 || raw.version === 6 || raw.version === 7 || raw.version === 8 || raw.version === 9 || raw.version === 10 || raw.version === 11 || raw.version === 12) && Array.isArray(raw.unassignedSurfaces)
+    unassignedSurfaces: (raw.version === 3 || raw.version === 4 || raw.version === 5 || raw.version === 6 || raw.version === 7 || raw.version === 8 || raw.version === 9 || raw.version === 10 || raw.version === 11 || raw.version === 12 || raw.version === 13) && Array.isArray(raw.unassignedSurfaces)
       ? groupSurfaces(raw.unassignedSurfaces.filter(isRecord).map(readSurface))
       : [],
     scenes,
@@ -498,7 +505,7 @@ function readVisual(value: unknown, index: number): Visual | null {
   const targets = Array.isArray(value.targets) ? value.targets.filter(isRecord).filter(t => typeof t.sceneID === 'string').map(t => ({ sceneID: String(t.sceneID), ...(typeof t.surfaceID === 'string' ? { surfaceID: t.surfaceID } : {}) })) : [];
   const effects=readVisualEffects(value.effects);
   const looks=readVisualLooks(value.looks);
-  return { ...clip, ...(looks?{looks}:{}), ...(value.motion ? {motion:readVisualMotion(value.motion,typeof value.timelineRefID === 'string')} : {}), ...(typeof value.timelineRefID === 'string' ? { timelineRefID: value.timelineRefID } : {}), ...(typeof value.assetID === 'string' ? { assetID: value.assetID } : {}), ...(typeof value.trackID === 'string' ? { trackID: value.trackID } : {}), name: String(value.name ?? 'Visual'), targets: targets.filter((t, i) => targets.findIndex(a => a.sceneID === t.sceneID && a.surfaceID === t.surfaceID) === i), mapping: value.mapping === 'span' ? 'span' : 'repeat', color: String(value.color ?? '#547aff'), opacity: typeof value.opacity === 'number' ? clamp01(value.opacity) : 1,
+  return { ...clip, ...(looks?{looks}:{}), ...(value.motion ? {motion:readVisualMotion(value.motion,typeof value.timelineRefID === 'string')} : {}), ...(typeof value.timelineRefID === 'string' ? { timelineRefID: value.timelineRefID } : {}), ...(value.clipFit === 'cover' || value.clipFit === 'stretch' ? { clipFit: value.clipFit } : {}), ...(typeof value.assetID === 'string' ? { assetID: value.assetID } : {}), ...(typeof value.trackID === 'string' ? { trackID: value.trackID } : {}), name: String(value.name ?? 'Visual'), targets: targets.filter((t, i) => targets.findIndex(a => a.sceneID === t.sceneID && a.surfaceID === t.surfaceID) === i), mapping: value.mapping === 'span' ? 'span' : 'repeat', color: String(value.color ?? '#547aff'), opacity: typeof value.opacity === 'number' ? clamp01(value.opacity) : 1,
     ...(isRecord(value.placement) ? {placement:readVisualPlacement(value.placement)} : {}), ...(value.continuous === true ? { continuous: true } : {}), ...(typeof value.legacyTrack === 'string' ? { legacyTrack: value.legacyTrack } : {}), ...(value.mask === true ? { mask: true } : {}), ...(effects.length ? { effects } : {}), ...(typeof value.folder === 'string' && value.folder.trim() ? { folder: value.folder.trim().slice(0, 80) } : {}) };
 }
 

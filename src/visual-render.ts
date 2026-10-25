@@ -1,9 +1,9 @@
 import type { VisualMotionInputs } from './visual-motion';
-import { scheduledVisuals, timelineVisuals } from './timelines';
+import { currentTimelineID, isClip, scheduledVisuals, timelineVisuals, type Board, type ClipStep } from './timelines';
 import { visualSource } from './media-pool';
 import { project, solveHomography } from './homography';
 import { quadCorners } from './document';
-import { newSurface, type MapShow, type Scene, type Surface, type Point } from './document';
+import { newScene, newSurface, type MapShow, type Scene, type Surface, type Point, type Rect } from './document';
 import { evaluateSurface, type ResolvedSurface } from './playback';
 import { normalizeVisuals } from './visual-document';
 import { clipShapes } from './mask/clip';
@@ -16,6 +16,27 @@ export const VISUAL_FIT = 'cover' as const;
 
 /** Shared projection for the authoring canvas and every physical output. */
 export function sceneVisuals(input: MapShow, scene: Scene, timeS: number, placeholders = false, onlySurfaceID?: string, inputs:VisualMotionInputs={}, calibration = false): ResolvedSurface[] {
+  return renderTimeline(input, scene, timeS, currentTimelineID(input), placeholders, onlySurfaceID, inputs, calibration);
+}
+
+/** A compound clip on its own board (board space), for the Content workspace. */
+export function clipPictures(show: MapShow, clipID: string, timeS: number, inputs: VisualMotionInputs = {}): ResolvedSurface[] {
+  const clip = show.timelines?.find(t => t.id === clipID);
+  if (!isClip(clip)) return [];
+  const board = { ...newScene(clip.name, clip.board), id: `board:${clip.id}`, surfaces: [] };
+  return renderTimeline(show, board, timeS, clip.id, false, undefined, inputs);
+}
+
+/** Maps a clip's board into `frame` (whose corners are `corners`): cover keeps
+ * the board's proportions and overflows the frame; stretch fills it exactly. */
+function boardInto(board: Board, frame: Rect, corners: Surface['corners'], fit: ClipStep['fit']): (p: Point) => Point {
+  const [fx, fy, fw, fh] = frame, sx = fw / board.widthPx, sy = fh / board.heightPx, s = Math.max(sx, sy);
+  const [kx, ky, ox, oy] = fit === 'cover' ? [s, s, fx + (fw - board.widthPx * s) / 2, fy + (fh - board.heightPx * s) / 2] : [sx, sy, fx, fy];
+  const toCorners = solveHomography(quadCorners(frame), corners);
+  return p => project(toCorners, [p[0] * kx + ox, p[1] * ky + oy]);
+}
+
+function renderTimeline(input: MapShow, scene: Scene, timeS: number, timelineID: string, placeholders = false, onlySurfaceID?: string, inputs:VisualMotionInputs={}, calibration = false): ResolvedSurface[] {
   const show = normalizeVisuals(input);
   const geometry = show.scenes.find(s => s.id === scene.id) ?? scene;
   const context = { ...inputs, lfos: show.lfos, sceneTimeS: timeS, ...(calibration ? { modulation: false as const } : {}) };
@@ -33,17 +54,42 @@ export function sceneVisuals(input: MapShow, scene: Scene, timeS: number, placeh
       masks: p.masks.length || p.shape === 'ellipse' || p.radiusPx ? targetShapes(p).map(m => m.map(map)) : outline,
       shape: undefined, radiusPx: undefined, maskCurves: undefined, bend: undefined, opacity: p.opacity * host.opacity }));
   });
-  const rendered = scheduledVisuals(show, timeS, undefined, inputs).flatMap(({ visual, track, timeS, hosts }) => {
-    const out = place(visual, track, timeS);
-    return hosts ? hosted(out, hosts) : out;
+  // Clip pictures travel out through each clip use: into the next board, then
+  // (outermost) onto its surfaces, the canvas, or the root clip's own board.
+  const into = (pictures: ResolvedSurface[], board: Board, frame: Rect, corners: Surface['corners'], fit: ClipStep['fit'], outline: Point[][], suffix = '', opacity = 1): ResolvedSurface[] => {
+    const map = boardInto(board, frame, corners, fit);
+    return pictures.map(p => ({ ...p, id: `${p.id}${suffix}`, corners: p.corners.map(map) as Surface['corners'],
+      masks: p.masks.length || p.shape === 'ellipse' || p.radiusPx ? targetShapes(p).map(m => m.map(map)) : outline,
+      shape: undefined, radiusPx: undefined, maskCurves: undefined, bend: undefined, opacity: p.opacity * opacity }));
+  };
+  const outward = (pictures: ResolvedSurface[], clips: ClipStep[]): ResolvedSurface[] => {
+    let out = pictures;
+    for (const [i, step] of clips.entries()) {
+      const outer = clips[i + 1]?.board;
+      if (outer) { const frame: Rect = [0, 0, outer.widthPx, outer.heightPx]; out = into(out, step.board, frame, quadCorners(frame), step.fit, []); continue; }
+      if (step.hosts) { out = step.hosts.flatMap(id => {
+        const found = geometry.surfaces.find(s => s.id === id);
+        if (!found || !found.enabled || (onlySurfaceID && onlySurfaceID !== id)) return [];
+        const host = evaluateSurface(found, calibration ? 0 : timeS, show.media, context);
+        return into(out, step.board, host.source.rect, host.corners, step.fit, targetShapes(host), `@${id}`, host.opacity);
+      }); continue; }
+      const frame: Rect = [0, 0, w, h];
+      out = into(out, step.board, frame, quadCorners(frame), step.fit, step.fit === 'cover' ? [quadCorners(frame)] : []);
+    }
+    return out;
+  };
+  const rendered = scheduledVisuals(show, timeS, timelineID, inputs).flatMap(({ visual, track, timeS, hosts, board, clips }) => {
+    const out = place(visual, track, timeS, board);
+    return board ? outward(out, clips ?? []) : hosts ? hosted(out, hosts) : out;
   });
-  function place(visual: ReturnType<typeof scheduledVisuals>[number]['visual'], track: ReturnType<typeof scheduledVisuals>[number]['track'], timeS: number): ResolvedSurface[] {
+  function place(visual: ReturnType<typeof scheduledVisuals>[number]['visual'], track: ReturnType<typeof scheduledVisuals>[number]['track'], timeS: number, board?: Board): ResolvedSurface[] {
     if (track?.kind === 'audio' || track?.enabled === false) return [];
     const source = visualSource(show, visual);
     if (show.media.some(m => m.id === source.mediaId && m.kind === 'audio')) return [];
     if (visual.enabled === false || (!visual.continuous && (timeS < visual.startS || timeS >= visual.startS + visual.durationS))) return [];
     if (visual.legacyTrack) { if (occupied.has(visual.legacyTrack)) return []; occupied.add(visual.legacyTrack); }
-    const targets = visual.targets.filter(t => t.sceneID === scene.id).flatMap(t => {
+    const targets = board ? [{ ...newSurface({ width: board.widthPx, height: board.heightPx }, 0), id: 'board', corners: quadCorners([0, 0, board.widthPx, board.heightPx]), mediaTimeS: timeS }]
+      : visual.targets.filter(t => t.sceneID === scene.id).flatMap(t => {
       if (t.surfaceID) { const surface = geometry.surfaces.find(s => s.id === t.surfaceID); return surface ? [evaluateSurface(surface, calibration ? 0 : timeS, show.media, context)] : []; }
       return [{ ...newSurface({ width: w, height: h }, 0), id: scene.id, corners: [[0, 0], [w, 0], [w, h], [0, h]] as Surface['corners'], mediaTimeS: timeS }];
     });
@@ -70,7 +116,7 @@ export function sceneVisuals(input: MapShow, scene: Scene, timeS: number, placeh
     }
     return merged;
   }
-  const targets = timelineVisuals(show).flatMap(v => v.targets).filter(t => t.sceneID === scene.id);
+  const targets = timelineVisuals(show, timelineID).flatMap(v => v.targets).filter(t => t.sceneID === scene.id);
   const empty = placeholders && !targets.some(t => !t.surfaceID) ? geometry.surfaces.filter(s => !targets.some(t => t.surfaceID === s.id)).map(s => evaluateSurface(s, calibration ? 0 : timeS, show.media, context)) : [];
   return [...empty, ...rendered];
 }

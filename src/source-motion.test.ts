@@ -73,7 +73,7 @@ test('pool, explicit and legacy assignments survive format9 and ordinary source 
  const reopened=normalizeDocument(parseShow(serializeShow(show)));expect(reopened.version).toBe(9);expect(visualSource(reopened,reopened.visuals![0]).motion).toEqual(source.motion);
  const legacy=emptyShow(),surface=newSurface(legacy.output,0);legacy.unassignedSurfaces=[{...surface,source}];expect(parseShow(serializeShow(legacy)).version).toBe(9);
  legacy.unassignedSurfaces=[{...surface,clips:[{id:'clip',source,startS:0,durationS:10,inS:0,loop:false}]}];expect(parseShow(serializeShow(legacy)).unassignedSurfaces[0].clips[0].source!.motion).toEqual(source.motion);
- expect(()=>parseShow(JSON.stringify({...show,version:13}))).toThrow('Unsupported');
+ expect(()=>parseShow(JSON.stringify({...show,version:14}))).toThrow('Unsupported');
  const malformed=readSourceMotion({animation:{textSizePx:keys(-20,1e8),constructor:keys(1,2)},modulation:{trackerScale:{...DEFAULT_MODULATION,range:{min:-4,max:99}}}})!;expect(malformed.animation!.textSizePx!.map(k=>k.value)).toEqual([1,10000]);expect(Object.keys(malformed.animation!)).toEqual(['textSizePx']);expect(malformed.modulation!.trackerScale!.range).toEqual({min:.1,max:5});
 });
 test('Performance manual takeover, ordinary source edits and MIDI feedback use canonical assignments',()=>{

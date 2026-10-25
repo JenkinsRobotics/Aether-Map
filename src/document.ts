@@ -361,10 +361,12 @@ export interface MapShow {
   lfos?: Lfo[];
   pool?: import('./media-pool').PoolAsset[];
   tracks?: import('./media-pool').VisualTrack[];
-  version: 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+  version: 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
   timelines?: import('./timelines').MapTimeline[];
   /** Saved editor focus; physical outputs always evaluate Main. */
   activeTimelineID?: string;
+  /** The compound clip open in the Content workspace. */
+  activeClipID?: string;
   audioOutput?: import('./audio-output').AudioOutput;
   timelineMode?: "standard" | "advanced";
   output: { width: number; height: number; crop?: OutputCrop; blackout?: boolean; testPattern?: boolean };

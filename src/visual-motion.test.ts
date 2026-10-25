@@ -59,7 +59,7 @@ test('motion survives format8 and ordinary edits cannot downgrade it; legacy sho
  const reopened=parseShow(serializeShow(show));expect(reopened.version).toBe(8);expect(reopened.visuals![0].motion).toEqual(show.visuals[0].motion);
  const changed=createTimeline(addPoolAsset(normalizeDocument(reopened),{mediaId:null,rect:[0,0,50,50],fill:'#0f0'},'Green'),'Another');
  expect(changed.version).toBe(8);expect(parseShow(serializeShow(changed)).version).toBe(8);
- expect(()=>parseShow(JSON.stringify({...show,version:13}))).toThrow('Unsupported show version');
+ expect(()=>parseShow(JSON.stringify({...show,version:14}))).toThrow('Unsupported show version');
 });
 test('file recovery bounds channels, drops unknown fields and excludes compound placement',()=>{
  const raw={animation:{opacityPercent:keys(-10,1000),unknown:keys(1,2)},modulation:{widthPercent:{...DEFAULT_MODULATION,range:{min:-10,max:9000}},__proto__:{source:'audio'}}};

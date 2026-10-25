@@ -8,9 +8,19 @@ import type { Visual } from './visual-model';
 
 export const MAIN_TIMELINE = 'main';
 export const TIMELINE_DRAG_PREFIX = 'timeline:';
-export interface MapTimeline { id: string; name: string; sceneID: string; durationS: number; surfaceID?: string }
+export interface Board { widthPx: number; heightPx: number }
+/** A timeline with a `board` is a compound clip: it belongs to the project, not a
+ * canvas (its `sceneID` only records where it was made), and its visuals draw on
+ * the board whatever their targets say. Without one it is a scene on its canvas. */
+export interface MapTimeline { id: string; name: string; sceneID: string; durationS: number; surfaceID?: string; board?: Board }
+export const isClip = (t: MapTimeline | undefined): t is MapTimeline & { board: Board } => !!t?.board;
+/** How a clip's board lands in the frame it is used in. */
+export type ClipFit = 'cover' | 'stretch';
+/** One clip use on the way out: the board it draws, how it fits the next frame,
+ * and (outermost, in a scene) the surfaces it is projected onto. */
+export interface ClipStep { board: Board; fit: ClipFit; hosts?: string[] }
 export function currentTimelineID(show: MapShow): string {
-  return show.timelines?.some(t => t.id === show.activeTimelineID && t.sceneID === show.activeSceneId) ? show.activeTimelineID! : MAIN_TIMELINE;
+  return show.timelines?.some(t => t.id === show.activeTimelineID && (isClip(t) || t.sceneID === show.activeSceneId)) ? show.activeTimelineID! : MAIN_TIMELINE;
 }
 export function timelineName(show: MapShow): string { return show.timelines?.find(t => t.id === currentTimelineID(show))?.name ?? 'Main'; }
 export function timelineDuration(show: MapShow, id = currentTimelineID(show)): number {
@@ -43,7 +53,9 @@ export function removeTimeline(show: MapShow, id: string): MapShow {
 }
 export function canNestTimeline(show: MapShow, childID: string, parentID = currentTimelineID(show)): boolean {
   const child = show.timelines?.find(t => t.id === childID);
-  if (!child || child.sceneID !== show.activeSceneId || childID === parentID) return false;
+  if (!child || childID === parentID) return false;
+  // Clips nest anywhere; a scene nests only on its own canvas, and never inside a clip.
+  if (!isClip(child) && (child.sceneID !== show.activeSceneId || isClip(show.timelines?.find(t => t.id === parentID)))) return false;
   const seen = new Set<string>();
   const reaches = (id: string): boolean => {
     if (id === parentID) return true;
@@ -57,9 +69,11 @@ export function placeTimeline(show: MapShow, id: string, trackID: string, startS
   const track = show.tracks?.find(t => t.id === trackID), target = show.timelines?.find(t => t.id === id);
   if (!track || track.locked || track.kind === 'audio' || !target || !canNestTimeline(show, id, track.timelineID ?? MAIN_TIMELINE)) return show;
   const start = startS ?? Math.max(0, ...(show.visuals ?? []).filter(v => v.trackID === trackID).map(v => v.startS + v.durationS));
+  // A clip use takes its track's canvas (none inside a clip); a scene use its own.
+  const targets = isClip(target) ? track.targets.filter(t => !t.surfaceID).slice(0, 1).map(t => ({ sceneID: t.sceneID })) : [{ sceneID: target.sceneID }];
   const visual: Visual = { id: nextId('clip'), name: target.name, timelineRefID: id, trackID,
     startS: Math.max(0, start), durationS: target.durationS, inS: 0, loop: false,
-    targets: [{ sceneID: target.sceneID }], mapping: 'repeat', color: '#8175cf', opacity: 1 };
+    targets, mapping: 'repeat', color: '#8175cf', opacity: 1 };
   return { ...show, version: show.version>=7?show.version:7, visuals: [...(show.visuals ?? []), visual] };
 }
 
@@ -67,10 +81,13 @@ export function placeTimeline(show: MapShow, id: string, trackID: string, startS
  * Each use has its own clock and identity; child surface assignments remain intact. */
 export interface ScheduledVisual { visual: Visual; track?: VisualTrack; timeS: number; gain: number;
   /** A nested scene applied to surfaces: its whole picture is projected onto each of these surfaces. */
-  hosts?: string[] }
+  hosts?: string[];
+  /** Drawn inside a clip: the board it draws on, and the clip uses out to the
+   * root, innermost first (empty when the root itself is the clip). */
+  board?: Board; clips?: ClipStep[] }
 export function scheduledVisuals(show: MapShow, timeS: number, id = currentTimelineID(show), inputs:VisualMotionInputs={}): ScheduledVisual[] {
   const result: ScheduledVisual[] = [];
-  const visit = (timelineID: string, time: number, path: string[], opacity: number, gain: number, hosts?: string[]) => {
+  const visit = (timelineID: string, time: number, path: string[], opacity: number, gain: number, hosts?: string[], uses: ClipStep[] = [], board?: Board) => {
     const tracks = timelineTracks(show, timelineID), ranks = new Map(tracks.map((t, i) => [t.id, i]));
     const solo = tracks.some(t => t.kind === 'audio' && t.enabled && t.solo);
     const clips = timelineVisuals(show, timelineID).sort((a, b) => (ranks.get(a.trackID ?? '') ?? -1) - (ranks.get(b.trackID ?? '') ?? -1));
@@ -85,29 +102,35 @@ export function scheduledVisuals(show: MapShow, timeS: number, id = currentTimel
         const clock = visualSourceTime(show,visual,time);
         // ponytail: only the outermost surface-hosting nest applies; deeper hosts are ignored.
         const surfaces = visual.targets.flatMap(t => t.surfaceID ? [t.surfaceID] : []);
-        visit(child.id, clock, [...path, visual.id, child.id], opacity * visual.opacity, gain, hosts ?? (surfaces.length ? surfaces : undefined));
-      } else result.push({ visual: path.length ? { ...visual, id: `${path.join('/')}/${visual.id}`, opacity: visual.opacity * opacity, legacyTrack: visual.legacyTrack ? `${path.join('/')}/${visual.legacyTrack}` : undefined } : visual, track, timeS: time, gain, ...(hosts ? { hosts } : {}) });
+        const next = [...path, visual.id, child.id];
+        if (isClip(child)) {
+          // Surfaces only mean something on a canvas; inside a clip a use fills its board.
+          const step: ClipStep = { board: child.board, fit: visual.clipFit ?? 'stretch', ...(!board && surfaces.length ? { hosts: surfaces } : {}) };
+          visit(child.id, clock, next, opacity * visual.opacity, gain, hosts, [step, ...uses], child.board);
+        } else if (!board) visit(child.id, clock, next, opacity * visual.opacity, gain, hosts ?? (surfaces.length ? surfaces : undefined));
+      } else result.push({ visual: path.length ? { ...visual, id: `${path.join('/')}/${visual.id}`, opacity: visual.opacity * opacity, legacyTrack: visual.legacyTrack ? `${path.join('/')}/${visual.legacyTrack}` : undefined } : visual, track, timeS: time, gain, ...(hosts ? { hosts } : {}), ...(board ? { board, clips: uses } : {}) });
     }
   };
-  visit(id, timeS, [], 1, 1);
+  const root = show.timelines?.find(t => t.id === id);
+  visit(id, timeS, [], 1, 1, undefined, [], root?.board);
   return result;
 }
 
 export function validateTimelines(show: MapShow): void {
   const ids = new Set(show.timelines?.map(t => t.id));
   if (ids.size !== (show.timelines?.length ?? 0) || ids.has(MAIN_TIMELINE)) throw new Error('Invalid or duplicate timeline identity.');
-  for (const t of show.timelines ?? []) if (!show.scenes.some(s => s.id === t.sceneID)) throw new Error(`Missing scene for timeline ${t.name}.`);
+  for (const t of show.timelines ?? []) if (!isClip(t) && !show.scenes.some(s => s.id === t.sceneID)) throw new Error(`Missing scene for timeline ${t.name}.`);
   for (const track of show.tracks ?? []) if (track.timelineID && !ids.has(track.timelineID)) throw new Error('Missing timeline for track.');
   for (const v of show.visuals ?? []) if (v.timelineRefID) {
     const parent = show.tracks?.find(t => t.id === v.trackID);
     const child = show.timelines?.find(t => t.id === v.timelineRefID);
-    if (!parent || parent.kind === 'audio' || !child || !parent.targets.some(t => t.sceneID === child.sceneID) || !canNestTimeline({ ...show, activeSceneId: child.sceneID }, child.id, parent.timelineID ?? MAIN_TIMELINE)) throw new Error('Missing or cyclic nested timeline.');
+    if (!parent || parent.kind === 'audio' || !child || (!isClip(child) && !parent.targets.some(t => t.sceneID === child.sceneID)) || !canNestTimeline({ ...show, activeSceneId: child.sceneID }, child.id, parent.timelineID ?? MAIN_TIMELINE)) throw new Error('Missing or cyclic nested timeline.');
   }
 }
 
 /** Scene duplication remaps timeline references as well as surface targets. */
 export function copySceneTimelines(show: MapShow, sceneID: string, copyID: string, surfaces: Map<string, string>) {
-  const owned = (show.timelines ?? []).filter(t => t.sceneID === sceneID);
+  const owned = (show.timelines ?? []).filter(t => t.sceneID === sceneID && !isClip(t));
   const timelines = new Map(owned.map(t => [t.id, nextId('timeline')]));
   const ownedTracks = new Set((show.tracks ?? []).filter(t => t.timelineID && timelines.has(t.timelineID)).map(t => t.id));
   const used = (show.visuals ?? []).filter(v => ownedTracks.has(v.trackID ?? '') || v.targets.some(t => t.sceneID === sceneID));
@@ -122,7 +145,7 @@ export function copySceneTimelines(show: MapShow, sceneID: string, copyID: strin
   };
 }
 export function removeSceneTimelines(show: MapShow, sceneID: string): MapShow {
-  const ids = new Set(show.timelines?.filter(t => t.sceneID === sceneID).map(t => t.id));
+  const ids = new Set(show.timelines?.filter(t => t.sceneID === sceneID && !isClip(t)).map(t => t.id));
   const tracks = new Set(show.tracks?.filter(t => t.timelineID && ids.has(t.timelineID)).map(t => t.id));
   return { ...show, timelines:show.timelines?.filter(t => !ids.has(t.id)), tracks:show.tracks?.filter(t => !tracks.has(t.id)),
     visuals:show.visuals?.filter(v => !tracks.has(v.trackID ?? '') && !ids.has(v.timelineRefID ?? '')), activeTimelineID:ids.has(show.activeTimelineID ?? '') ? undefined : show.activeTimelineID };

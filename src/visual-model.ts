@@ -35,6 +35,8 @@ export interface Visual extends Clip {
   assetID?: string;
   /** Scheduled reusable timeline; child clips retain their own surface targets. */
   timelineRefID?: string;
+  /** A clip use: how the clip's board fits where it lands (absent: stretch, as before clips). */
+  clipFit?: import('./timelines').ClipFit;
   trackID?: string;
   targets: VisualTarget[];
   mapping: VisualMapping;

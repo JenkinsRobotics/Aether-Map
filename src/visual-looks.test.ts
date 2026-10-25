@@ -36,7 +36,7 @@ test('A/B/C are independently stored, cleared, serialized and evaluated through 
  const recalled=recallVisualLook(saved,saved.visuals![0],'B');expect(recalled.opacity).toBe(.4);
  const rendered=sceneVisuals({...saved,visuals:[recalled]},saved.scenes[0],2)[0];expect(rendered.source.text!.color).toBe('#00ff00');expect(rendered.opacity).toBe(.6);
  const cleared=clearVisualLook(saved,recalled,'B');expect(hasVisualLook(saved,cleared,'B')).toBe(false);expect(cleared.looks!.A).toEqual(v.looks!.A);expect(parseShow(serializeShow({...saved,visuals:[cleared]})).version).toBe(11);
- expect(()=>parseShow(JSON.stringify({...saved,version:13}))).toThrow('Unsupported');expect(parseShow(serializeShow(seed())).version).toBe(6);
+ expect(()=>parseShow(JSON.stringify({...saved,version:14}))).toThrow('Unsupported');expect(parseShow(serializeShow(seed())).version).toBe(6);
 });
 test('older shader presets keep shader-only semantics and survive changing to another source type',()=>{
  let shader=storeShaderLook(newShader('tunnel'),'A');shader=storeShaderLook({...shader,parameters:{...shader.parameters,scale:2}},'B');shader.parameters.scale=5;

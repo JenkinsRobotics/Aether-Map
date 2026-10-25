@@ -74,7 +74,7 @@ test('format12 survives file and unassigned-surface roundtrips; legacy keys keep
   const show=showWith(s),saved=parseShow(serializeShow(show));expect(saved.version).toBe(12);expect(saved.scenes[0].surfaces[0].modulation).toEqual(s.modulation);
   const unassigned=emptyShow();unassigned.unassignedSurfaces=[s];expect(parseShow(serializeShow(unassigned)).unassignedSurfaces?.[0].modulation).toEqual(s.modulation);
   expect(parseShow(serializeShow(unassigned)).version).toBe(12);
-  expect(()=>parseShow(JSON.stringify({...show,version:13}))).toThrow('Unsupported');
+  expect(()=>parseShow(JSON.stringify({...show,version:14}))).toThrow('Unsupported');
 });
 test('file recovery removes unsupported channels and bounds new shape motion',()=>{
   const raw=showWith(surface());Object.assign(raw.scenes[0].surfaces[0],{animation:{radiusPx:[{timeS:2,value:-30},{timeS:4,value:1e9}],bendAngleDeg:[{timeS:2,value:999}]},modulation:{unknown:{amount:10},scaleX:{range:{min:-10,max:1000}},opacity:[]}});

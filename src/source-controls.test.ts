@@ -109,7 +109,7 @@ test('format10 survives pool, explicit and legacy sources, while numeric-only fo
  const legacy=emptyShow();legacy.unassignedSurfaces=[{...newSurface(legacy.output,0),source}];expect(parseShow(serializeShow(legacy)).version).toBe(10);
  legacy.unassignedSurfaces=[{...newSurface(legacy.output,0),clips:[{id:'c',source,startS:0,durationS:4,inS:0,loop:false}]}];expect(parseShow(serializeShow(legacy)).unassignedSurfaces[0].clips[0].source!.motion).toEqual(source.motion);
  expect(parseShow(serializeShow(addSimpleVisual(normalizeDocument(emptyShow()),setSourceMotion({...base,fill:'#fff'},'fillOpacityPercent',{keys:keys(0,100)}),'Old'))).version).toBe(9);
- expect(()=>parseShow(JSON.stringify({...show,version:13}))).toThrow('Unsupported');
+ expect(()=>parseShow(JSON.stringify({...show,version:14}))).toThrow('Unsupported');
 });
 test('malformed or oversized assignments stay bounded and MIDI discovery includes new channels',()=>{
  const motion=readSourceMotion({animation:{'color:fill:hueDeg':keys(-10,400),'choice:textAlign':keys(.2,2.8),'color:shader:parameter:constructor:hueDeg':keys(0,1),'color:gradient:16:hueDeg':keys(0,1)},modulation:{'color:fill:alphaPercent':{...DEFAULT_MODULATION,source:'midi',control:5,range:{min:-5,max:120}}}})!;
