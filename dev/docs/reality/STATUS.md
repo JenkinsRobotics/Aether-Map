@@ -2,6 +2,12 @@
 
 ## Map release alpha-0.1.3 — 2026-10-25: Media pool and the suite's left aux bar
 
+Installed 2026-10-25 through Studio's per-app update (source `397ada9`, no restart;
+CAD alpha-0.1.15 and UI unchanged). Map now uses Aether-UI 0.2.0-alpha.208.
+A full e2e run (285 failed, 49 passed) matched a baseline build of alpha-0.1.2 on
+the sampled specs (`layer-controls`, `scenes`: 11/11 fail on both); those specs
+wait for UI the shared Studio interface removed and need rewriting.
+
 - **Media pool** (replaces the Media library side panel and the Layers sidebar's
   Media pool tab): everything already in the project — imported files, generated
   sources, compound clips — in bins (Master plus named bins, kept while empty), as
