@@ -7,7 +7,7 @@ import { installPointerEvents } from './test-pointer';
 // The footer widgets toggle from the aux toolbar, like the aux sidebar panels.
 // The Timeline toggle only exists outside the Mapping workspace.
 const openTimelineDock = () => {
-  const rail = document.querySelector(".aui-studio-aux-toolbar") as HTMLElement;
+  const rail = screen.getByRole("toolbar", { name: "View tools" });
   const timeline = within(rail).getByRole("button", { name: "Timeline" });
   if (timeline.getAttribute("aria-pressed") !== "true") fireEvent.click(timeline);
 };
@@ -34,7 +34,7 @@ test('Advanced motion rows edit keyframes with real App Undo and clip-safe Delet
  const opacity=()=>within(screen.getByRole('region',{name:'Opacity keyframes'}));
  field('Opacity keyframe time','0');field('Opacity keyframe value','20');fireEvent.click(opacity().getByRole('button',{name:'Add keyframe'}));
  fireEvent.click(opacity().getByRole('button',{name:'New keyframe'}));field('Opacity keyframe time','4');field('Opacity keyframe value','80');fireEvent.click(opacity().getByRole('button',{name:'Add keyframe'}));
- const timeline=within((openTimelineDock(), document.querySelector('.aui-studio-aux-toolbar') as HTMLElement)).getByRole('button',{name:'Timeline'});if(timeline.getAttribute('aria-pressed')!=='true')fireEvent.click(timeline);
+ const timeline=within((openTimelineDock(), screen.getByRole('toolbar',{name:'View tools'}))).getByRole('button',{name:'Timeline'});if(timeline.getAttribute('aria-pressed')!=='true')fireEvent.click(timeline);
  fireEvent.click(screen.getByRole('button',{name:'Automation tracks'}));
  const key=screen.getByRole('button',{name:/· Opacity key at 4s$/});fireEvent.keyDown(key,{key:'ArrowRight',shiftKey:true});expect(screen.getByRole('button',{name:/· Opacity key at 5s$/})).toBeTruthy();
  undo();expect(screen.getByRole('button',{name:/· Opacity key at 4s$/})).toBeTruthy();

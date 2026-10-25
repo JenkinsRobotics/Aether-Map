@@ -29,7 +29,7 @@ import { visualSource, addPoolAsset, addVisualTrack, placePoolAsset, removePoolA
 import { SurfaceAnimationProperties } from './panels/SurfaceAnimationProperties';
 import { ModulationContext } from "./features/ModulationContext";
 import { DEFAULT_LFOS } from "./features/types";
-import { ApplicationStatusBar, IconButton, SegmentedControl, TreePanelSplit, useScopedAetherTheme } from "@aether/ui";
+import { ApplicationStatusBar, IconButton, TreePanelSplit, useScopedAetherTheme } from "@aether/ui";
 import { useDocumentConnection } from "@aether/session/useDocumentConnection";
 import "./CanvasLayout.css";
 import "./panels/MapInspector.css";
@@ -39,7 +39,6 @@ import { mappingSvg, exportName } from "./projection-export/geometry";
 import { downloadProjection } from "./projection-export/archive";
 import { RegionControls } from "./mask/RegionControls";
 import { CreateMaskDialog } from './mask/CreateMaskDialog';
-import { placeContent, type ContentTarget, type ContentPlacement } from './content-placement';
 import { visualSurface, newVisual, duplicateVisual } from './visual-document';
 import { createVisualCommands } from './visual-commands';
 import { VisualAssetsPanel } from './panels/VisualAssetsPanel';
@@ -65,6 +64,7 @@ import {
   StudioWorkspace as WorkspaceShell,
   type WorkspaceShellHandle,
   standardWorkspacePanels,
+  type WorkspacePanel,
   type LayoutPreset,
 } from "@aether/ui";
 import { duplicateSurface as copySurface } from "./surface-interaction";
@@ -76,7 +76,6 @@ import { useMappingPreferences } from "./mapping-preferences";
 import type { ActiveHandle } from "./useSurfaceInteraction";
 import { useOutputSession, type OutputDisplay } from "./output-session";
 import { naturalSize } from "./media-import";
-import { removeUnusedMedia } from "./media-usage";
 import { SetupBackgroundPanel } from "./panels/SetupBackgroundPanel";
 import { backdropSurface, backgroundLayer, backgroundLayerID } from "./background-layer";
 import { LayersPanel } from "./panels/LayersPanel";
@@ -89,7 +88,7 @@ import { PropertiesPanel } from "./panels/PropertiesPanel";
 import { ProgramPanel } from "./panels/ProgramPanel";
 import { SceneProperties } from "./panels/SceneProperties";
 import { DeviceManager } from "./panels/DeviceManager";
-import { MediaPanel } from "./panels/MediaPanel";
+import { ProjectMediaPool } from "./panels/ProjectMediaPool";
 import { OutputDialog } from "./panels/OutputDialog";
 import {
   ExportWorkspace,
@@ -151,10 +150,9 @@ import { useCameraCleanup } from "./live/output-live";
 import { MapRibbon, type SceneToolKind } from "./panels/MapRibbon";
 import { ShowFileTabs, type DocumentEntry } from "./panels/ShowFileTabs";
 import { MapDocumentHeader, MapWorkspaceControls } from "./panels/MapDocumentHeader";
-import { assignClip, createClip, dropOnSurfaceTrack, duplicateClip, ensureSurfaceTracks, isClip, projectClips, setClipOnSurfaces } from "./compound-clips";
+import { assignClip, createClip, dropOnSurfaceTrack, ensureSurfaceTracks, isClip, projectClips, setClipOnSurfaces } from "./compound-clips";
 import { SurfacePlayback } from "./panels/SurfacePlayback";
 import { ClipBoard } from "./panels/ClipBoard";
-import { ClipPoolTree } from "./panels/ClipPoolTree";
 import type { Visual } from "./visual-model";
 import { ClipProperties } from "./panels/ClipProperties";
 import { MapCameraControls, MapViewTools } from "./panels/MapViewTools";
@@ -356,26 +354,16 @@ export default function App() {
   const dockWidget = bottomWidget === "timeline" && (mode === "mapping" || simple) ? "files" : bottomWidget;
   const [fileMenuTarget, setFileMenuTarget] = useState<HTMLSpanElement | null>(null);
   const [xray, setXray] = useState(false);
-  // Visualization's left panel: standard tabs, Surfaces tree | Visual layers.
-  // Content and Scene: Media pool (the project's clips) | Visuals (what the clip holds).
-  const [poolTab, setPoolTab] = useState<Record<"content" | "visualization", "pool" | "visuals">>(() => {
-    const read = (key: string, fallback: "pool" | "visuals") => { try { const v = localStorage.getItem(key); return v === 'pool' || v === 'visuals' ? v : fallback; } catch { return fallback; } };
-    return { content: read('aether-map.content-tab', 'pool'), visualization: read('aether-map.scene-tab', 'visuals') };
-  });
   // The Visuals tab's view, Cards or List, chosen from its right-click menu.
   const [visualsView, setVisualsView] = useState<'cards' | 'tree'>(() => { try { return localStorage.getItem('aether-map.visuals-view') === 'tree' ? 'tree' : 'cards'; } catch { return 'cards'; } });
   const pickVisualsView = (view: 'cards' | 'tree') => { setVisualsView(view); try { localStorage.setItem('aether-map.visuals-view', view); } catch { /* Storage is optional. */ } };
   // Scene: the pool clip picked to assign (the surface row then places it).
   const [scenePickID, setScenePickID] = useState<string | null>(null);
-  const pickPoolTab = (room: "content" | "visualization", tab: "pool" | "visuals") => {
-    setPoolTab(current => ({ ...current, [room]: tab }));
-    try { localStorage.setItem(room === 'content' ? 'aether-map.content-tab' : 'aether-map.scene-tab', tab); } catch { /* Optional preference. */ }
-  };
   // "+" opens the Visual gallery in both editors.
   // The one visual gallery, both editors: 'add', or the visual being replaced.
   const [gallery, setGallery] = useState<'add' | string | null>(null);
   const addVisual = () => setGallery('add');
-  const newClip = () => { const next = createClip(stored, `Clip ${projectClips(stored).length + 1}`); edit(() => ({ ...next, activeTimelineID: stored.activeTimelineID })); setOpenClipID(next.activeClipID!); };
+  const newClip = (bin?: string) => { const next = createClip(stored, `Clip ${projectClips(stored).length + 1}`); edit(() => ({ ...next, activeTimelineID: stored.activeTimelineID, timelines: bin ? next.timelines?.map(t => t.id === next.activeClipID ? { ...t, folder: bin } : t) : next.timelines })); setOpenClipID(next.activeClipID!); };
   /** Adds a scene visual exactly as the simple editor does. */
   const addSceneVisual = (source: Surface["source"], name: string, poolID?: string) => {
     const next = addSimpleVisual(show, source, name, poolID);
@@ -446,7 +434,7 @@ export default function App() {
     }
   }, [timelineHeight, workspace]);
   const fileRef = useRef<HTMLInputElement>(null);
-  const mediaIntent = useRef<{ kind: "layer" | "new-layer" | "library" | "pool" | "assign" | "scene" | "simple" | "replace-visual"; targetID?: string; clipID?: string; pngOnly?: boolean }>({ kind: "layer" });
+  const mediaIntent = useRef<{ kind: "layer" | "new-layer" | "library" | "pool" | "assign" | "scene" | "simple" | "replace-visual"; targetID?: string; clipID?: string; pngOnly?: boolean; bin?: string }>({ kind: "layer" });
   const pickMedia = (kind: "layer" | "new-layer" | "library" | "assign", targetID?: string, pngOnly = false) => {
     mediaIntent.current = { kind: kind === "layer" && mode === "visualization" && focus === "scene" ? "scene" : kind, targetID, clipID: selectedClipID ?? undefined, pngOnly };
     if (fileRef.current) {
@@ -954,16 +942,6 @@ export default function App() {
     [edit, timeS],
   );
 
-  const placeOnLayer = (mediaID: string, target: ContentTarget, placement: ContentPlacement) => {
-    const asset = show.media.find(m => m.id === mediaID);
-    if (!asset) return;
-    const next = placeContent(show, { mediaId: asset.id, rect: [0, 0, asset.width, asset.height] }, { sceneID: scene.id, target, surfaceID: selectedID, clipID: selectedClipID, placement, timeS });
-    edit(next);
-    const added = next.visuals?.find(v => !show.visuals?.some(old => old.id === v.id));
-    if (added) { selectAsset(added.id, added.id); seek(added.startS); }
-    setStatus(`${placement === 'append' ? 'Appended' : 'Applied'} ${asset.name} to ${target === 'surface' ? selected?.name ?? 'surface' : target === 'scene' ? scene.name + ' (entire scene)' : 'mapped surfaces in ' + scene.name}.`);
-  };
-
   const removeClip = assets.remove;
 
   const removeCue = useCallback(
@@ -1039,9 +1017,9 @@ export default function App() {
         };
         if (intent.kind === 'simple') return addSimpleVisual({ ...next, activeSceneId: sceneID }, { mediaId: media.id, rect: [0, 0, size.width, size.height]}, media.name, undefined, clipID);
         if (intent.kind === 'replace-visual') return replaceSimpleVisual(next, intent.targetID!, { mediaId: media.id, rect: [0, 0, size.width, size.height] }, media.name);
-        if (intent.kind === "library" || kind === "audio") return next;
-        // Added to the project only: it waits in the pool until someone applies it.
-        if (intent.kind === "pool") return addPoolAsset(next, { mediaId: media.id, rect: [0, 0, size.width, size.height]}, media.name);
+        // Added to the project only: it waits in the pool (its bin) until someone applies it.
+        if (intent.kind === "library" || intent.kind === "pool") { const added = addPoolAsset(next, { mediaId: media.id, rect: [0, 0, size.width, size.height]}, media.name); return intent.bin ? { ...added, pool: added.pool?.map((a, i, all) => i === all.length - 1 ? { ...a, folder: intent.bin } : a) } : added; }
+        if (kind === "audio") return next;
         if (intent.kind === "scene") return { ...next, visuals: [...(next.visuals ?? []), { ...newVisual(next, { mediaId: media.id, rect: [0, 0, size.width, size.height]}, [{ sceneID }], timeS), id: clipID }] };
         if (created) return { ...next, scenes: next.scenes.map(item => {
           if (item.id !== sceneID) return item;
@@ -1072,11 +1050,6 @@ export default function App() {
       return media.id;
     },
     [edit, scene.id, show, selected, timeS, selectAsset, playFrom],
-  );
-
-  const removeMedia = useCallback(
-    (mediaID: string) => edit((current) => removeUnusedMedia(current, mediaID)),
-    [edit],
   );
 
   /**
@@ -1163,18 +1136,45 @@ export default function App() {
     if (!id) throw new Error("The file could not be imported. Check the file format and your project connection, then try again.");
   }, [addMedia]);
 
+  // The footer dock's widgets toggle from the right-hand view tools, where CAD
+  // keeps its tray toggle (Jonathan, 2026-10-25).
+  const dockToggles = [
+    {id:"dock-files",label:"Open files",icon:<AetherIcon name="folder"/>,pressed:dockWidget==="files",onToggle:()=>pickBottomWidget("files")},
+    {id:"dock-surfaces",label:"Mapped surfaces",icon:<AetherIcon name="surface-map"/>,pressed:dockWidget==="surfaces",onToggle:()=>pickBottomWidget("surfaces")},
+    ...(mode==="mapping"||simple?[]:[{id:"dock-timeline",label:"Timeline",icon:<AetherIcon name="timeline"/>,pressed:dockWidget==="timeline",onToggle:()=>pickBottomWidget("timeline")}]),
+  ];
+  // The left aux toolbar is the suite's (CAD): Comments, AI, Versions, Files,
+  // plus the Media pool. Map's other aux items sit on the right for now
+  // (Jonathan, 2026-10-25). Command-only panels stay where their commands open them.
+  const railPanels = (left: WorkspacePanel[], right: WorkspacePanel[]) => {
+    const order = ['comments', 'agent', 'versions', 'files', 'assets'], pinned = mode === 'show' ? 'show-outputs' : 'layers';
+    const stays = (panel: WorkspacePanel) => panel.id === pinned || order.includes(panel.id) || panel.inToolbar === false;
+    return { leftPanels: left.filter(stays).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)), rightPanels: [...right, ...left.filter(panel => !stays(panel)).map(panel => ({ ...panel, separatorBefore: false }))] };
+  };
+  // The file row (bottom dock) and CAD's left Files browser: the same tabs.
+  const fileTabs = (variant: 'bar' | 'browser') => <ShowFileTabs variant={variant} file={file} saveState={saveState} connection={documentConnection} onSaveCopy={()=>rename(true)} status={error||status} fileActions={variant === 'bar' ? <span ref={setFileMenuTarget}/> : undefined}
+        entries={documentEntries} activeEntry={mode==='show'?`show:${activeShow(show)?.id}`:mode==='mapping'?undefined:mode==='content'?`clip:${openClip?.id}`:`scene:${currentTimelineID(show)}`}
+        onEntry={entry=>{const [kind,id]=[entry.kind,entry.id.slice(entry.id.indexOf(':')+1)];
+          if(entry.id.startsWith('clip:')){setOpenClipID(id);enterMode('content');return;}
+          if(kind==='show'){if(id!==activeShow(show)?.id)edit(s=>({...s,activeShowID:id}));enterMode('show');}
+          else{enterMode('visualization');if(id!==currentTimelineID(show))openTimeline(id);}}}
+        onCreate={kind=>{if(kind==='show'){edit(s=>{const n=normalizeShowTimeline(s),p=newShowProgram(n,`Show ${(n.shows?.length??0)+1}`);return {...n,shows:[...(n.shows??[]),p],activeShowID:p.id};});enterMode('show');return;}
+          {edit(s=>createTimeline(s,`Scene ${(show.timelines?.length??0)+2}`));enterMode('visualization');}}} contents={{activeID:show.activeSceneId, documentGroups:[{id:"scenes",label:"Scenes",items:show.scenes.map(scene=>({id:scene.id,name:scene.name,kind:"scene",detail:"Scene",icon:<AetherIcon name="scene"/>}))}], onOpenItem:item=>selectScene(item.id)}}/>;
+  // The project's Media pool: imported media, sources and clips, in bins.
   const assetsPanel = (
-    <MediaPanel
-      show={show}
-      settled={Boolean(file) && !dirty}
-      onAdd={() => pickMedia("library")}
-      onRemove={removeMedia}
-      onCleanup={cleanupMedia}
-      targetLayer={selectedVisual ? selectedVisual.name : selected && !selected.locked ? selected.name : null}
-      selectedID={selectedID}
-      onPlace={placeOnLayer}
-      onImportAsset={importAsset}
-    />
+    <ProjectMediaPool show={show} urls={urls} edit={change => edit(change)}
+      onPick={ref => {
+        if (ref.kind === 'asset') { setSelectedPoolID(ref.id); setSelectedClipID(null); setSelectedID(null); workspaceShell.current?.showPanel('properties'); }
+        else if (mode === 'content') { setOpenClipID(ref.id); setSelectedPoolID(null); setSelectedClipID(null); setSelectedID(null); }
+        else if (mode === 'visualization') { setScenePickID(ref.id); setSelectedPoolID(null); setSelectedClipID(null); setSelectedID(null); }
+      }}
+      onOpenClip={id => { setOpenClipID(id); enterMode('content'); }}
+      onNewClip={bin => { newClip(bin); enterMode('content'); }}
+      onImport={bin => openMediaPicker({ kind: 'pool', bin }, 'image/*,video/*,audio/*')}
+      onGallery={addVisual}
+      onRemoveClip={id => { edit(s => removeTimeline(s, id)); if (id === openClip?.id) setOpenClipID(null); if (id === scenePickID) setScenePickID(null); }}
+      add={mode === 'content' || mode === 'visualization' ? { label: mode === 'content' ? 'Add to clip' : 'Add to scene', run: id => { const asset = show.pool?.find(a => a.id === id); if (asset) addSceneVisual(asset.source, asset.name, asset.id); } } : undefined}
+      cleanup={hosted ? { ready: Boolean(file) && !dirty, run: () => { void cleanupMedia().then(n => setStatus(n ? `Deleted ${n} unused file${n === 1 ? '' : 's'}.` : 'Nothing to clean up.'), problem => setError((problem as Error).message)); } } : undefined} />
   );
 
   // Advanced keeps multi-timeline work in its own sidebar tab.
@@ -1393,7 +1393,7 @@ export default function App() {
           options: [{ value: "", label: "Whole scene" }, ...viewableSurfaces.map(s => ({ value: s.id, label: `Surface · ${s.name}` }))] }}/>}
       controllerRef={workspaceShell} toolbarSpan="center" frameToolbar={false} centerBottom={undefined}
       contentPresentation="framed"
-      sideBottom={{ right: <MapViewTools workspace={mode} onPerformance={() => setPerformanceOpen(true)} showInput={showInput} onInput={toggleInput} surfaceRow={showSurfaceRow} onSurfaceRow={toggleSurfaceRow}
+      sideBottom={{ right: <MapViewTools workspace={mode} dock={dockToggles} onPerformance={() => setPerformanceOpen(true)} showInput={showInput} onInput={toggleInput} surfaceRow={showSurfaceRow} onSurfaceRow={toggleSurfaceRow}
         grid={mappingPreferences.grid} onGrid={()=>setMappingPreferences({grid:!mappingPreferences.grid})}
         xray={xray} onXray={()=>setXray(v=>!v)}
         snap={mappingPreferences.snapping} onSnap={()=>setMappingPreferences({snapping:!mappingPreferences.snapping})}
@@ -1411,14 +1411,7 @@ export default function App() {
       panelsOnOuterEdge={panelsOnOuterEdge}
       sidebarVariant={sidebarVariant}
       preservePanelContent
-      bottom={dockWidget === "files" ? <ShowFileTabs file={file} saveState={saveState} connection={documentConnection} onSaveCopy={()=>rename(true)} status={error||status} fileActions={<span ref={setFileMenuTarget}/>}
-        entries={documentEntries} activeEntry={mode==='show'?`show:${activeShow(show)?.id}`:mode==='mapping'?undefined:mode==='content'?`clip:${openClip?.id}`:`scene:${currentTimelineID(show)}`}
-        onEntry={entry=>{const [kind,id]=[entry.kind,entry.id.slice(entry.id.indexOf(':')+1)];
-          if(entry.id.startsWith('clip:')){setOpenClipID(id);enterMode('content');return;}
-          if(kind==='show'){if(id!==activeShow(show)?.id)edit(s=>({...s,activeShowID:id}));enterMode('show');}
-          else{enterMode('visualization');if(id!==currentTimelineID(show))openTimeline(id);}}}
-        onCreate={kind=>{if(kind==='show'){edit(s=>{const n=normalizeShowTimeline(s),p=newShowProgram(n,`Show ${(n.shows?.length??0)+1}`);return {...n,shows:[...(n.shows??[]),p],activeShowID:p.id};});enterMode('show');return;}
-          {edit(s=>createTimeline(s,`Scene ${(show.timelines?.length??0)+2}`));enterMode('visualization');}}} contents={{activeID:show.activeSceneId, documentGroups:[{id:"scenes",label:"Scenes",items:show.scenes.map(scene=>({id:scene.id,name:scene.name,kind:"scene",detail:"Scene",icon:<AetherIcon name="scene"/>}))}], onOpenItem:item=>selectScene(item.id)}}/>
+      bottom={dockWidget === "files" ? fileTabs('bar')
         // The surfaces widget keeps Map's own rendered strip (selected surface
         // highlighted), not the generic parts footer.
         : dockWidget === "surfaces" ? surfaceStrip
@@ -1427,35 +1420,24 @@ export default function App() {
       // The simple editor keeps the standard left sidebar too (Jonathan).
       defaultOpenLeft={[mode === 'show' ? 'show-outputs' : 'layers']}
       defaultOpenRight={["properties"]}
-      leftPanels={standardWorkspacePanels([...(mode === 'show' ? [{id:'show-outputs',title:'Show',icon:<AetherIcon name="play"/>,collection:true,content:
+      {...railPanels(standardWorkspacePanels([...(mode === 'show' ? [{id:'show-outputs',title:'Show',icon:<AetherIcon name="play"/>,collection:true,content:
         // The show's lists: Cues, then Players, then Canvases (collapsed). Clips
         // live on the show timeline; outputs and routing are Mapping's.
         <TreePanelSplit primaryLabel="Cues" secondaryLabel="Players and canvases" storageKey="aether-map.show-cues-split" primary={<CueList show={show} selectedID={selectedCueID} onSelect={id=>{setSelectedCueID(id);if(id)setSelectedShowClipID(null);workspaceShell.current?.showPanel('properties');}} onEdit={editShowTimeline}/>} secondary={
           <TreePanelSplit primaryLabel="Players" secondaryLabel="Canvases" storageKey="aether-map.show-players-split" collapsible={["primary", "secondary"]} defaultCollapsed={["secondary"]}
             primary={<PlayersTree show={show} onManage={()=>setManagingDevices(true)}/>} secondary={showScenes}/>}/>}] : []),
-        { id: "assets", title: "Media library", icon: <AetherIcon name="import" />, content: assetsPanel },
+        { id: "assets", title: "Media pool", icon: <AetherIcon name="collection-folder" />, chromeless: true, content: assetsPanel },
         {
           id: "layers", collection: true,
           title: "Layers",
           icon: <AetherIcon name="layers" />,
           content: (<>
-            {/* Visualization: standard tabs Surfaces | Visual layers (the
-                concept); other rooms keep the List/Cards view switch. */}
-            {mode === "content"
-              ? <div className="map-visual-panel-head">
-                  <div className="map-visual-panel-title"><strong>Layers</strong>
-                    <IconButton label={poolTab.content === 'pool' ? 'New clip' : 'Add layer'} onClick={poolTab.content === 'pool' ? newClip : addVisual}><AetherIcon name="plus"/></IconButton></div>
-                  <SegmentedControl className="ps-review-conversation-tabs" ariaLabel="Content panel view" value={poolTab.content} onChange={value=>pickPoolTab('content', value as "pool" | "visuals")}
-                    options={[{id:"pool",label:"Media pool",icon:<AetherIcon name="timeline-tracks"/>},{id:"visuals",label:"Visuals",icon:<AetherIcon name="palette"/>}]}/>
-                </div>
-              : mode === "visualization"
-              // The reference head: title + add, then the standard full-width
-              // tabs (the Comments | Tasks widget's control).
+            {/* Content and Scene: title + add. The project's clips and media
+                are the Media pool's (the aux sidebar), not a tab here. */}
+            {mode === "content" || mode === "visualization"
               ? <div className="map-visual-panel-head">
                   <div className="map-visual-panel-title"><strong>Layers</strong>
                     <IconButton label="Add layer" onClick={addVisual}><AetherIcon name="plus"/></IconButton></div>
-                  <SegmentedControl className="ps-review-conversation-tabs" ariaLabel="Scene panel view" value={poolTab.visualization} onChange={value=>pickPoolTab('visualization', value as "pool" | "visuals")}
-                    options={[{id:"pool",label:"Media pool",icon:<AetherIcon name="timeline-tracks"/>},{id:"visuals",label:"Visuals",icon:<AetherIcon name="palette"/>}]}/>
                 </div>
               : null}
             {/* Visual layers: the visual list tree, identical in simple and
@@ -1464,12 +1446,7 @@ export default function App() {
                 Visuals cards — filtered to a working surface. No layers or
                 outputs tree here; that is Mapping's general list tree. */}
             {((panel: (view: "tree" | "layers" | "scenes" | "scene-picker") => React.ReactNode) => mode === "content"
-            ? (poolTab.content === 'pool'
-              ? <ClipPoolTree show={show} selectedID={openClip?.id ?? null} onSelect={id => { setOpenClipID(id); setSelectedClipID(null); setSelectedID(null); }}
-                  onCreate={newClip} onRename={(id, name) => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, name } : t) }))}
-                  onDuplicate={id => edit(s => duplicateClip(s, id))} onRemove={id => { edit(s => removeTimeline(s, id)); if (id === openClip?.id) setOpenClipID(null); }}
-                  onFolder={(id, folder) => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, folder } : t) }))} />
-              : <div className="map-visual-layers">
+            ? (<div className="map-visual-layers">
                   <VisualAssetsPanel ariaLabel="Clip visuals" view={visualsView} onView={pickVisualsView} addLabel="Add layer" urls={urls} show={show} selectedID={selectedClipID} onSelect={selectAsset}
                     onChange={assets.change} onRemove={assets.remove} onRemoveMany={assets.removeMany} onDuplicate={assets.duplicate} onMove={assets.move} onDrop={assets.drop} onAdd={addVisual} />
                 </div>)
@@ -1477,17 +1454,10 @@ export default function App() {
             // Visualization mirrors Mapping's three sections: Media (visuals
             // only — never a timeline container), Scenes, then Timelines.
             // Selecting a scene or a timeline switches the media list.
-            ? (poolTab.visualization === 'pool'
-              ? <TreePanelSplit primaryLabel="Media pool" secondaryLabel="Canvases and scenes" storageKey="aether-map.scene-pool-split" primary={
-                  <ClipPoolTree show={show} selectedID={scenePickID} onSelect={id => { setScenePickID(id); setSelectedClipID(null); setSelectedID(null); }}
-                    onCreate={() => { enterMode('content'); newClip(); }} onRename={(id, name) => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, name } : t) }))}
-                    onDuplicate={id => edit(s => duplicateClip(s, id))} onRemove={id => { edit(s => removeTimeline(s, id)); if (id === scenePickID) setScenePickID(null); }}
-                    onFolder={(id, folder) => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, folder } : t) }))} />} secondary={
-                  <TreePanelSplit primaryLabel="Canvases" secondaryLabel="Scenes" storageKey="aether-map.scenes-timelines-split" collapsible={["primary", "secondary"]} defaultCollapsed={["primary", "secondary"]} primary={panel("scene-picker")}
-                    secondary={<TimelineTree show={show} actions={timelineActions}/>}/>}/>
+            ? (
               // A picked clip's layers, editable here as in Content (duplicate,
               // reorder, hide...); adding a layer and the board open in Content.
-              : scenePick ? <div className="map-visual-layers">
+              scenePick ? <div className="map-visual-layers">
                   <VisualAssetsPanel ariaLabel="Clip visuals" view={visualsView} onView={pickVisualsView} addLabel="Add layer in Content" urls={urls} show={{ ...show, activeTimelineID: scenePick.id }} selectedID={null}
                     onSelect={() => {}} onChange={assets.change} onRemove={assets.remove} onRemoveMany={assets.removeMany} onDuplicate={(_, clip) => edit(s => duplicateVisual(s, clip.id))} onMove={assets.move} onDrop={assets.drop}
                     onAdd={() => { setOpenClipID(scenePick.id); enterMode('content'); }} />
@@ -1535,13 +1505,9 @@ export default function App() {
       // advanced visualization and show rooms.
       ], { features: "layers", advisor: "agent",  }, documentConnection).filter(panel=>panel.id!=="part-manager" && panel.id!=="tasks")
         .map(panel=>["create-version","notes","reminders"].includes(panel.id)?{...panel,inToolbar:false}:panel)
-        // The footer widgets toggle from the aux toolbar like CAD's part list.
         .concat([
-          {id:"dock-files",title:"Open files",icon:<AetherIcon name="folder"/>,content:null,toggle:{pressed:dockWidget==="files",onToggle:()=>pickBottomWidget("files")}},
-          {id:"dock-surfaces",title:"Mapped surfaces",icon:<AetherIcon name="surface-map"/>,content:null,toggle:{pressed:dockWidget==="surfaces",onToggle:()=>pickBottomWidget("surfaces")}},
-          ...(mode==="mapping"||simple?[]:[{id:"dock-timeline",title:"Timeline",icon:<AetherIcon name="timeline"/>,content:null,toggle:{pressed:dockWidget==="timeline",onToggle:()=>pickBottomWidget("timeline")}}]),
-        ])}
-      rightPanels={[
+          {id:"files",title:"Files",icon:<AetherIcon name="folder"/>,content:fileTabs('browser')},
+        ]), [
         {
           id: "properties",
           title: "Properties",
@@ -1558,7 +1524,7 @@ export default function App() {
             : backgroundSelected ? <section aria-label="Backdrop layer properties">
                 <SetupBackgroundPanel show={show} onChange={changeBackground} />
               </section>
-            : mode === 'content' && openClip && !selectedVisual ? <ClipProperties key={`${openClip.id}:${openClip.board.widthPx}x${openClip.board.heightPx}`} show={show} clip={openClip}
+            : mode === 'content' && openClip && !selectedVisual && !selectedPool ? <ClipProperties key={`${openClip.id}:${openClip.board.widthPx}x${openClip.board.heightPx}`} show={show} clip={openClip}
                 onChange={patch => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === openClip.id ? { ...t, ...patch } : t) }), `clip:${openClip.id}`)} />
             : selectedPool ? <PoolProperties asset={selectedPool} show={show} onChange={changePool} onPaint={() => { setTool('paint'); setShowInput(true); }} />
             // One Properties for both editors; only timeline timing differs.
@@ -1651,7 +1617,7 @@ export default function App() {
         { id: "setup", title: "Scene setup", icon: <AetherIcon name="file-show" />,
           content: <SetupBackgroundPanel show={show} onChange={changeBackground} /> },
 
-      ].filter(panel=>(mode !== 'show' || ['properties','program','export'].includes(panel.id))).map(panel => ({ ...panel, content: <Inspector className="map-inspector">{panel.content}</Inspector> }))}
+      ].filter(panel=>(mode !== 'show' || ['properties','program','export'].includes(panel.id))).map(panel => ({ ...panel, content: <Inspector className="map-inspector">{panel.content}</Inspector> })))}
       // Visualization's toolbar is the surface bar: pick a visual, then click
       // surfaces to turn it on or off (the mockup's "Apply to surfaces").
       // The simple editor keeps the standard toolbar and surface tray too.

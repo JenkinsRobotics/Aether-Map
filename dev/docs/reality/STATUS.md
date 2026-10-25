@@ -1,5 +1,29 @@
 # Aether Map status
 
+## Map release alpha-0.1.3 — 2026-10-25: Media pool and the suite's left aux bar
+
+- **Media pool** (replaces the Media library side panel and the Layers sidebar's
+  Media pool tab): everything already in the project — imported files, generated
+  sources, compound clips — in bins (Master plus named bins, kept while empty), as
+  a list or thumbnails, with search and sort. Right-click: New clip, New bin,
+  Import media… (into the open bin), Open gallery…, View, Sort; on an item Open in
+  Content, Add to clip / Add to scene, Rename, Duplicate, Move to bin, Delete (only
+  when unused). Ctrl/Cmd- and Shift-click pick several; rows drag onto timeline
+  tracks and onto bins. The gallery (Pixabay, visual gallery) stays the import source.
+- **Left aux toolbar follows CAD:** Comments, AI, Version control, Files (CAD's left
+  Files browser, Aether-UI 0.2.0-alpha.208 `DocumentTabBrowser`), then the Media
+  pool. The dock toggles (Open files, Mapped surfaces, Timeline) moved to the
+  right-hand view tools, where CAD keeps its tray toggle; in Show, Layers moved to
+  the right sidebar tabs.
+- Aether-UI 0.2.0-alpha.208 now stops the aux panel level with the dock, so Map's
+  workaround for that is gone; Map still clears the extension after the dock closes.
+- Dropped with the old panel: MediaPanel's "Apply to / Action" placement row (drag
+  a pool row, or Add to clip/scene instead) and the unused old `MediaPool` component.
+- Limits: bins are one level deep; no smart bins, proxy media or relinking. The
+  right sidebar tab row already overflowed in Scene (Output, Scene setup) before
+  this release. e2e `online-assets.spec.ts` drove the old, never-mounted Media Pool
+  component and needs rewriting for the gallery.
+
 ## Map release alpha-0.1.2 — 2026-10-25: clip editing fixes
 
 Installed 2026-10-25 through Studio's per-app update (source `5e6c44d`, no restart).

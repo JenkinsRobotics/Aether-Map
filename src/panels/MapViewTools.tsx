@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { AetherIcon, FloatingToolbar, IconButton, StudioCameraControl } from "@aether/ui";
 import { contextCommandsFor, runContextCommand } from "@aether/ui/context-commands";
 import "./MapViewTools.css";
@@ -13,7 +14,9 @@ const canvasCommand = (id: string) => {
 /** Workspace view toggles under the right sidebar — CAD's standard placement.
  * Mapping gets the canvas-editing set (grid, snap, backdrop); visualization
  * and show get their own output toggles (input media preview, blackout). */
-export function MapViewTools({ workspace, onPerformance, grid, onGrid, xray, onXray, snap, onSnap, backdrop, onBackdrop, showInput, onInput, blackout, onBlackout, surfaceRow = false, onSurfaceRow }: {
+export function MapViewTools({ workspace, onPerformance, grid, onGrid, xray, onXray, snap, onSnap, backdrop, onBackdrop, showInput, onInput, blackout, onBlackout, surfaceRow = false, onSurfaceRow, dock = [] }: {
+  /** The footer dock's widget toggles (CAD keeps its tray toggle here too). */
+  dock?: readonly { id: string; label: string; icon: ReactNode; pressed: boolean; onToggle: () => void }[];
   /** Scene: the Apply-to-surfaces row. */
   surfaceRow?: boolean; onSurfaceRow?: () => void;
   workspace: "mapping" | "content" | "visualization" | "show";
@@ -42,8 +45,11 @@ export function MapViewTools({ workspace, onPerformance, grid, onGrid, xray, onX
   ];
   return <div className="map-studio-view-tools">
     <FloatingToolbar variant="document" ariaLabel="View tools" groups={[{ id: "view", label: "View",
-      actions: workspace === "mapping" ? mappingTools : outputTools }]} onAction={id => {
-      if (id === "grid") onGrid();
+      actions: workspace === "mapping" ? mappingTools : outputTools },
+      ...(dock.length ? [{ id: "dock", label: "Dock", actions: dock.map(({ onToggle: _onToggle, ...action }) => action) }] : [])]} onAction={id => {
+      const toggle = dock.find(item => item.id === id);
+      if (toggle) toggle.onToggle();
+      else if (id === "grid") onGrid();
       else if (id === "xray") onXray();
       else if (id === "snap") onSnap();
       else if (id === "backdrop") onBackdrop();

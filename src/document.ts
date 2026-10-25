@@ -360,6 +360,8 @@ export interface MapShow {
   /** Four shared oscillators; omitted in older shows. */
   lfos?: Lfo[];
   pool?: import('./media-pool').PoolAsset[];
+  /** Media pool bins kept while empty; filled bins come from entries' folders. */
+  poolBins?: string[];
   tracks?: import('./media-pool').VisualTrack[];
   version: 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
   timelines?: import('./timelines').MapTimeline[];

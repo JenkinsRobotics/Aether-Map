@@ -37,7 +37,7 @@ test('Mapping, Scene and Show each own their job and share one file row',async({
   await page.screenshot({path:info.outputPath('show.png')});
   // The one file row: the document, then its Show and Scene entries. Canvases
   // are not files; they live in Mapping's layer tree.
-  const files=page.locator('.aui-studio-aux-toolbar').getByRole('button',{name:'Open files'});
+  const files=page.getByRole('toolbar',{name:'View tools'}).getByRole('button',{name:'Open files'});
   if(await files.getAttribute('aria-pressed')!=='true')await files.click();
   const row=page.getByRole('tablist',{name:'Open shows'});
   for(const kind of ['Show','Scene']) await expect(row.getByRole('tab').filter({hasText:kind}).first()).toBeVisible();

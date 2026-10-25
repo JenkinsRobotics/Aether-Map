@@ -4,10 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { installPointerEvents } from "./test-pointer";
 
-// The footer widgets toggle from the aux toolbar, like the aux sidebar panels.
+// The footer widgets toggle from the right-hand view tools, as in CAD.
 // The Timeline toggle only exists outside the Mapping workspace.
 const openTimelineDock = () => {
-  const rail = document.querySelector(".aui-studio-aux-toolbar") as HTMLElement;
+  const rail = screen.getByRole("toolbar", { name: "View tools" });
   const timeline = within(rail).getByRole("button", { name: "Timeline" });
   if (timeline.getAttribute("aria-pressed") !== "true") fireEvent.click(timeline);
 };
@@ -87,11 +87,17 @@ const present = (text: string | RegExp) => screen.getAllByText(text).length > 0;
 // The Document controls hamburger lives in the file footer's actions cluster
 // (the standard slot), so the files widget must be open to reach it.
 const openDocumentControls = () => {
-  // Simple visuals has no aux rail; its footer already shows the file row.
-  const rail = document.querySelector(".aui-studio-aux-toolbar");
+  // The dock toggles sit in the right-hand view tools, as in CAD.
+  const rail = screen.queryByRole("toolbar", { name: "View tools" });
   const files = rail && within(rail as HTMLElement).getByRole("button", { name: "Open files" });
   if (files && files.getAttribute("aria-pressed") !== "true") fireEvent.click(files);
   fireEvent.click(screen.getAllByRole("button", { name: "Document controls" })[0]);
+};
+/** Opens the Media pool from the left aux toolbar and returns its items. */
+const openPool = () => {
+  const button = within(document.querySelector(".aui-studio-aux-toolbar") as HTMLElement).getByRole("button", { name: "Media pool" });
+  if (button.getAttribute("aria-pressed") !== "true") fireEvent.click(button);
+  return within(screen.getByRole("list", { name: "Media pool items" }));
 };
 const documentCommand = (name: string) => {
   openDocumentControls();
@@ -334,15 +340,15 @@ describe("Aether Map", () => {
 
   it("opens independent bottom panels and keeps export in the document menu", () => {
     render(<App />);
-    // Mapping has no timeline: its aux toolbar toggles only files and surfaces.
-    const mappingRail = document.querySelector(".aui-studio-aux-toolbar") as HTMLElement;
+    // Mapping has no timeline: its view tools toggle only files and surfaces.
+    const mappingRail = screen.getByRole("toolbar", { name: "View tools" });
     expect(within(mappingRail).queryByRole("button", { name: "Timeline" })).toBeNull();
     expect(within(mappingRail).getByRole("button", { name: "Open files" })).toBeTruthy();
     expect(within(mappingRail).getByRole("button", { name: "Mapped surfaces" })).toBeTruthy();
     changeWorkspace("Scene");
     fireEvent.click(screen.getByRole("button", { name: "Advanced editor" }));
-    // The aux toolbar's Timeline toggle docks the timeline in the footer.
-    const tray = (openTimelineDock(), document.querySelector(".aui-studio-aux-toolbar") as HTMLElement);
+    // The view tools' Timeline toggle docks the timeline in the footer.
+    const tray = (openTimelineDock(), screen.getByRole("toolbar", { name: "View tools" }));
     const timeline = within(tray).getByRole("button", { name: "Timeline" });
     const audio = within(screen.getByRole("toolbar", { name:"Timeline tools" })).getByRole("button", { name: "Audio mixer" });
     expect(audio.getAttribute('aria-pressed')).toBe('true');
@@ -451,7 +457,8 @@ describe("Aether Map", () => {
     expect(screen.getByRole('region', { name: 'Simple visualization workspace' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Advanced editor' }));
     expect(present('Surface 1')).toBe(true);
-    expect(screen.getAllByLabelText('Search Pixabay or paste a link').length).toBeGreaterThan(0);
+    openPool();
+    expect(screen.getByRole('region', { name: 'Media pool' })).toBeTruthy();
     changeWorkspace('Mapping');
     expect(present('Surface 1')).toBe(true);
   });
@@ -473,12 +480,14 @@ describe("Aether Map", () => {
   it("Content's sidebar: Media pool lists clips, and a colour added in Content lands in the open clip only", () => {
     render(<App />);
     changeWorkspace('Content');
-    const tabs = screen.getByRole('radiogroup', { name: 'Content panel view' });
-    fireEvent.click(within(tabs).getByRole('radio', { name: /Media pool/ }));
-    expect(screen.getByRole('treeitem', { name: /Clip 1/ })).toBeTruthy();
+    expect(openPool().getByRole('button', { name: /^Clip 1/ })).toBeTruthy();
     fireEvent.click(within(screen.getByRole('region', { name: 'Map tools' })).getByRole('button', { name: 'Colour' }));
-    fireEvent.click(within(tabs).getByRole('radio', { name: /Visuals/ }));
     expect(within(screen.getByRole('list', { name: 'Clip visuals' })).getByRole('button', { name: /^Select Colour/ })).toBeTruthy();
+    // A pool asset shows its own properties; picking the clip again shows the clip's.
+    fireEvent.click(openPool().getByRole('button', { name: /^Colour/ }));
+    expect(screen.getByRole('region', { name: 'Pool asset properties' })).toBeTruthy();
+    fireEvent.click(openPool().getByRole('button', { name: /^Clip 1/ }));
+    expect(screen.queryByRole('region', { name: 'Pool asset properties' })).toBeNull();
     changeWorkspace('Scene');
     expect(screen.queryByRole('treeitem', { name: /^Colour/ })).toBeNull();
   });
@@ -498,7 +507,6 @@ describe("Aether Map", () => {
     render(<App />);
     changeWorkspace('Content');
     fireEvent.click(within(screen.getByRole('region', { name: 'Map tools' })).getByRole('button', { name: 'Colour' }));
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Content panel view' })).getByRole('radio', { name: /Visuals/ }));
     const cards = screen.getByRole('list', { name: 'Clip visuals' });
     fireEvent.contextMenu(within(cards).getByRole('button', { name: /^Select Colour/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: /View/ }));
@@ -510,7 +518,6 @@ describe("Aether Map", () => {
     render(<App />);
     changeWorkspace('Content');
     fireEvent.click(within(screen.getByRole('region', { name: 'Map tools' })).getByRole('button', { name: 'Colour' }));
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Content panel view' })).getByRole('radio', { name: /Visuals/ }));
     const cards = () => within(screen.getByRole('list', { name: 'Clip visuals' })).getAllByRole('button', { name: /^Select / });
     fireEvent.contextMenu(cards()[0]);
     fireEvent.click(screen.getByRole('menuitem', { name: /Duplicate asset/ }));
@@ -524,12 +531,9 @@ describe("Aether Map", () => {
     changeWorkspace('Content');
     fireEvent.click(within(screen.getByRole('region', { name: 'Map tools' })).getByRole('button', { name: 'Colour' }));
     changeWorkspace('Scene');
-    const tabs = screen.getByRole('radiogroup', { name: 'Scene panel view' });
-    fireEvent.click(within(tabs).getByRole('radio', { name: /Media pool/ }));
-    fireEvent.click(screen.getByRole('treeitem', { name: /Clip 1/ }));
+    fireEvent.click(openPool().getByRole('button', { name: /^Clip 1/ }));
     fireEvent.click(within(screen.getByRole('group', { name: 'Asset surface assignments' })).getByRole('button', { name: /Surface 1/ }));
-    expect(screen.getByRole('treeitem', { name: /Clip 1/ }).textContent).toContain('1 surface');
-    fireEvent.click(within(tabs).getByRole('radio', { name: /Visuals/ }));
+    expect(openPool().getByRole('button', { name: /^Clip 1/ }).textContent).toContain('1 use');
     const layers = () => within(screen.getByRole('list', { name: 'Clip visuals' })).getAllByRole('button', { name: /^Select / });
     expect(layers().map(b => b.getAttribute('aria-label'))).toEqual(['Select Colour']);
     // The same asset twice: duplicate it right here, as in Content.
@@ -538,15 +542,15 @@ describe("Aether Map", () => {
     expect(layers()).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Edit in Content' }));
     expect(screen.getByText(/^Clip 1 · /)).toBeTruthy();
-  });
+  }, 15000); // ~1.5 s alone; the full parallel suite can push it past the 5 s default.
 
   it("the gallery's Project clips offers other clips, never the open one", () => {
     render(<App />);
     changeWorkspace('Content');
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Content panel view' })).getByRole('radio', { name: /Media pool/ }));
-    fireEvent.click(within(document.querySelector('.map-visual-panel-title') as HTMLElement).getByRole('button', { name: 'New clip' }));
+    openPool();
+    fireEvent.click(screen.getByRole('button', { name: 'Add to the media pool' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /New clip/ }));
     expect(screen.getByText(/^Clip 2 · /)).toBeTruthy();
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Content panel view' })).getByRole('radio', { name: /Visuals/ }));
     fireEvent.click(within(document.querySelector('.map-visual-panel-title') as HTMLElement).getByRole('button', { name: 'Add layer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Project clips' }));
     expect(screen.getByRole('button', { name: 'Preview Clip 1' })).toBeTruthy();

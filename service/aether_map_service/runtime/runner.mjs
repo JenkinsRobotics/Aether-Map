@@ -18309,6 +18309,7 @@ function parseShow(bytes) {
 			...typeof a.folder === "string" ? { folder: a.folder } : {},
 			source: readSource(a.source)
 		})) } : {},
+		...Array.isArray(raw.poolBins) ? { poolBins: [...new Set(raw.poolBins.filter((b) => typeof b === "string" && !!b.trim()).map((b) => b.trim()))] } : {},
 		...Array.isArray(raw.tracks) ? { tracks: raw.tracks.filter(isRecord).filter((t) => typeof t.id === "string").map((t) => ({
 			id: String(t.id),
 			...typeof t.timelineID === "string" ? { timelineID: t.timelineID } : {},

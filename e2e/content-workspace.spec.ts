@@ -16,12 +16,12 @@ test('build a clip in Content and play it on two surfaces',async({page,baseURL},
   await page.screenshot({path:info.outputPath('content.png')});
   // Scene: pick the clip in the Media pool, then two cube faces in the surface row.
   await switchWorkspace(page,'Scene');
-  await page.getByRole('radiogroup',{name:'Scene panel view'}).getByRole('radio',{name:/Media pool/}).click();
-  const pool=page.getByRole('tree',{name:'Media pool'});
-  await pool.getByRole('treeitem',{name:/Clip 1/}).click();
+  await page.getByRole('toolbar',{name:'Aux toolbar'}).getByRole('button',{name:'Media pool'}).click();
+  const pool=page.getByRole('list',{name:'Media pool items'});
+  await pool.getByRole('button',{name:/^Clip 1/}).click();
   const faces=page.getByRole('group',{name:'Asset surface assignments'}).getByRole('button',{name:/^Assign to (?!entire)/});
   await faces.nth(0).click(); await faces.nth(1).click();
-  await expect(pool.getByRole('treeitem',{name:/Clip 1/})).toContainText('2 surfaces');
+  await expect(pool.getByRole('button',{name:/^Clip 1/})).toContainText('2 uses');
   await expect(page.getByRole('region',{name:'Scene preview'}).locator('.map-surface')).toHaveCount(2);
   await page.screenshot({path:info.outputPath('scene.png')});
   // Content reports where the clip plays; it survives a save and reload.
