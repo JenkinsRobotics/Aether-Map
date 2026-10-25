@@ -10544,6 +10544,19 @@ function readVisualPlacement(value) {
 		rotationDeg: n("rotationDeg", -3600, 3600)
 	};
 }
+/** Place a content-sized rectangle through the same transform as its full frame. */
+function contentPlacementCorners(value, frame, bounds) {
+	const p = readVisualPlacement(value), r = p.rotationDeg * Math.PI / 180;
+	return [
+		[bounds[0], bounds[1]],
+		[bounds[0] + bounds[2], bounds[1]],
+		[bounds[0] + bounds[2], bounds[1] + bounds[3]],
+		[bounds[0], bounds[1] + bounds[3]]
+	].map(([x, y]) => {
+		const dx = (x - frame[0] - frame[2] / 2) * p.widthPercent / 100, dy = (y - frame[1] - frame[3] / 2) * p.heightPercent / 100;
+		return [frame[0] + frame[2] * p.xPercent / 100 + dx * Math.cos(r) - dy * Math.sin(r), frame[1] + frame[3] * p.yPercent / 100 + dx * Math.sin(r) + dy * Math.cos(r)];
+	});
+}
 //#endregion
 //#region src/visual-motion.ts
 var VISUAL_MOTION_PARAMETERS = [
@@ -11002,6 +11015,7 @@ function scheduledVisuals(show, timeS, id = currentTimelineID(show), inputs = {}
 					const step = {
 						board: child.board,
 						fit: visual.clipFit ?? "stretch",
+						...visual.placement ? { placement: visual.placement } : {},
 						...!board && surfaces.length ? { hosts: surfaces } : {}
 					};
 					visit(child.id, clock, next, opacity * visual.opacity, gain, hosts, [step, ...uses], child.board);
@@ -18883,23 +18897,28 @@ function normalizeVisuals(show) {
 function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID, inputs = {}, calibration = false) {
 	return renderTimeline(input, scene, timeS, currentTimelineID(input), placeholders, onlySurfaceID, inputs, calibration);
 }
-/** Maps a clip's board into `frame` (whose corners are `corners`): cover keeps
-* the board's proportions and overflows the frame; stretch fills it exactly. */
-function boardInto(board, frame, corners, fit) {
-	const [fx, fy, fw, fh] = frame, sx = fw / board.widthPx, sy = fh / board.heightPx, s = Math.max(sx, sy);
-	const [kx, ky, ox, oy] = fit === "cover" ? [
-		s,
-		s,
+/** Where a clip's board sits in `frame` before any placement: cover keeps the
+* board's proportions and overflows the frame; stretch fills it exactly. */
+function boardBounds(board, frame, fit) {
+	const [fx, fy, fw, fh] = frame, s = Math.max(fw / board.widthPx, fh / board.heightPx);
+	return fit === "cover" ? [
 		fx + (fw - board.widthPx * s) / 2,
-		fy + (fh - board.heightPx * s) / 2
-	] : [
-		sx,
-		sy,
-		fx,
-		fy
-	];
+		fy + (fh - board.heightPx * s) / 2,
+		board.widthPx * s,
+		board.heightPx * s
+	] : frame;
+}
+/** Maps a clip's board into `frame` (whose corners are `corners`), moved and
+* sized by the use's placement as any visual is in its frame. */
+function boardInto(board, frame, corners, fit, placement) {
+	const toFrame = solveHomography(quadCorners([
+		0,
+		0,
+		board.widthPx,
+		board.heightPx
+	]), contentPlacementCorners(placement, frame, boardBounds(board, frame, fit)));
 	const toCorners = solveHomography(quadCorners(frame), corners);
-	return (p) => project(toCorners, [p[0] * kx + ox, p[1] * ky + oy]);
+	return (p) => project(toCorners, project(toFrame, p));
 }
 function renderTimeline(input, scene, timeS, timelineID, placeholders = false, onlySurfaceID, inputs = {}, calibration = false, asBoard = false) {
 	const show = normalizeVisuals(input);
@@ -18940,8 +18959,8 @@ function renderTimeline(input, scene, timeS, timelineID, placeholders = false, o
 			opacity: p.opacity * host.opacity
 		}));
 	});
-	const into = (pictures, board, frame, corners, fit, outline, suffix = "", opacity = 1) => {
-		const map = boardInto(board, frame, corners, fit);
+	const into = (pictures, step, frame, corners, outline, suffix = "", opacity = 1) => {
+		const map = boardInto(step.board, frame, corners, step.fit, step.placement);
 		return pictures.map((p) => ({
 			...p,
 			id: `${p.id}${suffix}`,
@@ -18965,7 +18984,7 @@ function renderTimeline(input, scene, timeS, timelineID, placeholders = false, o
 					outer.widthPx,
 					outer.heightPx
 				];
-				out = into(out, step.board, frame, quadCorners(frame), step.fit, []);
+				out = into(out, step, frame, quadCorners(frame), []);
 				continue;
 			}
 			if (step.hosts) {
@@ -18973,8 +18992,8 @@ function renderTimeline(input, scene, timeS, timelineID, placeholders = false, o
 					const found = geometry.surfaces.find((s) => s.id === id);
 					if (!found || !found.enabled || onlySurfaceID && onlySurfaceID !== id) return [];
 					const host = evaluateSurface(found, calibration ? 0 : timeS, show.media, context);
-					const outline = step.fit === "cover" || host.masks.length || host.shape === "ellipse" || host.radiusPx ? targetShapes(host) : [];
-					return into(out, step.board, host.source.rect, host.corners, step.fit, outline, `@${id}`, host.opacity);
+					const outline = step.fit === "cover" || step.placement || host.masks.length || host.shape === "ellipse" || host.radiusPx ? targetShapes(host) : [];
+					return into(out, step, host.source.rect, host.corners, outline, `@${id}`, host.opacity);
 				});
 				continue;
 			}
@@ -18984,7 +19003,7 @@ function renderTimeline(input, scene, timeS, timelineID, placeholders = false, o
 				w,
 				h
 			];
-			out = into(out, step.board, frame, quadCorners(frame), step.fit, step.fit === "cover" ? [quadCorners(frame)] : []);
+			out = into(out, step, frame, quadCorners(frame), step.fit === "cover" || step.placement ? [quadCorners(frame)] : []);
 		}
 		return out;
 	};
