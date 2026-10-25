@@ -10943,8 +10943,9 @@ function groupSurfaces(list) {
 //#endregion
 //#region src/timelines.ts
 var MAIN_TIMELINE = "main";
+var isClip = (t) => !!t?.board;
 function currentTimelineID(show) {
-	return show.timelines?.some((t) => t.id === show.activeTimelineID && t.sceneID === show.activeSceneId) ? show.activeTimelineID : MAIN_TIMELINE;
+	return show.timelines?.some((t) => t.id === show.activeTimelineID && (isClip(t) || t.sceneID === show.activeSceneId)) ? show.activeTimelineID : MAIN_TIMELINE;
 }
 function timelineDuration(show, id = currentTimelineID(show)) {
 	return show.timelines?.find((t) => t.id === id)?.durationS ?? activeScene(show)?.durationS ?? 60;
@@ -10958,7 +10959,8 @@ function timelineVisuals(show, id = currentTimelineID(show)) {
 }
 function canNestTimeline(show, childID, parentID = currentTimelineID(show)) {
 	const child = show.timelines?.find((t) => t.id === childID);
-	if (!child || child.sceneID !== show.activeSceneId || childID === parentID) return false;
+	if (!child || childID === parentID) return false;
+	if (!isClip(child) && (child.sceneID !== show.activeSceneId || isClip(show.timelines?.find((t) => t.id === parentID)))) return false;
 	const seen = /* @__PURE__ */ new Set();
 	const reaches = (id) => {
 		if (id === parentID) return true;
@@ -10970,7 +10972,7 @@ function canNestTimeline(show, childID, parentID = currentTimelineID(show)) {
 }
 function scheduledVisuals(show, timeS, id = currentTimelineID(show), inputs = {}) {
 	const result = [];
-	const visit = (timelineID, time, path, opacity, gain, hosts) => {
+	const visit = (timelineID, time, path, opacity, gain, hosts, uses = [], board) => {
 		const tracks = timelineTracks(show, timelineID), ranks = new Map(tracks.map((t, i) => [t.id, i]));
 		const solo = tracks.some((t) => t.kind === "audio" && t.enabled && t.solo);
 		const clips = timelineVisuals(show, timelineID).sort((a, b) => (ranks.get(a.trackID ?? "") ?? -1) - (ranks.get(b.trackID ?? "") ?? -1));
@@ -10990,11 +10992,20 @@ function scheduledVisuals(show, timeS, id = currentTimelineID(show), inputs = {}
 				if (!child || path.includes(child.id) || time < visual.startS || time >= visual.startS + visual.durationS) continue;
 				const clock = visualSourceTime(show, visual, time);
 				const surfaces = visual.targets.flatMap((t) => t.surfaceID ? [t.surfaceID] : []);
-				visit(child.id, clock, [
+				const next = [
 					...path,
 					visual.id,
 					child.id
-				], opacity * visual.opacity, gain, hosts ?? (surfaces.length ? surfaces : void 0));
+				];
+				if (visual.transitionS) opacity *= Math.min(1, Math.max(0, (time - visual.startS) / visual.transitionS));
+				if (isClip(child)) {
+					const step = {
+						board: child.board,
+						fit: visual.clipFit ?? "stretch",
+						...!board && surfaces.length ? { hosts: surfaces } : {}
+					};
+					visit(child.id, clock, next, opacity * visual.opacity, gain, hosts, [step, ...uses], child.board);
+				} else if (!board) visit(child.id, clock, next, opacity * visual.opacity, gain, hosts ?? (surfaces.length ? surfaces : void 0));
 			} else result.push({
 				visual: path.length ? {
 					...visual,
@@ -11005,22 +11016,27 @@ function scheduledVisuals(show, timeS, id = currentTimelineID(show), inputs = {}
 				track,
 				timeS: time,
 				gain,
-				...hosts ? { hosts } : {}
+				...hosts ? { hosts } : {},
+				...board ? {
+					board,
+					clips: uses
+				} : {}
 			});
 		}
 	};
-	visit(id, timeS, [], 1, 1);
+	const root = show.timelines?.find((t) => t.id === id);
+	visit(id, timeS, [], 1, 1, void 0, [], root?.board);
 	return result;
 }
 function validateTimelines(show) {
 	const ids = new Set(show.timelines?.map((t) => t.id));
 	if (ids.size !== (show.timelines?.length ?? 0) || ids.has("main")) throw new Error("Invalid or duplicate timeline identity.");
-	for (const t of show.timelines ?? []) if (!show.scenes.some((s) => s.id === t.sceneID)) throw new Error(`Missing scene for timeline ${t.name}.`);
+	for (const t of show.timelines ?? []) if (!isClip(t) && !show.scenes.some((s) => s.id === t.sceneID)) throw new Error(`Missing scene for timeline ${t.name}.`);
 	for (const track of show.tracks ?? []) if (track.timelineID && !ids.has(track.timelineID)) throw new Error("Missing timeline for track.");
 	for (const v of show.visuals ?? []) if (v.timelineRefID) {
 		const parent = show.tracks?.find((t) => t.id === v.trackID);
 		const child = show.timelines?.find((t) => t.id === v.timelineRefID);
-		if (!parent || parent.kind === "audio" || !child || !parent.targets.some((t) => t.sceneID === child.sceneID) || !canNestTimeline({
+		if (!parent || parent.kind === "audio" || !child || !isClip(child) && !parent.targets.some((t) => t.sceneID === child.sceneID) || !canNestTimeline({
 			...show,
 			activeSceneId: child.sceneID
 		}, child.id, parent.timelineID ?? "main")) throw new Error("Missing or cyclic nested timeline.");
@@ -11226,7 +11242,7 @@ function addSimpleVisual(show, source, name, poolID, visualID) {
 	const scene = activeScene(show);
 	const timeline = show.timelines?.find((t) => t.id === currentTimelineID(show));
 	const surfaces = scene.surfaces.filter((s) => !s.sceneCanvas && s.kind !== "mask");
-	const targets = timeline?.surfaceID ? [{
+	const targets = isClip(timeline) ? [] : timeline?.surfaceID ? [{
 		sceneID: scene.id,
 		surfaceID: timeline.surfaceID
 	}] : surfaces.length ? surfaces.map((s) => ({
@@ -18227,6 +18243,14 @@ function isLegacyRegularHexagon(points) {
 function serializeShow(show) {
 	return new TextEncoder().encode(JSON.stringify(surfaceMotionVersion(visualLookVersion(sourceMotionVersion(visualMotionVersion(show)))), null, 2));
 }
+/** A compound clip's board: both sides positive, whole pixels. */
+function readBoard(value) {
+	if (!isRecord(value) || !(Number(value.widthPx) > 0) || !(Number(value.heightPx) > 0)) return void 0;
+	return {
+		widthPx: Math.round(Number(value.widthPx)),
+		heightPx: Math.round(Number(value.heightPx))
+	};
+}
 function parseShow(bytes) {
 	const text = typeof bytes === "string" ? bytes : new TextDecoder().decode(bytes);
 	let raw;
@@ -18236,7 +18260,7 @@ function parseShow(bytes) {
 		throw new Error("This file is not an Aether Map show.");
 	}
 	if (!isRecord(raw)) throw new Error("This file is not an Aether Map show.");
-	if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3 && raw.version !== 4 && raw.version !== 5 && raw.version !== 6 && raw.version !== 7 && raw.version !== 8 && raw.version !== 9 && raw.version !== 10 && raw.version !== 11 && raw.version !== 12) throw new Error(`Unsupported show version ${String(raw.version)}.`);
+	if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3 && raw.version !== 4 && raw.version !== 5 && raw.version !== 6 && raw.version !== 7 && raw.version !== 8 && raw.version !== 9 && raw.version !== 10 && raw.version !== 11 && raw.version !== 12 && raw.version !== 13) throw new Error(`Unsupported show version ${String(raw.version)}.`);
 	const legacyOutputs = raw.version === 1 || raw.version === 2;
 	const output = isRecord(raw.output) ? raw.output : {};
 	surfaceOrdinal = 0;
@@ -18258,9 +18282,13 @@ function parseShow(bytes) {
 			name: String(t.name ?? "Timeline"),
 			...typeof t.surfaceID === "string" ? { surfaceID: t.surfaceID } : {},
 			sceneID: String(t.sceneID),
-			durationS: positive(t.durationS, 60)
+			durationS: positive(t.durationS, 60),
+			...readBoard(t.board) ? { board: readBoard(t.board) } : {},
+			...typeof t.folder === "string" && t.folder.trim() ? { folder: t.folder.trim() } : {},
+			...t.scene === true ? { scene: true } : {}
 		})) } : {},
-		version: raw.version === 12 ? 12 : raw.version === 11 ? 11 : raw.version === 10 ? 10 : raw.version === 9 ? 9 : raw.version === 8 ? 8 : raw.version === 7 ? 7 : raw.version === 6 ? 6 : raw.version === 5 ? 5 : raw.version === 4 ? 4 : 3,
+		...typeof raw.activeClipID === "string" ? { activeClipID: raw.activeClipID } : {},
+		version: raw.version === 13 ? 13 : raw.version === 12 ? 12 : raw.version === 11 ? 11 : raw.version === 10 ? 10 : raw.version === 9 ? 9 : raw.version === 8 ? 8 : raw.version === 7 ? 7 : raw.version === 6 ? 6 : raw.version === 5 ? 5 : raw.version === 4 ? 4 : 3,
 		...Array.isArray(raw.pool) ? { pool: raw.pool.filter(isRecord).filter((a) => typeof a.id === "string" && isRecord(a.source)).map((a) => ({
 			id: String(a.id),
 			name: String(a.name ?? "Asset"),
@@ -18270,6 +18298,7 @@ function parseShow(bytes) {
 		...Array.isArray(raw.tracks) ? { tracks: raw.tracks.filter(isRecord).filter((t) => typeof t.id === "string").map((t) => ({
 			id: String(t.id),
 			...typeof t.timelineID === "string" ? { timelineID: t.timelineID } : {},
+			...t.assign === true ? { assign: true } : {},
 			name: String(t.name ?? "V1"),
 			kind: t.kind === "audio" ? "audio" : "video",
 			volume: typeof t.volume === "number" ? clamp01$1(t.volume) : 1,
@@ -18297,7 +18326,7 @@ function parseShow(bytes) {
 		...raw.lfos ? { lfos: readLfos(raw.lfos) } : {},
 		surfaceLook: readSurfaceLook(raw, output),
 		media: Array.isArray(raw.media) ? raw.media.filter(isRecord).map(readMedia) : [],
-		unassignedSurfaces: (raw.version === 3 || raw.version === 4 || raw.version === 5 || raw.version === 6 || raw.version === 7 || raw.version === 8 || raw.version === 9 || raw.version === 10 || raw.version === 11 || raw.version === 12) && Array.isArray(raw.unassignedSurfaces) ? groupSurfaces(raw.unassignedSurfaces.filter(isRecord).map(readSurface)) : [],
+		unassignedSurfaces: (raw.version === 3 || raw.version === 4 || raw.version === 5 || raw.version === 6 || raw.version === 7 || raw.version === 8 || raw.version === 9 || raw.version === 10 || raw.version === 11 || raw.version === 12 || raw.version === 13) && Array.isArray(raw.unassignedSurfaces) ? groupSurfaces(raw.unassignedSurfaces.filter(isRecord).map(readSurface)) : [],
 		scenes,
 		activeSceneId,
 		playback: { mode: readMode(raw.playback) }
@@ -18653,6 +18682,8 @@ function readVisual(value, index) {
 		...looks ? { looks } : {},
 		...value.motion ? { motion: readVisualMotion(value.motion, typeof value.timelineRefID === "string") } : {},
 		...typeof value.timelineRefID === "string" ? { timelineRefID: value.timelineRefID } : {},
+		...value.clipFit === "cover" || value.clipFit === "stretch" ? { clipFit: value.clipFit } : {},
+		...typeof value.transitionS === "number" && value.transitionS > 0 ? { transitionS: Math.min(10, value.transitionS) } : {},
 		...typeof value.assetID === "string" ? { assetID: value.assetID } : {},
 		...typeof value.trackID === "string" ? { trackID: value.trackID } : {},
 		name: String(value.name ?? "Visual"),
@@ -18850,7 +18881,33 @@ function normalizeVisuals(show) {
 }
 /** Shared projection for the authoring canvas and every physical output. */
 function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID, inputs = {}, calibration = false) {
+	return renderTimeline(input, scene, timeS, currentTimelineID(input), placeholders, onlySurfaceID, inputs, calibration);
+}
+/** Maps a clip's board into `frame` (whose corners are `corners`): cover keeps
+* the board's proportions and overflows the frame; stretch fills it exactly. */
+function boardInto(board, frame, corners, fit) {
+	const [fx, fy, fw, fh] = frame, sx = fw / board.widthPx, sy = fh / board.heightPx, s = Math.max(sx, sy);
+	const [kx, ky, ox, oy] = fit === "cover" ? [
+		s,
+		s,
+		fx + (fw - board.widthPx * s) / 2,
+		fy + (fh - board.heightPx * s) / 2
+	] : [
+		sx,
+		sy,
+		fx,
+		fy
+	];
+	const toCorners = solveHomography(quadCorners(frame), corners);
+	return (p) => project(toCorners, [p[0] * kx + ox, p[1] * ky + oy]);
+}
+function renderTimeline(input, scene, timeS, timelineID, placeholders = false, onlySurfaceID, inputs = {}, calibration = false, asBoard = false) {
 	const show = normalizeVisuals(input);
+	const root = show.timelines?.find((t) => t.id === timelineID);
+	const rootStep = !asBoard && isClip(root) ? [{
+		board: root.board,
+		fit: "stretch"
+	}] : [];
 	const geometry = show.scenes.find((s) => s.id === scene.id) ?? scene;
 	const context = {
 		...inputs,
@@ -18883,11 +18940,59 @@ function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID
 			opacity: p.opacity * host.opacity
 		}));
 	});
-	const rendered = scheduledVisuals(show, timeS, void 0, inputs).flatMap(({ visual, track, timeS, hosts }) => {
-		const out = place(visual, track, timeS);
-		return hosts ? hosted(out, hosts) : out;
+	const into = (pictures, board, frame, corners, fit, outline, suffix = "", opacity = 1) => {
+		const map = boardInto(board, frame, corners, fit);
+		return pictures.map((p) => ({
+			...p,
+			id: `${p.id}${suffix}`,
+			corners: p.corners.map(map),
+			masks: p.masks.length || p.shape === "ellipse" || p.radiusPx ? targetShapes(p).map((m) => m.map(map)) : outline,
+			shape: void 0,
+			radiusPx: void 0,
+			maskCurves: void 0,
+			bend: void 0,
+			opacity: p.opacity * opacity
+		}));
+	};
+	const outward = (pictures, clips) => {
+		let out = pictures;
+		for (const [i, step] of clips.entries()) {
+			const outer = clips[i + 1]?.board;
+			if (outer) {
+				const frame = [
+					0,
+					0,
+					outer.widthPx,
+					outer.heightPx
+				];
+				out = into(out, step.board, frame, quadCorners(frame), step.fit, []);
+				continue;
+			}
+			if (step.hosts) {
+				out = step.hosts.flatMap((id) => {
+					const found = geometry.surfaces.find((s) => s.id === id);
+					if (!found || !found.enabled || onlySurfaceID && onlySurfaceID !== id) return [];
+					const host = evaluateSurface(found, calibration ? 0 : timeS, show.media, context);
+					const outline = step.fit === "cover" || host.masks.length || host.shape === "ellipse" || host.radiusPx ? targetShapes(host) : [];
+					return into(out, step.board, host.source.rect, host.corners, step.fit, outline, `@${id}`, host.opacity);
+				});
+				continue;
+			}
+			const frame = [
+				0,
+				0,
+				w,
+				h
+			];
+			out = into(out, step.board, frame, quadCorners(frame), step.fit, step.fit === "cover" ? [quadCorners(frame)] : []);
+		}
+		return out;
+	};
+	const rendered = scheduledVisuals(show, timeS, timelineID, inputs).flatMap(({ visual, track, timeS, hosts, board, clips }) => {
+		const out = place(visual, track, timeS, board);
+		return board ? outward(out, [...clips ?? [], ...rootStep]) : hosts ? hosted(out, hosts) : out;
 	});
-	function place(visual, track, timeS) {
+	function place(visual, track, timeS, board) {
 		if (track?.kind === "audio" || track?.enabled === false) return [];
 		const source = visualSource(show, visual);
 		if (show.media.some((m) => m.id === source.mediaId && m.kind === "audio")) return [];
@@ -18896,7 +19001,20 @@ function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID
 			if (occupied.has(visual.legacyTrack)) return [];
 			occupied.add(visual.legacyTrack);
 		}
-		const targets = visual.targets.filter((t) => t.sceneID === scene.id).flatMap((t) => {
+		const targets = board ? [{
+			...newSurface({
+				width: board.widthPx,
+				height: board.heightPx
+			}, 0),
+			id: "board",
+			corners: quadCorners([
+				0,
+				0,
+				board.widthPx,
+				board.heightPx
+			]),
+			mediaTimeS: timeS
+		}] : visual.targets.filter((t) => t.sceneID === scene.id).flatMap((t) => {
 			if (t.surfaceID) {
 				const surface = geometry.surfaces.find((s) => s.id === t.surfaceID);
 				return surface ? [evaluateSurface(surface, calibration ? 0 : timeS, show.media, context)] : [];
@@ -18973,7 +19091,7 @@ function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID
 		}
 		return merged;
 	}
-	const targets = timelineVisuals(show).flatMap((v) => v.targets).filter((t) => t.sceneID === scene.id);
+	const targets = timelineVisuals(show, timelineID).flatMap((v) => v.targets).filter((t) => t.sceneID === scene.id);
 	return [...placeholders && !targets.some((t) => !t.surfaceID) ? geometry.surfaces.filter((s) => !targets.some((t) => t.surfaceID === s.id)).map((s) => evaluateSurface(s, calibration ? 0 : timeS, show.media, context)) : [], ...rendered];
 }
 function targetShapes(surface) {
@@ -19077,10 +19195,50 @@ function normalizeSurfaceTimelines(show) {
 	} : show;
 }
 //#endregion
+//#region src/compound-clips.ts
+/** Opening an older project: a timeline whose visuals all fill the whole
+* canvas becomes a clip on a board of that canvas's size. That is the same
+* picture it already drew, so nothing looks different. Timelines that aim at
+* particular surfaces (or are empty) are marked scenes. Each is decided once. */
+function migrateTimelinesToClips(show) {
+	let timelines = show.timelines ?? [], changed = false;
+	const tracks = new Map((show.tracks ?? []).map((t) => [t.id, t]));
+	for (let again = true; again;) {
+		again = false;
+		timelines = timelines.map((t) => {
+			const scene = show.scenes.find((s) => s.id === t.sceneID);
+			if (isClip(t) || t.scene || t.surfaceID || !scene) return t;
+			const visuals = (show.visuals ?? []).filter((v) => tracks.get(v.trackID ?? "")?.timelineID === t.id);
+			if (!visuals.length || visuals.some((v) => v.targets.some((a) => a.surfaceID) || v.timelineRefID && !isClip(timelines.find((c) => c.id === v.timelineRefID)))) return t;
+			again = changed = true;
+			return {
+				...t,
+				board: {
+					widthPx: scene.artboard?.widthPx ?? show.output.width,
+					heightPx: scene.artboard?.heightPx ?? show.output.height
+				}
+			};
+		});
+	}
+	const undecided = timelines.some((t) => !isClip(t) && !t.scene);
+	if (undecided) timelines = timelines.map((t) => isClip(t) || t.scene ? t : {
+		...t,
+		scene: true
+	});
+	return changed ? {
+		...show,
+		version: 13,
+		timelines
+	} : undecided ? {
+		...show,
+		timelines
+	} : show;
+}
+//#endregion
 //#region src/normalize-document.ts
 /** One document upgrade path for editor opening, edits and saved-file agents. */
 function normalizeDocument(show) {
-	return normalizeShowTimeline(surfaceMotionVersion(visualLookVersion(sourceMotionVersion(visualMotionVersion(normalizeSurfaceTimelines(normalizeMediaPool(normalizeVisuals(show))))))));
+	return migrateTimelinesToClips(normalizeShowTimeline(surfaceMotionVersion(visualLookVersion(sourceMotionVersion(visualMotionVersion(normalizeSurfaceTimelines(normalizeMediaPool(normalizeVisuals(show)))))))));
 }
 //#endregion
 //#region src/features/bundled-loops.ts
