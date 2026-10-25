@@ -281,3 +281,12 @@ it("a clip use's placement moves and sizes the clip on its surface", () => {
   expect(a[0]).toBeCloseTo(200); expect(a[1]).toBeCloseTo(100);
   expect(c[0]).toBeCloseTo(450); expect(c[1]).toBeCloseTo(500);
 });
+
+it("a clip's layers reorder like a scene's", async () => {
+  const { reorderTimelineTrack } = await import('./timeline-edit');
+  const { show, clip } = fixture();
+  const tracks = timelineTracks(show, clip).filter(t => t.kind === 'video');
+  const two = { ...show, tracks: [...show.tracks!, { ...tracks[0], id: 'v2', name: 'V2' }] };
+  const ids = (s: MapShow) => timelineTracks(s, clip).filter(t => t.kind === 'video').map(t => t.id);
+  expect(ids(reorderTimelineTrack(two, 'v2', -1))).toEqual(['v2', tracks[0].id]);
+});

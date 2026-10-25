@@ -40,7 +40,7 @@ import { downloadProjection } from "./projection-export/archive";
 import { RegionControls } from "./mask/RegionControls";
 import { CreateMaskDialog } from './mask/CreateMaskDialog';
 import { placeContent, type ContentTarget, type ContentPlacement } from './content-placement';
-import { visualSurface, newVisual } from './visual-document';
+import { visualSurface, newVisual, duplicateVisual } from './visual-document';
 import { createVisualCommands } from './visual-commands';
 import { VisualAssetsPanel } from './panels/VisualAssetsPanel';
 import { VisualProperties } from './panels/VisualProperties';
@@ -1485,10 +1485,12 @@ export default function App() {
                     onFolder={(id, folder) => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, folder } : t) }))} />} secondary={
                   <TreePanelSplit primaryLabel="Canvases" secondaryLabel="Scenes" storageKey="aether-map.scenes-timelines-split" collapsible={["primary", "secondary"]} defaultCollapsed={["primary", "secondary"]} primary={panel("scene-picker")}
                     secondary={<TimelineTree show={show} actions={timelineActions}/>}/>}/>
-              // A picked clip's contents, for reference: it is edited in Content.
+              // A picked clip's layers, editable here as in Content (duplicate,
+              // reorder, hide...); adding a layer and the board open in Content.
               : scenePick ? <div className="map-visual-layers">
-                  <VisualAssetsPanel ariaLabel="Clip visuals" view="tree" urls={urls} show={{ ...show, activeTimelineID: scenePick.id }} selectedID={null}
-                    onSelect={() => {}} onChange={() => {}} onRemove={() => {}} onDuplicate={() => {}} onMove={() => {}} onDrop={() => {}} onAdd={() => {}} />
+                  <VisualAssetsPanel ariaLabel="Clip visuals" view={visualsView} onView={pickVisualsView} addLabel="Add layer in Content" urls={urls} show={{ ...show, activeTimelineID: scenePick.id }} selectedID={null}
+                    onSelect={() => {}} onChange={assets.change} onRemove={assets.remove} onDuplicate={(_, clip) => edit(s => duplicateVisual(s, clip.id))} onMove={assets.move} onDrop={assets.drop}
+                    onAdd={() => { setOpenClipID(scenePick.id); enterMode('content'); }} />
                   <div className="map-feature-buttons">
                     <Button primary onClick={() => { setOpenClipID(scenePick.id); enterMode('content'); }}>Edit in Content</Button>
                     <Button onClick={() => setScenePickID(null)}>Scene visuals</Button>
@@ -1678,7 +1680,7 @@ export default function App() {
         {/* Visualization's center, both editors: the selected scene's render
             fills the space, input side by side; advanced adds the timeline. */}
         {mode === 'content' ? (openClip ? <ClipBoard show={show} clipID={openClip.id} urls={urls} timeS={timeS} playing={transport.playing}
-            placement={selectedVisual && timelineVisuals(show, openClip.id).some(v => v.id === selectedVisual.id) && !selectedVisual.timelineRefID
+            placement={selectedVisual && timelineVisuals(show, openClip.id).some(v => v.id === selectedVisual.id) && (!selectedVisual.timelineRefID || isClip(show.timelines?.find(t => t.id === selectedVisual.timelineRefID)))
               ? { visual: selectedVisual, onChange: placement => assets.change(selectedVisual.id, setVisualMotionBase(selectedVisual, placement, true), 'placement-drag') } : undefined} />
           : <div className="map-show-preview" aria-label="Clip board" />)
         : mode === 'visualization' ? <SimpleVisualWorkspace showInput={showInput} show={show} urls={urls} selectedID={selectedClipID} timeS={timeS} playing={transport.playing}

@@ -506,7 +506,19 @@ describe("Aether Map", () => {
     expect(within(screen.getByRole('tree', { name: 'Clip visuals' })).getByRole('treeitem', { name: /Colour/ })).toBeTruthy();
   });
 
-  it("Scene assigns a Media pool clip with the surface row and shows its contents read-only", () => {
+  it("Content duplicates a layer, so the same asset can sit behind and in front", () => {
+    render(<App />);
+    changeWorkspace('Content');
+    fireEvent.click(within(screen.getByRole('region', { name: 'Map tools' })).getByRole('button', { name: 'Colour' }));
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Content panel view' })).getByRole('radio', { name: /Visuals/ }));
+    const cards = () => within(screen.getByRole('list', { name: 'Clip visuals' })).getAllByRole('button', { name: /^Select / });
+    fireEvent.contextMenu(cards()[0]);
+    fireEvent.click(screen.getByRole('menuitem', { name: /Duplicate asset/ }));
+    expect(cards()).toHaveLength(2);
+    expect(screen.getByRole('region', { name: 'Timeline tracks' }).querySelectorAll('.map-clip')).toHaveLength(2);
+  });
+
+  it("Scene assigns a Media pool clip with the surface row, and its layers can be edited there", () => {
     render(<App />);
     addLayerSurface();
     changeWorkspace('Content');
@@ -518,7 +530,12 @@ describe("Aether Map", () => {
     fireEvent.click(within(screen.getByRole('group', { name: 'Asset surface assignments' })).getByRole('button', { name: /Surface 1/ }));
     expect(screen.getByRole('treeitem', { name: /Clip 1/ }).textContent).toContain('1 surface');
     fireEvent.click(within(tabs).getByRole('radio', { name: /Visuals/ }));
-    expect(within(screen.getByRole('tree', { name: 'Clip visuals' })).getByRole('treeitem', { name: /Colour/ })).toBeTruthy();
+    const layers = () => within(screen.getByRole('list', { name: 'Clip visuals' })).getAllByRole('button', { name: /^Select / });
+    expect(layers().map(b => b.getAttribute('aria-label'))).toEqual(['Select Colour']);
+    // The same asset twice: duplicate it right here, as in Content.
+    fireEvent.contextMenu(layers()[0]);
+    fireEvent.click(screen.getByRole('menuitem', { name: /Duplicate asset/ }));
+    expect(layers()).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Edit in Content' }));
     expect(screen.getByText(/^Clip 1 · /)).toBeTruthy();
   });
@@ -561,7 +578,7 @@ describe("Aether Map", () => {
     fireEvent.click(screen.getByRole('button', { name: 'Advanced editor' }));
     fireEvent.click(screen.getByRole('button', { name: 'Switch to simple editor' }));
     expect(order()).toEqual(['Select Background', 'Select Foreground']);
-  });
+  }, 15000); // ~2 s alone; the full parallel suite can push it past the 5 s default.
 
   it("gives a new show one Main timeline; surfaces get no timeline of their own", () => {
     render(<App />);

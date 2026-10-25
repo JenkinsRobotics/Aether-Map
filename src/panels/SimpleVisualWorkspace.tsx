@@ -1,6 +1,6 @@
 import { DrawnMedia } from '../features/DrawnMedia';
 import { useState } from 'react';
-import { AetherIcon, Button, IconButton, Slider } from '@aether/ui';
+import { AetherIcon, Button, IconButton, SelectField, Slider } from '@aether/ui';
 import { TransportLength } from './TransportLength';
 import type { VisualPlacement } from '../visual-placement';
 import type { MapShow, Surface } from '../document';
@@ -8,7 +8,9 @@ import type { Visual } from '../visual-model';
 import { visualSource } from '../media-pool';
 import { visualSurface } from '../visual-document';
 import { simpleVisuals, visualIsLocked } from '../simple-visuals';
-import { isClip, timelineDuration } from '../timelines';
+import { isClip, timelineDuration, timelineVisuals } from '../timelines';
+import { visualSourceTime } from '../visual-clock';
+import { ClipBoard } from './ClipBoard';
 import { mediaTime } from '../clips';
 import { formatTime } from '../cues';
 import { ShaderThumbnail } from '../features/ShaderThumbnail';
@@ -50,11 +52,25 @@ export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, 
   const source = visual ? visualSource(show, visual) : null;
   const locked = !!visual && visualIsLocked(show, visual);
   const nested = !!visual?.timelineRefID;
+  // A picked clip: Input shows its own board, with handles for one of its layers.
+  const clip = picked?.timelineRefID ? show.timelines?.find(t => t.id === picked.timelineRefID && isClip(t)) : undefined;
+  const clipLayers = clip ? timelineVisuals(show, clip.id).filter(v => !v.mask) : [];
+  const [clipLayerID, setClipLayerID] = useState<string | null>(null);
+  const clipLayer = clipLayers.find(v => v.id === clipLayerID) ?? clipLayers.at(-1);
+  const inputOn = showInput && (clip || (source && !nested));
   return <section className="map-simple" aria-label="Simple visualization workspace">
     <main className="map-simple-stage">
       {/* The Input pane opens to the LEFT of the scene render, from the view
           tools' Input button — the same split as the advanced editor. */}
-      <div className={`map-simple-panes${showInput && source && !nested ? '' : ' is-render-only'}`}>
+      <div className={`map-simple-panes${inputOn ? '' : ' is-render-only'}`}>
+      {showInput && clip && <section className="map-simple-source" aria-label="Input">
+        <ClipBoard show={show} clipID={clip.id} urls={urls} timeS={visualSourceTime(show, picked!, timeS)} playing={playing}
+          placement={clipLayer && onPlacement && !visualIsLocked(show, clipLayer) ? { visual: clipLayer, onChange: placement => onPlacement(clipLayer, placement) } : undefined} />
+        {clipLayers.length > 0 && <div className="map-simple-source-actions">
+          <SelectField aria-label="Clip layer" value={clipLayer?.id ?? ''} options={[...clipLayers].reverse().map(v => ({ value: v.id, label: v.name }))}
+            onChange={event => setClipLayerID(event.target.value)} />
+        </div>}
+      </section>}
       {showInput && source && !nested && <section className="map-simple-source" aria-label="Input">
         <InputPreview surface={visualSurface(show, visual!)} show={show} urls={urls} playing={playing} loop={visual!.continuous || visual!.loop}
           timeS={visual!.continuous ? timeS : mediaTime(visual!, show.media.find(m => m.id === source.mediaId), timeS)}

@@ -119,3 +119,28 @@ test('a clip picked on a surface gets placement handles, like any visual', async
     onPlay={vi.fn()} onSeek={vi.fn()} onChange={vi.fn()} onBrowse={vi.fn()} onPlacement={vi.fn()} />);
   expect(screen.getByText('Scene pixels').getAttribute('data-placement')).toBe('on');
 });
+test("with Input on, a picked clip shows its own board there, and its layers' handles", async () => {
+  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+  const { createClip, ensureSurfaceTracks, assignClip, surfaceTrack } = await import('../compound-clips');
+  const { MAIN_TIMELINE, timelineTracks } = await import('../timelines');
+  let show = normalizeDocument(emptyShow());
+  show.scenes[0].surfaces = [{ ...newSurface(show.output, 0), id: 'wall' }];
+  show = createClip(show, 'Card');
+  const clip = show.activeClipID!, track = timelineTracks(show, clip).find(t => t.kind === 'video')!;
+  const layer = (id: string, name: string) => ({ ...white(normalizeDocument(emptyShow())).visuals![0], id, name, trackID: track.id, targets: [] });
+  show = { ...show, visuals: [...(show.visuals ?? []), layer('back', 'Back'), layer('front', 'Front')] };
+  show = ensureSurfaceTracks(show, MAIN_TIMELINE);
+  show = assignClip(show, clip, surfaceTrack(show, MAIN_TIMELINE, 'wall')!.id, 0);
+  const use = show.visuals!.find(v => v.timelineRefID === clip)!;
+  const onPlacement = vi.fn();
+  render(<SimpleVisualWorkspace show={show} urls={{}} selectedID={use.id} timeS={0} playing={false} showInput
+    onPlay={vi.fn()} onSeek={vi.fn()} onChange={vi.fn()} onBrowse={vi.fn()} onPlacement={onPlacement} />);
+  const input = screen.getByRole('region', { name: 'Input' });
+  expect(within(input).getByLabelText('Clip board')).toBeTruthy();
+  // The front layer is picked first; the picker switches which layer the handles move.
+  const picker = within(input).getByRole('combobox', { name: 'Clip layer' }) as HTMLSelectElement;
+  expect(picker.value).toBe('front');
+  fireEvent.change(picker, { target: { value: 'back' } });
+  expect(picker.value).toBe('back');
+  expect(within(input).getByLabelText('Move visual')).toBeTruthy();
+});

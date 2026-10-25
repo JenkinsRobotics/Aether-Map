@@ -41,7 +41,8 @@ export function reorderTimelineTrack(show: MapShow, id: string, direction: numbe
   const timelineID = tracks[i].timelineID;
   const kind = tracks[i].kind ?? 'video', sceneID = tracks[i].targets[0]?.sceneID;
   let j = i + direction;
-  while (j >= 0 && j < tracks.length && (tracks[j].timelineID !== timelineID || (tracks[j].kind ?? 'video') !== kind || !tracks[j].targets.some(t => t.sceneID === sceneID))) j += direction;
+  // A clip's tracks aim at no canvas, so only a scene's tracks compare canvases.
+  while (j >= 0 && j < tracks.length && (tracks[j].timelineID !== timelineID || (tracks[j].kind ?? 'video') !== kind || (sceneID !== undefined && !tracks[j].targets.some(t => t.sceneID === sceneID)))) j += direction;
   if (j < 0 || j >= tracks.length || tracks[j].locked) return show;
   [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
   return { ...show, tracks };
