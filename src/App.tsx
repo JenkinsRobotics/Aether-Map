@@ -362,6 +362,9 @@ export default function App() {
     const read = (key: string, fallback: "pool" | "visuals") => { try { const v = localStorage.getItem(key); return v === 'pool' || v === 'visuals' ? v : fallback; } catch { return fallback; } };
     return { content: read('aether-map.content-tab', 'pool'), visualization: read('aether-map.scene-tab', 'visuals') };
   });
+  // The Visuals tab's view, Cards or List, chosen from its right-click menu.
+  const [visualsView, setVisualsView] = useState<'cards' | 'tree'>(() => { try { return localStorage.getItem('aether-map.visuals-view') === 'tree' ? 'tree' : 'cards'; } catch { return 'cards'; } });
+  const pickVisualsView = (view: 'cards' | 'tree') => { setVisualsView(view); try { localStorage.setItem('aether-map.visuals-view', view); } catch { /* Storage is optional. */ } };
   // Scene: the pool clip picked to assign (the surface row then places it).
   const [scenePickID, setScenePickID] = useState<string | null>(null);
   const pickPoolTab = (room: "content" | "visualization", tab: "pool" | "visuals") => {
@@ -1467,7 +1470,7 @@ export default function App() {
                   onDuplicate={id => edit(s => duplicateClip(s, id))} onRemove={id => { edit(s => removeTimeline(s, id)); if (id === openClip?.id) setOpenClipID(null); }}
                   onFolder={(id, folder) => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, folder } : t) }))} />
               : <div className="map-visual-layers">
-                  <VisualAssetsPanel ariaLabel="Clip visuals" view="tree" addLabel="Add layer" urls={urls} show={show} selectedID={selectedClipID} onSelect={selectAsset}
+                  <VisualAssetsPanel ariaLabel="Clip visuals" view={visualsView} onView={pickVisualsView} addLabel="Add layer" urls={urls} show={show} selectedID={selectedClipID} onSelect={selectAsset}
                     onChange={assets.change} onRemove={assets.remove} onDuplicate={assets.duplicate} onMove={assets.move} onDrop={assets.drop} onAdd={addVisual} />
                 </div>)
             : mode === "visualization"
@@ -1493,7 +1496,7 @@ export default function App() {
                 </div>
               : <TreePanelSplit primaryLabel="Layers" secondaryLabel="Canvases and scenes" storageKey="aether-map.media-scenes-split" primary={
               <div className="map-visual-layers">
-                <VisualAssetsPanel ariaLabel="Visuals" view="cards"
+                <VisualAssetsPanel ariaLabel="Visuals" view={visualsView} onView={pickVisualsView}
                   sceneID={show.activeSceneId} addLabel="Add layer" urls={urls} show={show} selectedID={selectedClipID} onSelect={selectAsset}
                   onChange={assets.change} onRemove={assets.remove} onDuplicate={assets.duplicate} onMove={assets.move} onDrop={assets.drop}
                   onAdd={addVisual} />

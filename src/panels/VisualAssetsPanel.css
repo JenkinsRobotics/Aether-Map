@@ -9,6 +9,9 @@
 /* The Visual layers tab: the tree fills, the concept's add actions sit below. */
 .map-visual-layers { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .map-visual-layers > :first-child { flex: 1; min-height: 0; }
+/* Right-click on the panel's empty space, below the rows, opens the panel menu. */
+.map-visual-layers > .map-tree-context-area { display: flex; flex-direction: column; }
+.map-visual-layers > .map-tree-context-area > * { flex: 1; min-height: 0; }
 
 /* Visuals tab: the concept's card rows. */
 .map-visual-cards { list-style: none; margin: 0; padding: 4px 6px; display: grid; gap: 6px; align-content: start; overflow-y: auto; }

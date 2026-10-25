@@ -31,6 +31,7 @@ beforeEach(() => {
   localStorage.removeItem("aether-map.mapping.ribbon-tab");
   localStorage.removeItem("aether-map.toolbar-density");
   localStorage.removeItem("aether-map.sequence.ribbon-tab");
+  localStorage.removeItem("aether-map.visuals-view");
   installPointerEvents();
   vi.stubGlobal(
     "ResizeObserver",
@@ -477,9 +478,32 @@ describe("Aether Map", () => {
     expect(screen.getByRole('treeitem', { name: /Clip 1/ })).toBeTruthy();
     fireEvent.click(within(screen.getByRole('region', { name: 'Map tools' })).getByRole('button', { name: 'Colour' }));
     fireEvent.click(within(tabs).getByRole('radio', { name: /Visuals/ }));
-    expect(within(screen.getByRole('tree', { name: 'Clip visuals' })).getByRole('treeitem', { name: /Colour/ })).toBeTruthy();
+    expect(within(screen.getByRole('list', { name: 'Clip visuals' })).getByRole('button', { name: /^Select Colour/ })).toBeTruthy();
     changeWorkspace('Scene');
     expect(screen.queryByRole('treeitem', { name: /^Colour/ })).toBeNull();
+  });
+
+  it("Content's timeline is the open clip's: a visual added there appears as a clip on its track", () => {
+    render(<App />);
+    changeWorkspace('Content');
+    fireEvent.click(within(screen.getByRole('region', { name: 'Map tools' })).getByRole('button', { name: 'Colour' }));
+    const tracks = screen.getByRole('region', { name: 'Timeline tracks' });
+    expect(tracks.querySelectorAll('.map-clip')).toHaveLength(1);
+    expect(within(tracks).queryByText('Add a visual to create a timeline track.')).toBeNull();
+    // Its tab names the clip, not the scene's Main timeline.
+    expect(within(screen.getByRole('tablist', { name: 'Timelines' })).getAllByRole('tab').map(t => t.textContent)).toEqual(['Clip 1']);
+  });
+
+  it("Content's Visuals tab is the card list, and View in its right-click menu switches to the list", () => {
+    render(<App />);
+    changeWorkspace('Content');
+    fireEvent.click(within(screen.getByRole('region', { name: 'Map tools' })).getByRole('button', { name: 'Colour' }));
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Content panel view' })).getByRole('radio', { name: /Visuals/ }));
+    const cards = screen.getByRole('list', { name: 'Clip visuals' });
+    fireEvent.contextMenu(within(cards).getByRole('button', { name: /^Select Colour/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /View/ }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /List/ }));
+    expect(within(screen.getByRole('tree', { name: 'Clip visuals' })).getByRole('treeitem', { name: /Colour/ })).toBeTruthy();
   });
 
   it("Scene assigns a Media pool clip with the surface row and shows its contents read-only", () => {

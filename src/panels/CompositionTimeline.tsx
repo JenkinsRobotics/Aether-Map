@@ -1,7 +1,7 @@
 import { VisualAutomationFields } from './VisualAutomationFields';
 import { TimelineAutomationRows } from './TimelineAutomationRows';
 import { AudioOutputControls } from './AudioOutputControls';
-import { timelineTracks, timelineVisuals, timelineDuration, currentTimelineID, MAIN_TIMELINE } from '../timelines';
+import { timelineTracks, timelineVisuals, timelineDuration, currentTimelineID, isClip, MAIN_TIMELINE } from '../timelines';
 import { TimelineTrackHeader } from './TimelineTrackHeader';
 import './TimelineDesign.css';
 import { useState, useRef } from 'react';
@@ -26,7 +26,9 @@ export function CompositionTimeline({ show, trackID, onTrack, onEdit, onDropPool
   const [automationTracks,setAutomationTracks]=useState(false),[automationParameter,setAutomationParameter]=useState('');
   const [clipboard, setClipboard] = useState<Visual | null>(null);
   const [context, setContext] = useState<{ x: number; y: number; trackID: string; clipID?: string } | null>(null);
-  const tracks = timelineTracks(show).filter(t => t.targets.some(a => a.sceneID === scene.id)
+  // A clip's tracks aim at no canvas (its board is the canvas), so all of them show.
+  const inClip = isClip(show.timelines?.find(t => t.id === currentTimelineID(show)));
+  const tracks = timelineTracks(show).filter(t => inClip || t.targets.some(a => a.sceneID === scene.id)
     || show.visuals?.some(v => v.trackID === t.id && v.targets.some(a => a.sceneID === scene.id)));
   const clips = timelineVisuals(show).filter(v => tracks.some(t => t.id === v.trackID));
   const selectedClip = clips.find(v => v.id === timeline.selectedClipID);

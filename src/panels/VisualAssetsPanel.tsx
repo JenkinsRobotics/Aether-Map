@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AetherIcon, MenuButton, TreePanel, type TreeNode, type MenuItem, type TreeControl } from '@aether/ui';
+import { AetherIcon, Menu, MenuButton, TreePanel, type TreeNode, type MenuItem, type TreeControl } from '@aether/ui';
 import type { Clip, MapShow, Surface } from '../document';
 import type { Visual } from '../visual-model';
 import { visualAssets } from '../visual-assets';
@@ -19,7 +19,7 @@ const duration = (clip: Clip & { continuous?: boolean }) => {
 /** The visual list tree: front-to-back visuals with thumbnails, drag reorder,
  * hide, lock, rename, duplicate, delete and list groups. `thumbnails` gives the
  * Visual layers tab its card-like rows; the compact Clip index omits it. */
-export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemove, onDuplicate, onMove, onDrop, onAdd, urls, thumbnails = false, ariaLabel = 'Clip index', addLabel = 'Add shader', view = 'tree', sceneID }: {
+export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemove, onDuplicate, onMove, onDrop, onAdd, urls, thumbnails = false, ariaLabel = 'Clip index', addLabel = 'Add shader', view = 'tree', onView, sceneID }: {
   show: MapShow; selectedID: string | null;
   onSelect: (surfaceID: string, clipID: string) => void;
   onChange: (surfaceID: string, clip: Clip) => void;
@@ -34,6 +34,8 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
   addLabel?: string;
   /** 'cards' is the Visuals tab's visual card list; 'tree' is the list tree. */
   view?: 'tree' | 'cards';
+  /** Offers View › Cards / List in every right-click menu of the panel. */
+  onView?: (view: 'tree' | 'cards') => void;
   /** Working scene: show only visuals targeting it (or untargeted ones). */
   sceneID?: string;
 }) {
@@ -122,14 +124,20 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
   };
   // Header: a name and "+"; the rest is right-click (or Delete/F2 on a row).
   const controls: TreeControl[] = [{ id: 'add', label: addLabel, icon: <AetherIcon name="plus" />, onClick: onAdd }];
-  const createItems = [{ id: 'list-add', label: addLabel, icon: <AetherIcon name="plus" />, separatorBefore: true }];
+  // Every menu of the panel ends with the panel's own commands: add, then the view.
+  const createItems: MenuItem[] = [{ id: 'list-add', label: addLabel, icon: <AetherIcon name="plus" />, separatorBefore: true },
+    ...(onView ? [{ id: 'view', label: 'View', icon: <AetherIcon name="layers" />, children: [
+      { id: 'view:cards', label: 'Cards', kind: 'radio' as const, checked: view === 'cards' },
+      { id: 'view:tree', label: 'List', kind: 'radio' as const, checked: view === 'tree' }] }] : [])];
+  const panelCommand = (id: string) => { if (id === 'list-add') onAdd(); else if (id.startsWith('view:')) onView?.(id.slice(5) as 'tree' | 'cards'); };
+  const rowCommand = (id: string, action: string) => action === 'list-add' || action.startsWith('view:') ? panelCommand(action) : command(id, action);
   const runShortcut = (key: 'Delete' | 'F2') => { const item = selected && menu(selected.id).find(entry => entry.id === (key === 'Delete' ? 'delete' : 'rename') && !entry.disabled); if (selected && item) command(selected.id, item.id); };
-  if (view === 'cards') return <VisualCards ariaLabel={ariaLabel} assets={[...assets].reverse()} selectedID={selectedID}
-    menu={menu} command={command} onSelect={select} locked={id => locked(assets.find(a => a.id === id))}
+  if (view === 'cards') return <TreeContextArea label="Asset options" items={createItems} onSelect={panelCommand}><VisualCards ariaLabel={ariaLabel} assets={[...assets].reverse()} selectedID={selectedID}
+    menu={id => [...menu(id), ...createItems]} command={rowCommand} onSelect={select} locked={id => locked(assets.find(a => a.id === id))}
     detail={asset => duration(asset.clip as Visual)}
     thumbnail={asset => urls ? <VisualThumbnail source={visualSource(show, asset.clip as Visual)} show={show} urls={urls} /> : icon(asset.kind)}
-    onDrop={(id, targetID, before) => { const asset = assets.find(a => a.id === id); if (asset && !locked(asset) && id !== targetID) onDrop(asset.surface.id, id, targetID, targetID, before); }} />;
-  return <TreeContextArea label="Asset options" items={createItems} onSelect={onAdd} shortcut={runShortcut}><TreePanel ariaLabel={ariaLabel} nodes={nodes} rootInset={0} revealSelection
+    onDrop={(id, targetID, before) => { const asset = assets.find(a => a.id === id); if (asset && !locked(asset) && id !== targetID) onDrop(asset.surface.id, id, targetID, targetID, before); }} /></TreeContextArea>;
+  return <TreeContextArea label="Asset options" items={createItems} onSelect={panelCommand} shortcut={runShortcut}><TreePanel ariaLabel={ariaLabel} nodes={nodes} rootInset={0} revealSelection
     filterOptions={Object.keys(ICONS).map(kind => ({ id: kind, label: kind }))}
     selectedIDs={new Set(selected ? [selected.id] : [])}
     canMove={(id, targetID, position) => {
@@ -152,7 +160,7 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
     }}
     onSelect={ids => { const id = ids.at(-1); if (id && !id.startsWith(GROUP)) select(id); }} onActivate={id => { if (!id.startsWith(GROUP)) select(id); }}
     controls={[]} headerControls={controls} controlsLabel="Asset controls" menuLabel="Asset options" menuItems={id => [...menu(id), ...createItems]}
-    onCommand={(id, action) => action === 'list-add' ? onAdd() : command(id, action)} onAction={command} renamingID={renamingID} onCancelRename={() => setRenamingID(null)}
+    onCommand={rowCommand} onAction={command} renamingID={renamingID} onCancelRename={() => setRenamingID(null)}
     onRename={(id, name) => {
       const trimmed = name.trim();
       if (id.startsWith(GROUP)) { if (trimmed) members(id).forEach(a => setFolder(a, trimmed)); }
@@ -173,10 +181,12 @@ function VisualCards({ ariaLabel, assets, selectedID, menu, command, onSelect, l
   onDrop: (id: string, targetID: string, before: boolean) => void;
 }) {
   const [dragging, setDragging] = useState<string | null>(null);
-  return <ul className="map-visual-cards" aria-label={ariaLabel}>
+  const [context, setContext] = useState<{ id: string; x: number; y: number } | null>(null);
+  return <><ul className="map-visual-cards" aria-label={ariaLabel}>
     {assets.map(asset => <li key={asset.id}
       className={`map-visual-card${asset.id === selectedID ? ' is-selected' : ''}${asset.clip?.enabled === false ? ' is-hidden' : ''}`}
       draggable={!locked(asset.id)} onDragStart={event => { setDragging(asset.id); event.dataTransfer.effectAllowed = 'move'; }}
+      onContextMenu={event => { event.preventDefault(); event.stopPropagation(); setContext({ id: asset.id, x: event.clientX, y: event.clientY }); }}
       onDragEnd={() => setDragging(null)} onDragOver={event => { if (dragging && dragging !== asset.id) event.preventDefault(); }}
       onDrop={event => { event.preventDefault(); if (!dragging) return;
         const box = event.currentTarget.getBoundingClientRect(); onDrop(dragging, asset.id, event.clientY < box.top + box.height / 2); setDragging(null); }}>
@@ -189,5 +199,7 @@ function VisualCards({ ariaLabel, assets, selectedID, menu, command, onSelect, l
         <AetherIcon name="more" style={{ transform: 'rotate(90deg)' }} />
       </MenuButton>
     </li>)}
-  </ul>;
+  </ul>
+  {context && <Menu className="aui-collection-popup" open anchor={{ x: context.x, y: context.y }} ariaLabel="Asset options" items={menu(context.id)}
+    onClose={() => setContext(null)} onSelect={action => { command(context.id, action); setContext(null); }} />}</>;
 }
