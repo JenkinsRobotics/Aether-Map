@@ -29,7 +29,10 @@ has 921 passing shared tests. Earlier stale browser selectors were replaced with
 the actual Content workflow and portalled timeline toolbar. The repository's
 previous broad e2e failures remain documented under alpha-0.1.3 below.
 
-## Map release alpha-0.1.4 — 2026-10-25: Media pool | Browse tabs
+## Map release alpha-0.1.5 — 2026-10-25: Media pool | Browse tabs
+
+Installed 2026-10-25 through Studio's per-app update (source `167aeda`, no restart).
+It carries alpha-0.1.4 (shared contextual panel actions, Aether-UI alpha.211) forward.
 
 - The Media panel has the Comments widget's header: full-width Media pool | Browse
   tabs (the same shared control). Browse is the import library (Pixabay, your own
