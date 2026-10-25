@@ -1,5 +1,25 @@
 # Aether Map status
 
+## Map release alpha-0.1.2 — 2026-10-25: clip editing fixes
+
+Installed 2026-10-25 through Studio's per-app update (source `5e6c44d`, no restart).
+- Content's timeline shows the open clip's tracks (it showed none) and names the clip.
+- Visuals uses the card list in Content and Scene; every right-click menu of the
+  panel (card, row, empty space) ends with Add layer and View › Cards / List.
+- Ctrl/Cmd-click and Shift-click pick several layers; their menu hides, groups or
+  deletes them all (one undo step), and Delete removes them.
+- Scene: a clip on a surface moves and resizes with the preview handles, like any
+  visual. With Input on, a picked clip shows its own board there, with handles for
+  the layer chosen in "Clip layer". Its layer list is editable in Scene (duplicate,
+  reorder, hide, delete).
+- Clip layers reorder (Move forward/backward found no neighbour in a clip).
+- The Comments/Tasks panel ends with the dock row, and no longer runs off the window
+  after the dock closes. Map works around Aether-UI 0.2.0-alpha.207 keeping the last
+  dock height; the fix belongs in Aether-UI.
+- Limits: the clip handles resize along the frame axes only; a clip's Input board
+  plays at the clip's own clock. e2e `bottom-dock.spec.ts` (3) and `video.spec.ts`
+  fail on UI removed with the shared Studio interface; they predate this release.
+
 ## 0.1.0-alpha.3 — 2026-10-24: Content and Scene workspaces
 
 Installed 2026-10-24 as Map release `alpha-0.1.1` through Studio's per-app update
