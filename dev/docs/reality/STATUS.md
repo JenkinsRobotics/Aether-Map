@@ -2,6 +2,8 @@
 
 ## 0.1.0-alpha.3 — 2026-10-24: Content and Scene workspaces
 
+Installed 2026-10-24 as Map release `alpha-0.1.1` through Studio's per-app update
+(source `45a0ce3`, worker and Pi downloads included, no restart; other apps unchanged).
 Workspaces are now Mapping | Content | Scene | Show. Design:
 `docs/superpowers/specs/2026-10-24-content-and-scene-workspaces-design.md`.
 - **Content** builds compound clips with no surfaces. Each clip sits on its own
