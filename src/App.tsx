@@ -1471,7 +1471,7 @@ export default function App() {
                   onFolder={(id, folder) => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, folder } : t) }))} />
               : <div className="map-visual-layers">
                   <VisualAssetsPanel ariaLabel="Clip visuals" view={visualsView} onView={pickVisualsView} addLabel="Add layer" urls={urls} show={show} selectedID={selectedClipID} onSelect={selectAsset}
-                    onChange={assets.change} onRemove={assets.remove} onDuplicate={assets.duplicate} onMove={assets.move} onDrop={assets.drop} onAdd={addVisual} />
+                    onChange={assets.change} onRemove={assets.remove} onRemoveMany={assets.removeMany} onDuplicate={assets.duplicate} onMove={assets.move} onDrop={assets.drop} onAdd={addVisual} />
                 </div>)
             : mode === "visualization"
             // Visualization mirrors Mapping's three sections: Media (visuals
@@ -1489,7 +1489,7 @@ export default function App() {
               // reorder, hide...); adding a layer and the board open in Content.
               : scenePick ? <div className="map-visual-layers">
                   <VisualAssetsPanel ariaLabel="Clip visuals" view={visualsView} onView={pickVisualsView} addLabel="Add layer in Content" urls={urls} show={{ ...show, activeTimelineID: scenePick.id }} selectedID={null}
-                    onSelect={() => {}} onChange={assets.change} onRemove={assets.remove} onDuplicate={(_, clip) => edit(s => duplicateVisual(s, clip.id))} onMove={assets.move} onDrop={assets.drop}
+                    onSelect={() => {}} onChange={assets.change} onRemove={assets.remove} onRemoveMany={assets.removeMany} onDuplicate={(_, clip) => edit(s => duplicateVisual(s, clip.id))} onMove={assets.move} onDrop={assets.drop}
                     onAdd={() => { setOpenClipID(scenePick.id); enterMode('content'); }} />
                   <div className="map-feature-buttons">
                     <Button primary onClick={() => { setOpenClipID(scenePick.id); enterMode('content'); }}>Edit in Content</Button>
@@ -1500,7 +1500,7 @@ export default function App() {
               <div className="map-visual-layers">
                 <VisualAssetsPanel ariaLabel="Visuals" view={visualsView} onView={pickVisualsView}
                   sceneID={show.activeSceneId} addLabel="Add layer" urls={urls} show={show} selectedID={selectedClipID} onSelect={selectAsset}
-                  onChange={assets.change} onRemove={assets.remove} onDuplicate={assets.duplicate} onMove={assets.move} onDrop={assets.drop}
+                  onChange={assets.change} onRemove={assets.remove} onRemoveMany={assets.removeMany} onDuplicate={assets.duplicate} onMove={assets.move} onDrop={assets.drop}
                   onAdd={addVisual} />
               </div>} secondary={
               <TreePanelSplit primaryLabel="Canvases" secondaryLabel="Scenes" storageKey="aether-map.scenes-timelines-split" collapsible={["primary", "secondary"]} defaultCollapsed={["primary", "secondary"]} primary={panel("scene-picker")}

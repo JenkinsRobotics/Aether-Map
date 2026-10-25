@@ -1620,3 +1620,11 @@
 .map-tree-context-area { display: contents; }
 /* A custom outline's placeholder edge, in canvas pixels; the clip keeps its inner half. */
 .map-surface-edge { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+
+/* The Comments/Tasks panel ends with the dock row, or with the side panels when
+   there is no dock. Aether-UI 0.2.0-alpha.207 runs it to the dock's outer edge
+   (past the row's 12px margin, 10px below the row) and keeps the last dock height
+   after the dock closes, so the panel then runs off the window.
+   ponytail: drop this once Aether-UI aligns the aux sidebar itself. */
+.aui-shell[data-design="studio"]:has(.aui-shell-bottom > *) .aui-studio-aux-sidebar { height: calc(100% + var(--aui-studio-inset) + var(--aui-studio-bottom-height, 0px) - 10px); }
+.aui-shell[data-design="studio"]:not(:has(.aui-shell-bottom > *)) .aui-studio-aux-sidebar { height: 100%; }

@@ -19,11 +19,13 @@ const duration = (clip: Clip & { continuous?: boolean }) => {
 /** The visual list tree: front-to-back visuals with thumbnails, drag reorder,
  * hide, lock, rename, duplicate, delete and list groups. `thumbnails` gives the
  * Visual layers tab its card-like rows; the compact Clip index omits it. */
-export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemove, onDuplicate, onMove, onDrop, onAdd, urls, thumbnails = false, ariaLabel = 'Clip index', addLabel = 'Add shader', view = 'tree', onView, sceneID }: {
+export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemove, onDuplicate, onMove, onDrop, onAdd, urls, thumbnails = false, ariaLabel = 'Clip index', addLabel = 'Add shader', view = 'tree', onView, onRemoveMany, sceneID }: {
   show: MapShow; selectedID: string | null;
   onSelect: (surfaceID: string, clipID: string) => void;
   onChange: (surfaceID: string, clip: Clip) => void;
   onRemove: (surfaceID: string, clipID: string) => void;
+  /** Deletes a multi-selection in one step (one undo); else each goes through onRemove. */
+  onRemoveMany?: (ids: string[]) => void;
   onDuplicate: (surface: Surface, clip: Clip) => void;
   onMove: (surfaceID: string, clipID: string, direction: -1 | 1) => void;
   onDrop: (surfaceID: string, clipID: string, targetID: string, targetClipID: string | null, after: boolean) => void;
@@ -40,6 +42,8 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
   sceneID?: string;
 }) {
   const [renamingID, setRenamingID] = useState<string | null>(null);
+  // Ctrl/⌘-click and Shift-click pick several; a plain click picks one again.
+  const [many, setMany] = useState<string[]>([]);
   const targets = (asset: ReturnType<typeof visualAssets>[number]) => (asset.clip as Visual).targets ?? [];
   // Every asset of the selected timeline, treated alike: media, generators
   // and a timeline nested as an asset. Same list in both editors.
@@ -79,6 +83,22 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
   };
   const nextGroup = () => { let n = 1; while (assets.some(a => folderOf(a) === `Group ${n}`)) n++; return `Group ${n}`; };
   const select = (id: string) => { const asset = assets.find(a => a.id === id); if (asset) onSelect(asset.surface.id, asset.id); };
+  const chosen = many.filter(id => assets.some(a => a.id === id));
+  const multi = chosen.length > 1;
+  // What a Ctrl/Shift-click adds to: the selection, else this panel's last pick.
+  const current = multi ? chosen : selected ? [selected.id] : chosen;
+  // A toggle names the one row clicked; a range names every row in it.
+  const pick = (ids: readonly string[], mode: 'single' | 'toggle' | 'range') => {
+    if (mode === 'toggle' && ids.length === 1) ids = current.includes(ids[0]) ? current.filter(x => x !== ids[0]) : [...current, ids[0]];
+    const rows = ids.filter(id => !id.startsWith(GROUP));
+    if (mode === 'single' || rows.length < 2) { const id = rows.at(-1); setMany(id ? [id] : []); if (id) select(id); return; }
+    setMany(rows);
+  };
+  const removeMany = (ids: string[]) => {
+    const free = ids.filter(id => !locked(assets.find(a => a.id === id)));
+    if (onRemoveMany) onRemoveMany(free); else free.forEach(id => onRemove(assets.find(a => a.id === id)!.surface.id, id));
+    setMany([]);
+  };
   const command = (id: string, action: string) => {
     if (id.startsWith(GROUP)) {
       const list = members(id);
@@ -100,7 +120,22 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
       else if (action === 'duplicate' && !asset.clip.locked) onDuplicate(asset.surface, asset.clip);
     }
   };
+  const multiMenu = (): MenuItem[] => {
+    const list = chosen.map(id => assets.find(a => a.id === id)!), hidden = list.every(a => a.clip?.enabled === false);
+    return [
+      { id: 'many:visibility', label: `${hidden ? 'Show' : 'Hide'} ${list.length} assets`, icon: <AetherIcon name={hidden ? 'hidden' : 'visible'} /> },
+      { id: 'many:group', label: `Group ${list.length} assets`, icon: <AetherIcon name="folder" /> },
+      { id: 'many:delete', label: `Delete ${list.length} assets`, shortcut: 'Delete', icon: <AetherIcon name="delete" />, disabled: list.every(a => locked(a)) },
+    ];
+  };
+  const manyCommand = (action: string) => {
+    const list = chosen.map(id => assets.find(a => a.id === id)!);
+    if (action === 'many:delete') removeMany(chosen);
+    else if (action === 'many:group') { const name = nextGroup(); list.forEach(a => setFolder(a, name)); setRenamingID(GROUP + name); }
+    else if (action === 'many:visibility') { const show_ = list.every(a => a.clip?.enabled === false); list.forEach(a => a.clip && !locked(a) && onChange(a.surface.id, { ...a.clip, enabled: show_ })); }
+  };
   const menu = (id: string): MenuItem[] => {
+    if (multi && chosen.includes(id)) return multiMenu();
     if (id.startsWith(GROUP)) return [
       { id: 'visibility', label: members(id).every(a => a.clip?.enabled === false) ? 'Show group' : 'Hide group', icon: <AetherIcon name="visible" /> },
       { id: 'rename', label: 'Rename group', shortcut: 'F2', icon: <AetherIcon name="notes" /> },
@@ -130,16 +165,20 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
       { id: 'view:cards', label: 'Cards', kind: 'radio' as const, checked: view === 'cards' },
       { id: 'view:tree', label: 'List', kind: 'radio' as const, checked: view === 'tree' }] }] : [])];
   const panelCommand = (id: string) => { if (id === 'list-add') onAdd(); else if (id.startsWith('view:')) onView?.(id.slice(5) as 'tree' | 'cards'); };
-  const rowCommand = (id: string, action: string) => action === 'list-add' || action.startsWith('view:') ? panelCommand(action) : command(id, action);
-  const runShortcut = (key: 'Delete' | 'F2') => { const item = selected && menu(selected.id).find(entry => entry.id === (key === 'Delete' ? 'delete' : 'rename') && !entry.disabled); if (selected && item) command(selected.id, item.id); };
-  if (view === 'cards') return <TreeContextArea label="Asset options" items={createItems} onSelect={panelCommand}><VisualCards ariaLabel={ariaLabel} assets={[...assets].reverse()} selectedID={selectedID}
-    menu={id => [...menu(id), ...createItems]} command={rowCommand} onSelect={select} locked={id => locked(assets.find(a => a.id === id))}
+  const rowCommand = (id: string, action: string) => action === 'list-add' || action.startsWith('view:') ? panelCommand(action) : action.startsWith('many:') ? manyCommand(action) : command(id, action);
+  const runShortcut = (key: 'Delete' | 'F2') => { if (multi) { if (key === 'Delete') removeMany(chosen); return; } const item = selected && menu(selected.id).find(entry => entry.id === (key === 'Delete' ? 'delete' : 'rename') && !entry.disabled); if (selected && item) command(selected.id, item.id); };
+  if (view === 'cards') return <TreeContextArea label="Asset options" items={createItems} onSelect={panelCommand} shortcut={runShortcut}><VisualCards ariaLabel={ariaLabel} assets={[...assets].reverse()} selectedIDs={current}
+    menu={id => [...menu(id), ...createItems]} command={rowCommand} onSelect={(id, mode) => {
+      const ordered = [...assets].reverse().map(a => a.id);
+      if (mode === 'range' && current.length) { const [a, b] = [ordered.indexOf(current.at(-1)!), ordered.indexOf(id)].sort((x, y) => x - y); pick(ordered.slice(a, b + 1), 'range'); }
+      else pick([id], mode);
+    }} locked={id => locked(assets.find(a => a.id === id))}
     detail={asset => duration(asset.clip as Visual)}
     thumbnail={asset => urls ? <VisualThumbnail source={visualSource(show, asset.clip as Visual)} show={show} urls={urls} /> : icon(asset.kind)}
     onDrop={(id, targetID, before) => { const asset = assets.find(a => a.id === id); if (asset && !locked(asset) && id !== targetID) onDrop(asset.surface.id, id, targetID, targetID, before); }} /></TreeContextArea>;
   return <TreeContextArea label="Asset options" items={createItems} onSelect={panelCommand} shortcut={runShortcut}><TreePanel ariaLabel={ariaLabel} nodes={nodes} rootInset={0} revealSelection
     filterOptions={Object.keys(ICONS).map(kind => ({ id: kind, label: kind }))}
-    selectedIDs={new Set(selected ? [selected.id] : [])}
+    selectedIDs={new Set(current)}
     canMove={(id, targetID, position) => {
       const asset = assets.find(a => a.id === id);
       if (!asset || locked(asset) || id === targetID) return false;
@@ -158,7 +197,7 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
       onDrop(asset.surface.id, id, targetID, targetID, position === 'before');
       if (folderOf(target) !== folderOf(asset)) setFolder(asset, folderOf(target));
     }}
-    onSelect={ids => { const id = ids.at(-1); if (id && !id.startsWith(GROUP)) select(id); }} onActivate={id => { if (!id.startsWith(GROUP)) select(id); }}
+    onSelect={pick} onActivate={id => { if (!id.startsWith(GROUP)) select(id); }}
     controls={[]} headerControls={controls} controlsLabel="Asset controls" menuLabel="Asset options" menuItems={id => [...menu(id), ...createItems]}
     onCommand={rowCommand} onAction={command} renamingID={renamingID} onCancelRename={() => setRenamingID(null)}
     onRename={(id, name) => {
@@ -172,10 +211,10 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
 type Asset = ReturnType<typeof visualAssets>[number];
 /** The concept's visual card list: grip, thumbnail, name and duration, and the
  * same menu as the list tree. Drag a card onto another to reorder. */
-function VisualCards({ ariaLabel, assets, selectedID, menu, command, onSelect, locked, thumbnail, detail, onDrop }: {
-  ariaLabel: string; assets: Asset[]; selectedID: string | null;
+function VisualCards({ ariaLabel, assets, selectedIDs, menu, command, onSelect, locked, thumbnail, detail, onDrop }: {
+  ariaLabel: string; assets: Asset[]; selectedIDs: readonly string[];
   menu: (id: string) => MenuItem[]; command: (id: string, action: string) => void;
-  onSelect: (id: string) => void; locked: (id: string) => boolean | undefined;
+  onSelect: (id: string, mode: 'single' | 'toggle' | 'range') => void; locked: (id: string) => boolean | undefined;
   thumbnail: (asset: Asset) => React.ReactNode;
   detail: (asset: Asset) => string;
   onDrop: (id: string, targetID: string, before: boolean) => void;
@@ -184,14 +223,15 @@ function VisualCards({ ariaLabel, assets, selectedID, menu, command, onSelect, l
   const [context, setContext] = useState<{ id: string; x: number; y: number } | null>(null);
   return <><ul className="map-visual-cards" aria-label={ariaLabel}>
     {assets.map(asset => <li key={asset.id}
-      className={`map-visual-card${asset.id === selectedID ? ' is-selected' : ''}${asset.clip?.enabled === false ? ' is-hidden' : ''}`}
+      className={`map-visual-card${selectedIDs.includes(asset.id) ? ' is-selected' : ''}${asset.clip?.enabled === false ? ' is-hidden' : ''}`}
       draggable={!locked(asset.id)} onDragStart={event => { setDragging(asset.id); event.dataTransfer.effectAllowed = 'move'; }}
       onContextMenu={event => { event.preventDefault(); event.stopPropagation(); setContext({ id: asset.id, x: event.clientX, y: event.clientY }); }}
       onDragEnd={() => setDragging(null)} onDragOver={event => { if (dragging && dragging !== asset.id) event.preventDefault(); }}
       onDrop={event => { event.preventDefault(); if (!dragging) return;
         const box = event.currentTarget.getBoundingClientRect(); onDrop(dragging, asset.id, event.clientY < box.top + box.height / 2); setDragging(null); }}>
       <span className="map-visual-card-grip" aria-hidden="true">⠿</span>
-      <button type="button" className="map-visual-card-select" aria-label={`Select ${asset.name}`} aria-pressed={asset.id === selectedID} onClick={() => onSelect(asset.id)}>
+      <button type="button" className="map-visual-card-select" aria-label={`Select ${asset.name}`} aria-pressed={selectedIDs.includes(asset.id)}
+        onClick={event => onSelect(asset.id, event.metaKey || event.ctrlKey ? 'toggle' : event.shiftKey ? 'range' : 'single')}>
         <span className="map-visual-card-thumb">{thumbnail(asset)}</span>
         <span className="map-visual-card-text"><strong>{asset.name}</strong><small>{detail(asset)}</small></span>
       </button>

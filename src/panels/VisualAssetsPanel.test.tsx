@@ -31,3 +31,29 @@ for (const view of ['cards', 'tree'] as const) {
     expect(p.onView).toHaveBeenCalledWith(view === 'cards' ? 'tree' : 'cards');
   });
 }
+
+const two = () => addSimpleVisual(show(), { kind: 'colour', color: '#0000ff' } as never, 'Blue');
+
+it('cards: Ctrl-click picks several, and their menu deletes them all at once', () => {
+  const p = { ...props(), onRemoveMany: vi.fn() };
+  const s = two();
+  render(<VisualAssetsPanel show={s} {...p} view="cards" />);
+  fireEvent.click(screen.getByRole('button', { name: 'Select Red' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Select Blue' }), { ctrlKey: true });
+  expect(screen.getByRole('button', { name: 'Select Red' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByRole('button', { name: 'Select Blue' }).getAttribute('aria-pressed')).toBe('true');
+  fireEvent.contextMenu(screen.getByRole('button', { name: 'Select Blue' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: /Delete 2 assets/ }));
+  expect(new Set(p.onRemoveMany.mock.calls[0][0])).toEqual(new Set(s.visuals!.map(v => v.id)));
+});
+
+it('tree: Ctrl-click picks several, and Delete removes them all at once', () => {
+  const p = { ...props(), onRemoveMany: vi.fn() };
+  const s = two();
+  render(<VisualAssetsPanel show={s} {...p} view="tree" />);
+  fireEvent.click(screen.getByRole('treeitem', { name: /Red/ }));
+  fireEvent.click(screen.getByRole('treeitem', { name: /Blue/ }), { ctrlKey: true });
+  expect(screen.getAllByRole('treeitem').filter(r => r.getAttribute('aria-selected') === 'true')).toHaveLength(2);
+  fireEvent.keyDown(screen.getByRole('treeitem', { name: /Blue/ }), { key: 'Delete' });
+  expect(new Set(p.onRemoveMany.mock.calls[0][0])).toEqual(new Set(s.visuals!.map(v => v.id)));
+});

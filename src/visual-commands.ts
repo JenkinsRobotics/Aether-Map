@@ -12,6 +12,7 @@ export function createVisualCommands({ show, edit, select }: {
     visuals: current.visuals?.map(v => v.id !== clip.id || current.tracks?.find(t => t.id === v.trackID)?.locked ? v : v.locked ? { ...v, locked: clip.locked, enabled: clip.enabled } : { ...v, ...clip } as Visual),
   }), key ?? undefined);
   const remove = (_: string, id: string) => { edit(current => ({ ...current, visuals: current.visuals?.filter(v => v.id !== id || v.locked || current.tracks?.find(t => t.id === v.trackID)?.locked) })); select('', null); };
+  const removeMany = (ids: string[]) => { edit(current => ({ ...current, visuals: current.visuals?.filter(v => !ids.includes(v.id) || v.locked || current.tracks?.find(t => t.id === v.trackID)?.locked) })); select('', null); };
   const duplicate = (_: Surface, clip: Clip) => { const next = duplicateVisual(show, clip.id); edit(() => next); const i = next.visuals?.findIndex(v => v.id === clip.id) ?? -1; const copy = next.visuals?.[i + 1]; if (copy) select(copy.id, copy.id); };
   const timeSource = (surface: Surface) => edit(current => ({ ...current, visuals: current.visuals?.map(v => v.id === surface.id && !v.locked ? { ...v, continuous: false } : v) }));
   const move = (_: string, id: string, direction: -1 | 1) => edit(current => {
@@ -43,5 +44,5 @@ export function createVisualCommands({ show, edit, select }: {
     visuals.splice(to + (after ? 1 : 0), 0, visual);
     return { ...current, visuals };
   });
-  return { change, remove, duplicate, timeSource, move, drop };
+  return { change, remove, removeMany, duplicate, timeSource, move, drop };
 }
