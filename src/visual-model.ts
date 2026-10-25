@@ -37,6 +37,8 @@ export interface Visual extends Clip {
   timelineRefID?: string;
   /** A clip use: how the clip's board fits where it lands (absent: stretch, as before clips). */
   clipFit?: import('./timelines').ClipFit;
+  /** A clip use: seconds it takes to fade in from its start (absent: a cut). */
+  transitionS?: number;
   trackID?: string;
   targets: VisualTarget[];
   mapping: VisualMapping;

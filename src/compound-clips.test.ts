@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest';
 import { emptyShow, newScene, newSurface, quadCorners, type MapShow } from './document';
-import { canNestTimeline, createTimeline, placeTimeline, removeSceneTimelines, timelineTracks, validateTimelines } from './timelines';
+import { canNestTimeline, createTimeline, currentTimelineID, MAIN_TIMELINE, placeTimeline, timelineVisuals, removeSceneTimelines, timelineTracks, validateTimelines } from './timelines';
 import { clipPictures, sceneVisuals } from './visual-render';
-import { createClip, isClip, projectClips } from './compound-clips';
+import { assignClip, clipUses, createClip, ensureSurfaceTracks, isClip, projectClips, surfaceTrack, wrapInClip } from './compound-clips';
 import { parseShow, serializeShow } from './show-file';
 import type { Visual } from './visual-model';
 import { normalizeDocument } from './normalize-document';
@@ -129,4 +129,77 @@ it('a migrated clip a show plays as a scene still fills that canvas', () => {
   const small = { ...canvas2, artboard: { widthPx: 1280, heightPx: 720 } };
   const played = { ...show, scenes: show.scenes.map(s => s.id === small.id ? small : s), activeSceneId: small.id, activeTimelineID: clip };
   expect(sceneVisuals(played, small, 0).map(p => p.corners)).toEqual([quadCorners([0, 0, 1280, 720])]);
+});
+
+/** Canvas 1 with surfaces Wall (wide) and Tall (300×600), a 1920×1080 clip "Card" with one fill. */
+function assignFixture() {
+  let show = emptyShow();
+  const wall = { ...newSurface(show.output, 0), id: 'wall', name: 'Wall', corners: quadCorners([0, 0, 800, 400]) };
+  const tall = { ...newSurface(show.output, 1), id: 'tall', name: 'Tall', corners: quadCorners([100, 100, 300, 600]) };
+  tall.source = { ...tall.source, rect: [0, 0, 300, 600] };
+  show.scenes[0].surfaces = [wall, tall];
+  show = createClip(show, 'Card', { widthPx: 1920, heightPx: 1080 });
+  const clip = show.activeClipID!, track = timelineTracks(show, clip).find(t => t.kind === 'video')!;
+  show = { ...show, visuals: [...(show.visuals ?? []), fill('red', track.id)] };
+  return { show, clip, sceneID: show.activeSceneId };
+}
+
+it('ensureSurfaceTracks adds one track per surface, once', () => {
+  const { show } = assignFixture();
+  const once = ensureSurfaceTracks(show, MAIN_TIMELINE);
+  expect(timelineTracks(once, MAIN_TIMELINE).filter(t => t.targets.some(a => a.surfaceID)).map(t => t.name)).toEqual(['Wall', 'Tall']);
+  expect(ensureSurfaceTracks(once, MAIN_TIMELINE)).toBe(once);
+});
+
+it('assignClip projects the clip onto that surface only', () => {
+  const { show, clip } = assignFixture();
+  let next = ensureSurfaceTracks(show, MAIN_TIMELINE);
+  next = assignClip(next, clip, surfaceTrack(next, MAIN_TIMELINE, 'wall')!.id, 0);
+  const pictures = sceneVisuals(next, next.scenes[0], 1);
+  expect(pictures.map(p => p.id.split('@')[1])).toEqual(['wall']);
+});
+
+it('a 1920×1080 clip on a tall surface fills without stretching', () => {
+  const { show, clip } = assignFixture();
+  let next = ensureSurfaceTracks(show, MAIN_TIMELINE);
+  next = assignClip(next, clip, surfaceTrack(next, MAIN_TIMELINE, 'tall')!.id, 0);
+  const [picture] = sceneVisuals(next, next.scenes[0], 1);
+  // Cover: height fits (600), width overflows (1066.7) centred, clipped to the surface.
+  expect(picture.corners[0][0]).toBeCloseTo(100 + (300 - 1920 * 600 / 1080) / 2);
+  expect(picture.corners[0][1]).toBeCloseTo(100);
+  expect(picture.corners[2][0] - picture.corners[0][0]).toBeCloseTo(1920 * 600 / 1080);
+  expect(picture.masks).toEqual([quadCorners([100, 100, 300, 600])]);
+});
+
+it('wrapInClip makes a one-visual clip and leaves the scene active', () => {
+  const { show } = assignFixture();
+  const before = projectClips(show).length;
+  const { show: next, clipID } = wrapInClip(show, { mediaId: null, rect: [0, 0, 10, 10], fill: '#00ff00' }, 'Green');
+  expect(projectClips(next)).toHaveLength(before + 1);
+  expect(timelineVisuals(next, clipID)).toHaveLength(1);
+  expect(currentTimelineID(next)).toBe(currentTimelineID(show));
+});
+
+it('clipUses lists every surface a clip lands on, through nesting', () => {
+  const { show, clip: a, sceneID } = assignFixture();
+  let next = createClip(show, 'Outer');
+  const b = next.activeClipID!;
+  next = placeTimeline(next, a, timelineTracks(next, b).find(t => t.kind === 'video')!.id, 0);
+  next = ensureSurfaceTracks(next, MAIN_TIMELINE);
+  next = assignClip(next, a, surfaceTrack(next, MAIN_TIMELINE, 'wall')!.id, 0);
+  next = assignClip(next, b, surfaceTrack(next, MAIN_TIMELINE, 'tall')!.id, 0);
+  const uses = clipUses(next, a);
+  expect(uses).toHaveLength(2);
+  expect(uses).toEqual(expect.arrayContaining([{ sceneID, surfaceID: 'wall' }, { sceneID, surfaceID: 'tall' }]));
+  expect(clipUses(next, b)).toEqual([{ sceneID, surfaceID: 'tall' }]);
+});
+
+it('transitionS fades a clip use in', () => {
+  const { show, clip } = assignFixture();
+  let next = ensureSurfaceTracks(show, MAIN_TIMELINE);
+  next = assignClip(next, clip, surfaceTrack(next, MAIN_TIMELINE, 'wall')!.id, 0);
+  next = { ...next, visuals: next.visuals!.map(v => v.timelineRefID === clip ? { ...v, transitionS: 2 } : v) };
+  expect(sceneVisuals(next, next.scenes[0], 1)[0].opacity).toBeCloseTo(0.5);
+  expect(sceneVisuals(next, next.scenes[0], 2)[0].opacity).toBeCloseTo(1);
+  expect(parseShow(serializeShow(next)).visuals!.find(v => v.timelineRefID === clip)!.transitionS).toBe(2);
 });

@@ -103,6 +103,7 @@ export function scheduledVisuals(show: MapShow, timeS: number, id = currentTimel
         // ponytail: only the outermost surface-hosting nest applies; deeper hosts are ignored.
         const surfaces = visual.targets.flatMap(t => t.surfaceID ? [t.surfaceID] : []);
         const next = [...path, visual.id, child.id];
+        if (visual.transitionS) opacity *= Math.min(1, Math.max(0, (time - visual.startS) / visual.transitionS));
         if (isClip(child)) {
           // Surfaces only mean something on a canvas; inside a clip a use fills its board.
           const step: ClipStep = { board: child.board, fit: visual.clipFit ?? 'stretch', ...(!board && surfaces.length ? { hosts: surfaces } : {}) };
