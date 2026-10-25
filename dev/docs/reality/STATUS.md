@@ -1,6 +1,10 @@
 # Aether Map status
 
-## Context menus — 2026-10-25
+## Map release alpha-0.1.4 — 2026-10-25: contextual panel actions
+
+Installed from source `902b2e9` through the independent app updater, without a
+restart. All 3,520 frontend files match the qualified build. The alpha-0.1.3
+worker and six Pi downloads are retained; host and all other apps are unchanged.
 
 Built on the committed alpha-0.1.3 Files/media/tray checkpoint. Shared Aether UI
 alpha.211 applies the CAD context-menu standard to Map: menus contain actions
