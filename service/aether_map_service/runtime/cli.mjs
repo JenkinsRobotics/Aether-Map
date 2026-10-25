@@ -10955,7 +10955,7 @@ function canNestTimeline(show, childID, parentID = currentTimelineID(show)) {
 }
 function scheduledVisuals(show, timeS, id = currentTimelineID(show), inputs = {}) {
 	const result = [];
-	const visit = (timelineID, time, path, opacity, gain) => {
+	const visit = (timelineID, time, path, opacity, gain, hosts) => {
 		const tracks = timelineTracks(show, timelineID), ranks = new Map(tracks.map((t, i) => [t.id, i]));
 		const solo = tracks.some((t) => t.kind === "audio" && t.enabled && t.solo);
 		const clips = timelineVisuals(show, timelineID).sort((a, b) => (ranks.get(a.trackID ?? "") ?? -1) - (ranks.get(b.trackID ?? "") ?? -1));
@@ -10974,11 +10974,12 @@ function scheduledVisuals(show, timeS, id = currentTimelineID(show), inputs = {}
 				const child = show.timelines?.find((t) => t.id === visual.timelineRefID);
 				if (!child || path.includes(child.id) || time < visual.startS || time >= visual.startS + visual.durationS) continue;
 				const clock = visualSourceTime(show, visual, time);
+				const surfaces = visual.targets.flatMap((t) => t.surfaceID ? [t.surfaceID] : []);
 				visit(child.id, clock, [
 					...path,
 					visual.id,
 					child.id
-				], opacity * visual.opacity, gain);
+				], opacity * visual.opacity, gain, hosts ?? (surfaces.length ? surfaces : void 0));
 			} else result.push({
 				visual: path.length ? {
 					...visual,
@@ -10988,7 +10989,8 @@ function scheduledVisuals(show, timeS, id = currentTimelineID(show), inputs = {}
 				} : visual,
 				track,
 				timeS: time,
-				gain
+				gain,
+				...hosts ? { hosts } : {}
 			});
 		}
 	};
@@ -18949,7 +18951,35 @@ function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID
 		...calibration ? { modulation: false } : {}
 	};
 	const occupied = /* @__PURE__ */ new Set();
-	const rendered = scheduledVisuals(show, timeS, void 0, inputs).flatMap(({ visual, track, timeS }) => {
+	const w = scene.artboard?.widthPx ?? show.output.width, h = scene.artboard?.heightPx ?? show.output.height;
+	const hosted = (pictures, hosts) => hosts.flatMap((id) => {
+		const found = geometry.surfaces.find((s) => s.id === id);
+		if (!found || !found.enabled || onlySurfaceID && onlySurfaceID !== id) return [];
+		const host = evaluateSurface(found, calibration ? 0 : timeS, show.media, context);
+		const toHost = solveHomography(quadCorners([
+			0,
+			0,
+			w,
+			h
+		]), host.corners), map = (p) => project(toHost, p);
+		const outline = host.masks.length || host.shape === "ellipse" || host.radiusPx ? targetShapes(host) : [];
+		return pictures.map((p) => ({
+			...p,
+			id: `${p.id}@${id}`,
+			corners: p.corners.map(map),
+			masks: p.masks.length || p.shape === "ellipse" || p.radiusPx ? targetShapes(p).map((m) => m.map(map)) : outline,
+			shape: void 0,
+			radiusPx: void 0,
+			maskCurves: void 0,
+			bend: void 0,
+			opacity: p.opacity * host.opacity
+		}));
+	});
+	const rendered = scheduledVisuals(show, timeS, void 0, inputs).flatMap(({ visual, track, timeS, hosts }) => {
+		const out = place(visual, track, timeS);
+		return hosts ? hosted(out, hosts) : out;
+	});
+	function place(visual, track, timeS) {
 		if (track?.kind === "audio" || track?.enabled === false) return [];
 		const source = visualSource(show, visual);
 		if (show.media.some((m) => m.id === source.mediaId && m.kind === "audio")) return [];
@@ -18963,7 +18993,6 @@ function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID
 				const surface = geometry.surfaces.find((s) => s.id === t.surfaceID);
 				return surface ? [evaluateSurface(surface, calibration ? 0 : timeS, show.media, context)] : [];
 			}
-			const w = scene.artboard?.widthPx ?? show.output.width, h = scene.artboard?.heightPx ?? show.output.height;
 			return [{
 				...newSurface({
 					width: w,
@@ -19035,7 +19064,7 @@ function sceneVisuals$1(input, scene, timeS, placeholders = false, onlySurfaceID
 			else merged.push(picture);
 		}
 		return merged;
-	});
+	}
 	const targets = timelineVisuals(show).flatMap((v) => v.targets).filter((t) => t.sceneID === scene.id);
 	return [...placeholders && !targets.some((t) => !t.surfaceID) ? geometry.surfaces.filter((s) => !targets.some((t) => t.surfaceID === s.id)).map((s) => evaluateSurface(s, calibration ? 0 : timeS, show.media, context)) : [], ...rendered];
 }
