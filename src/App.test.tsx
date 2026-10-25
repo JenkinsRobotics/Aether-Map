@@ -499,6 +499,19 @@ describe("Aether Map", () => {
     expect(screen.getByText(/^Clip 1 · /)).toBeTruthy();
   });
 
+  it("the gallery's Project clips offers other clips, never the open one", () => {
+    render(<App />);
+    changeWorkspace('Content');
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Content panel view' })).getByRole('radio', { name: /Media pool/ }));
+    fireEvent.click(within(document.querySelector('.map-visual-panel-title') as HTMLElement).getByRole('button', { name: 'New clip' }));
+    expect(screen.getByText(/^Clip 2 · /)).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Content panel view' })).getByRole('radio', { name: /Visuals/ }));
+    fireEvent.click(within(document.querySelector('.map-visual-panel-title') as HTMLElement).getByRole('button', { name: 'Add layer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Project clips' }));
+    expect(screen.getByRole('button', { name: 'Preview Clip 1' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Preview Clip 2' })).toBeNull();
+  });
+
   it("reorders simple layers with undo/redo and preserves their order across editor modes", () => {
     render(<App />);
     addLayerSurface();

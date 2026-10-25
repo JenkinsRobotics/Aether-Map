@@ -12,7 +12,8 @@ export interface Board { widthPx: number; heightPx: number }
 /** A timeline with a `board` is a compound clip: it belongs to the project, not a
  * canvas (its `sceneID` only records where it was made), and its visuals draw on
  * the board whatever their targets say. Without one it is a scene on its canvas. */
-export interface MapTimeline { id: string; name: string; sceneID: string; durationS: number; surfaceID?: string; board?: Board; /** Media pool folder (clips only). */ folder?: string }
+export interface MapTimeline { id: string; name: string; sceneID: string; durationS: number; surfaceID?: string; board?: Board; /** Media pool folder (clips only). */ folder?: string;
+  /** Decided to be a scene (made as one, or kept as one when older projects gained clips). */ scene?: boolean }
 export const isClip = (t: MapTimeline | undefined): t is MapTimeline & { board: Board } => !!t?.board;
 /** How a clip's board lands in the frame it is used in. */
 export type ClipFit = 'cover' | 'stretch';
@@ -42,7 +43,7 @@ export function timelineVisuals(show: MapShow, id = currentTimelineID(show)): Vi
 export function createTimeline(show: MapShow, name: string): MapShow {
   const id = nextId('timeline'), sceneID = show.activeSceneId;
   return { ...show, version: show.version>=7?show.version:7, timelineMode: 'advanced', activeTimelineID: id,
-    timelines: [...(show.timelines ?? []), { id, name: name.trim() || 'Scene', sceneID, durationS: activeScene(show).durationS }],
+    timelines: [...(show.timelines ?? []), { id, name: name.trim() || 'Scene', sceneID, durationS: activeScene(show).durationS, scene: true }],
     tracks: [...(show.tracks ?? []), ...(['video', 'audio'] as const).map(kind => ({ id: nextId('track'), name: kind === 'video' ? 'V1' : 'A1', kind, timelineID: id, targets: [{ sceneID }], enabled: true, locked: false }))] };
 }
 export function timelineUses(show: MapShow, id: string): number { return (show.visuals ?? []).filter(v => v.timelineRefID === id).length; }

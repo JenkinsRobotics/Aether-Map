@@ -42,15 +42,15 @@ test('Advanced + opens the same gallery and Undo removes that import',async()=>{
  expect(order()).toEqual(['Select Liquid Caustics.mp4']);
  undo();expect(order()).toEqual([]);
 },15000);
-test('a timeline is added from the gallery like any asset and listed with the media',async()=>{
+test('a project clip is added from the gallery like any asset and listed with the media',async()=>{
  begin();fireEvent.click(screen.getByRole('button',{name:'Advanced editor'}));
- const timelines=within(screen.getByRole('group',{name:'Scene controls'}));
- fireEvent.click(timelines.getByRole('button',{name:'New scene'}));
- fireEvent.click(within(screen.getByRole('tree',{name:'Scenes'})).getByRole('treeitem',{name:/Main/}));
+ // Content makes Clip 1; back in Scene the gallery offers it under Project clips.
+ const room=(name:string)=>{fireEvent.click(screen.getByRole('button',{name:/Workspace:/}));fireEvent.click(screen.getByRole('menuitemradio',{name}));};
+ room('Content');room('Scene');
  fireEvent.click(within(document.querySelector('.map-visual-panel-title') as HTMLElement).getByRole('button',{name:'Add layer'}));
- fireEvent.click(screen.getByRole('button',{name:'Scenes'}));fireEvent.click(screen.getByRole('button',{name:'Preview Scene 1'}));
+ fireEvent.click(screen.getByRole('button',{name:'Project clips'}));fireEvent.click(screen.getByRole('button',{name:'Preview Clip 1'}));
  fireEvent.click(screen.getByRole('button',{name:'Add visual to scene'}));
- expect(order()).toEqual(['Select Scene 1']);
+ expect(order()).toEqual(['Select Clip 1']);
 },15000);
 test('Scene tool row adds visuals beside the surface row; several files import at once; Add to project only pools them',async()=>{
  begin();

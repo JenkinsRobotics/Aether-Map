@@ -151,7 +151,7 @@ import { useCameraCleanup } from "./live/output-live";
 import { MapRibbon, type SceneToolKind } from "./panels/MapRibbon";
 import { ShowFileTabs, type DocumentEntry } from "./panels/ShowFileTabs";
 import { MapDocumentHeader, MapWorkspaceControls } from "./panels/MapDocumentHeader";
-import { assignClip, createClip, duplicateClip, ensureSurfaceTracks, isClip, projectClips, setClipOnSurfaces } from "./compound-clips";
+import { assignClip, createClip, dropOnSurfaceTrack, duplicateClip, ensureSurfaceTracks, isClip, projectClips, setClipOnSurfaces } from "./compound-clips";
 import { SurfacePlayback } from "./panels/SurfacePlayback";
 import { ClipBoard } from "./panels/ClipBoard";
 import { ClipPoolTree } from "./panels/ClipPoolTree";
@@ -685,7 +685,8 @@ export default function App() {
       track = childTrack; next = { ...next, activeTimelineID:child.id };
     }
     const timelineID = assetID.startsWith(TIMELINE_DRAG_PREFIX) ? assetID.slice(TIMELINE_DRAG_PREFIX.length) : undefined;
-    const placed = timelineID ? (isClip(next.timelines?.find(t => t.id === timelineID)) ? assignClip(next, timelineID, track.id, startS) : placeTimeline(next, timelineID, track.id, startS)) : placePoolAsset(next, assetID, track.id, startS);
+    const placed = timelineID ? (isClip(next.timelines?.find(t => t.id === timelineID)) ? assignClip(next, timelineID, track.id, startS) : placeTimeline(next, timelineID, track.id, startS))
+      : track.assign ? dropOnSurfaceTrack(next, assetID, track.id, startS) : placePoolAsset(next, assetID, track.id, startS);
     if (placed === next) return;
     edit(() => placed); setSelectedTrackID(track.id); setWorkspace('timeline');
     const clip = placed.visuals!.at(-1)!; selectAsset(clip.id, clip.id);
@@ -1808,7 +1809,7 @@ export default function App() {
         pool={{ assets: show.pool ?? [], thumbnail: id => { const asset = show.pool?.find(a => a.id === id); return asset ? <VisualThumbnail source={asset.source} show={show} urls={urls} /> : null; },
           onChoose: id => { const asset = show.pool?.find(a => a.id === id); if (asset) chooseVisual(asset.source, asset.name, asset.id); },
           onRemove: id => edit(s => removePoolAsset(s, id)) }}
-        timelines={gallery === 'add' ? { items: (show.timelines ?? []).filter(t => t.sceneID === show.activeSceneId && canNestTimeline(show, t.id)), onChoose: timelineActions.onAppend } : undefined}
+        timelines={gallery === 'add' ? { items: projectClips(show).filter(c => canNestTimeline(show, c.id)), onChoose: timelineActions.onAppend } : undefined}
         onlineLibrary={<AssetBrowser targetLayer={null} destination="pool" onChooseFile={() => pickMedia("library")} onImport={importAsset} />}
         onChoose={visual => chooseVisual({ mediaId: null, rect: [0, 0, sceneSize(show).width, sceneSize(show).height], shader: visual.shader }, visual.name)}
         onCreate={kind => chooseVisual(poolSource(kind, sceneSize(show)), POOL_SOURCES.find(s => s.id === kind)!.label)}

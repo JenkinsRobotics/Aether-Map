@@ -24,10 +24,10 @@ export function createClip(show: MapShow, name: string, board: Board = { widthPx
     tracks: [...(show.tracks ?? []), ...(['video', 'audio'] as const).map(kind => ({ id: nextId('track'), name: kind === 'video' ? 'V1' : 'A1', kind, timelineID: id, targets: [], enabled: true, locked: false }))] };
 }
 
-/** Opening an older project: a scene timeline whose visuals all fill the whole
+/** Opening an older project: a timeline whose visuals all fill the whole
  * canvas becomes a clip on a board of that canvas's size. That is the same
  * picture it already drew, so nothing looks different. Timelines that aim at
- * particular surfaces are assignments, and stay scenes. */
+ * particular surfaces (or are empty) are marked scenes. Each is decided once. */
 export function migrateTimelinesToClips(show: MapShow): MapShow {
   let timelines = show.timelines ?? [], changed = false;
   const tracks = new Map((show.tracks ?? []).map(t => [t.id, t]));
@@ -35,15 +35,18 @@ export function migrateTimelinesToClips(show: MapShow): MapShow {
     again = false;
     timelines = timelines.map(t => {
       const scene = show.scenes.find(s => s.id === t.sceneID);
-      if (isClip(t) || t.surfaceID || !scene) return t;
+      if (isClip(t) || t.scene || t.surfaceID || !scene) return t;
       const visuals = (show.visuals ?? []).filter(v => tracks.get(v.trackID ?? '')?.timelineID === t.id);
       // A nested scene can't live in a clip, so wait until its children are clips.
-      if (visuals.some(v => v.targets.some(a => a.surfaceID) || (v.timelineRefID && !isClip(timelines.find(c => c.id === v.timelineRefID))))) return t;
+      if (!visuals.length || visuals.some(v => v.targets.some(a => a.surfaceID) || (v.timelineRefID && !isClip(timelines.find(c => c.id === v.timelineRefID))))) return t;
       again = changed = true;
       return { ...t, board: { widthPx: scene.artboard?.widthPx ?? show.output.width, heightPx: scene.artboard?.heightPx ?? show.output.height } };
     });
   }
-  return changed ? { ...show, version: 13, timelines } : show;
+  // Whatever did not become a clip is a scene from now on.
+  const undecided = timelines.some(t => !isClip(t) && !t.scene);
+  if (undecided) timelines = timelines.map(t => isClip(t) || t.scene ? t : { ...t, scene: true });
+  return changed ? { ...show, version: 13, timelines } : undecided ? { ...show, timelines } : show;
 }
 
 /** The canvas a scene timeline (or Main, the active canvas's) belongs to. */
@@ -140,4 +143,13 @@ export function setClipOnSurfaces(show: MapShow, sceneTimelineID: string, clipID
     next = { ...placed, visuals: placed.visuals!.map(v => v.id === id ? { ...v, loop: true, durationS: timelineDuration(placed, sceneTimelineID) } : v) };
   }
   return next;
+}
+
+/** A pool item dropped straight onto a surface track: it becomes a one-visual
+ * clip in the pool, playing there (Scene assigns; it never builds). */
+export function dropOnSurfaceTrack(show: MapShow, assetID: string, trackID: string, startS?: number): MapShow {
+  const asset = show.pool?.find(a => a.id === assetID), track = show.tracks?.find(t => t.id === trackID);
+  if (!asset || !track?.assign) return show;
+  const { show: wrapped, clipID } = wrapInClip(show, asset.source, asset.name, asset.id);
+  return assignClip(wrapped, clipID, trackID, startS);
 }

@@ -2,11 +2,12 @@ import { expect, it } from 'vitest';
 import { emptyShow, newScene, newSurface, quadCorners, type MapShow } from './document';
 import { canNestTimeline, createTimeline, currentTimelineID, MAIN_TIMELINE, placeTimeline, timelineDuration, timelineVisuals, removeSceneTimelines, timelineTracks, validateTimelines } from './timelines';
 import { clipPictures, sceneVisuals } from './visual-render';
-import { assignClip, clipUses, createClip, duplicateClip, setClipOnSurfaces, ensureSurfaceTracks, isClip, projectClips, surfaceTrack, wrapInClip } from './compound-clips';
+import { assignClip, clipUses, createClip, dropOnSurfaceTrack, duplicateClip, setClipOnSurfaces, ensureSurfaceTracks, isClip, projectClips, surfaceTrack, wrapInClip } from './compound-clips';
 import { parseShow, serializeShow } from './show-file';
 import type { Visual } from './visual-model';
 import { normalizeDocument } from './normalize-document';
 import { addSimpleVisual } from './simple-visuals';
+import { addPoolAsset } from './media-pool';
 
 const fill = (id: string, trackID: string, targets: Visual['targets'] = []): Visual => ({ id, name: id, trackID, startS: 0, durationS: 60, inS: 0, loop: true, continuous: true,
   targets, mapping: 'repeat', color: '#f00', opacity: 1, source: { mediaId: null, rect: [0, 0, 100, 100], fill: '#ff0000' } });
@@ -98,6 +99,8 @@ function r23() {
   const t4 = show.activeTimelineID!, t4Track = timelineTracks(show, t4).find(t => t.kind === 'video')!;
   show = placeTimeline(show, t3, t4Track.id, 0);
   show = { ...show, visuals: show.visuals!.map(v => v.timelineRefID === t3 ? { ...v, targets: [{ sceneID, surfaceID: 'a' }, { sceneID, surfaceID: 'b' }] } : v) };
+  // Saved before clips existed: no timeline carries the scene mark yet.
+  show = { ...show, timelines: show.timelines!.map(({ scene: _scene, ...t }) => t) };
   return { show, t3, t4 };
 }
 
@@ -239,4 +242,30 @@ it('surface tracks are marked, survive save, and an ordinary one-surface track i
   expect(surfaceTrack(legacy, MAIN_TIMELINE, 'wall')).toBeUndefined();
   const next = parseShow(serializeShow(ensureSurfaceTracks(legacy, MAIN_TIMELINE)));
   expect(surfaceTrack(next, MAIN_TIMELINE, 'wall')!.assign).toBe(true);
+});
+
+it('a pool item dropped on a surface track becomes a one-visual clip playing there', () => {
+  let { show, sceneID } = assignFixture();
+  show = addPoolAsset(show, { mediaId: null, rect: [0, 0, 10, 10], fill: '#00f' }, 'Blue');
+  show = ensureSurfaceTracks(show, MAIN_TIMELINE);
+  const before = projectClips(show).length;
+  const next = dropOnSurfaceTrack(show, show.pool!.at(-1)!.id, surfaceTrack(show, MAIN_TIMELINE, 'wall')!.id, 0);
+  const clip = projectClips(next).at(-1)!;
+  expect(projectClips(next)).toHaveLength(before + 1);
+  expect(clip.name).toBe('Blue');
+  expect(clipUses(next, clip.id)).toEqual([{ sceneID, surfaceID: 'wall' }]);
+});
+
+it('a scene made in this editor stays a scene, and migration decides each old timeline once', () => {
+  let show = emptyShow();
+  const sceneID = show.activeSceneId;
+  show = createTimeline(show, 'New scene');
+  const id = show.activeTimelineID!, track = timelineTracks(show, id).find(t => t.kind === 'video')!;
+  show = { ...show, visuals: [...(show.visuals ?? []), fill('wash', track.id, [{ sceneID }])] };
+  expect(normalizeDocument(show).timelines!.find(t => t.id === id)!.board).toBeUndefined();
+  // An old surface-aimed timeline, later re-aimed at the whole canvas, is still a scene.
+  const { show: old, t4 } = r23();
+  const once = normalizeDocument(old);
+  const reaimed = { ...once, visuals: once.visuals!.map(v => v.timelineRefID ? { ...v, targets: [{ sceneID: once.activeSceneId }] } : v) };
+  expect(normalizeDocument(reaimed).timelines!.find(t => t.id === t4)!.board).toBeUndefined();
 });

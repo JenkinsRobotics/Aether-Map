@@ -34,7 +34,7 @@ export function VisualGallery({onClose,onChoose,actionLabel='Add to Media Pool',
  onlineLibrary?:import('react').ReactNode;
  /** The show's own media pool ("In this show"), for reuse and removal. */
  pool?:{assets:readonly {id:string;name:string}[];thumbnail:(id:string)=>import('react').ReactNode;onChoose:(id:string)=>void;onRemove?:(id:string)=>void};
- /** The show's other timelines: a timeline is added like any asset (nested). */
+ /** The project's compound clips: a clip is added like any asset (nested). */
  timelines?:{items:readonly {id:string;name:string}[];onChoose:(id:string)=>void};
 }) {
  const [expanded,setExpanded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -43,7 +43,7 @@ export function VisualGallery({onClose,onChoose,actionLabel='Add to Media Pool',
  const [poolPick,setPoolPick]=useState<string|null>(null);
  // "In this show" and "Timelines" are the same shelf: pick one, add it.
  const shelf=source==='pool'&&pool?{label:'In this show',...pool,empty:['Nothing in this show yet','Imported media and generators you create appear here for reuse.'],hint:'Select media from this show to reuse it.'}
-  :source==='timelines'&&timelines?{label:'Scenes',assets:timelines.items,thumbnail:()=> <AetherIcon name="timeline-tracks"/>,onChoose:timelines.onChoose,onRemove:undefined as ((id:string)=>void)|undefined,empty:['No other scenes yet','Create a scene in the sidebar’s Scenes section; it can then be added like any layer.'],hint:'Select a scene to add it as a layer.'}
+  :source==='timelines'&&timelines?{label:'Project clips',assets:timelines.items,thumbnail:()=> <AetherIcon name="timeline-tracks"/>,onChoose:timelines.onChoose,onRemove:undefined as ((id:string)=>void)|undefined,empty:['No clips yet','Make one in the Content workspace; it can then be added like any visual.'],hint:'Select a clip to add it.'}
   :null;
  const items:GalleryItem[]=useMemo(()=>onChooseLoop?[...GALLERY_VISUALS,...GALLERY_LOOPS]:GALLERY_VISUALS,[onChooseLoop]);
  const categories=onChooseLoop?[...GALLERY_CATEGORIES,'Video loops']:GALLERY_CATEGORIES;
@@ -88,7 +88,7 @@ export function VisualGallery({onClose,onChoose,actionLabel='Add to Media Pool',
      {onCreate && <Button disabled={busy} onClick={()=>{onClose();onCreate('test-pattern');}}><AetherIcon name="surface"/>Test pattern</Button>}
      {onCreate && <Button disabled={busy} onClick={()=>{onClose();onCreate('tracker');}}><AetherIcon name="tracker"/>Tracker</Button>}
      {pool && <Button disabled={busy} aria-pressed={source==='pool'} onClick={()=>setSource(v=>v==='pool'?'gallery':'pool')}><AetherIcon name="folder"/>In this show</Button>}
-     {timelines && <Button disabled={busy} aria-pressed={source==='timelines'} onClick={()=>{setPoolPick(null);setSource(v=>v==='timelines'?'gallery':'timelines');}}><AetherIcon name="timeline-tracks"/>Scenes</Button>}
+     {timelines && <Button disabled={busy} aria-pressed={source==='timelines'} onClick={()=>{setPoolPick(null);setSource(v=>v==='timelines'?'gallery':'timelines');}}><AetherIcon name="timeline-tracks"/>Project clips</Button>}
     </>}
     <p>Generators keep their editable colors and motion. {onChooseLoop?'Video loops import as ordinary media for timing, layering and effects.':'All generators are included and work offline.'}</p>
    </aside>
