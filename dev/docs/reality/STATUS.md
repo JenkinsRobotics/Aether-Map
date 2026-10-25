@@ -29,6 +29,15 @@ has 921 passing shared tests. Earlier stale browser selectors were replaced with
 the actual Content workflow and portalled timeline toolbar. The repository's
 previous broad e2e failures remain documented under alpha-0.1.3 below.
 
+## Map release alpha-0.1.4 — 2026-10-25: Media pool | Browse tabs
+
+- The Media panel has the Comments widget's header: full-width Media pool | Browse
+  tabs (the same shared control). Browse is the import library (Pixabay, your own
+  files); the Media pool page is the shared Files browser (CAD) list or gallery,
+  with search, + and the view switch in one row.
+- Limit: in the light theme the picked tab is dark on dark, as the Comments widget's
+  is; the shared control is styled for dark only (Aether-UI).
+
 ## Map release alpha-0.1.3 — 2026-10-25: Media pool and the suite's left aux bar
 
 Installed 2026-10-25 through Studio's per-app update (source `397ada9`, no restart;

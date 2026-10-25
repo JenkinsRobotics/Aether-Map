@@ -1168,6 +1168,7 @@ export default function App() {
       onGallery={addVisual}
       onRemoveClip={id => { edit(s => removeTimeline(s, id)); if (id === openClip?.id) setOpenClipID(null); if (id === scenePickID) setScenePickID(null); }}
       add={mode === 'content' || mode === 'visualization' ? { label: mode === 'content' ? 'Add to clip' : 'Add to scene', run: id => { const asset = show.pool?.find(a => a.id === id); if (asset) addSceneVisual(asset.source, asset.name, asset.id); } } : undefined}
+      browse={<AssetBrowser targetLayer={null} destination="pool" onChooseFile={() => openMediaPicker({ kind: 'pool' }, 'image/*,video/*,audio/*')} onImport={importAsset} />}
       cleanup={hosted ? { ready: Boolean(file) && !dirty, run: () => { void cleanupMedia().then(n => setStatus(n ? `Deleted ${n} unused file${n === 1 ? '' : 's'}.` : 'Nothing to clean up.'), problem => setError((problem as Error).message)); } } : undefined} />
   );
 

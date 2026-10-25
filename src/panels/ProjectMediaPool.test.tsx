@@ -71,3 +71,16 @@ it('a clip opens in Content on double-click and from its menu; an asset duplicat
   fireEvent.click(screen.getByRole('menuitem', { name: /Duplicate/ }));
   expect(items().getByRole('button', { name: /^Red copy/ })).toBeTruthy();
 });
+
+it('has the Comments widget tabs: Media pool, and Browse for what can be imported', () => {
+  const a = actions();
+  const Browse = () => <p>Online library</p>;
+  const { container } = render(<ProjectMediaPool show={start()} urls={{}} edit={() => {}} {...a} browse={<Browse />} />);
+  const tabs = screen.getByRole('radiogroup', { name: 'Media tabs' });
+  expect(container.querySelector('.ps-review-conversation-tabs')).toBe(tabs);
+  expect(screen.getByRole('region', { name: 'Media pool' })).toBeTruthy();
+  expect(screen.queryByText('Online library')).toBeNull();
+  fireEvent.click(within(tabs).getByRole('radio', { name: /Browse/ }));
+  expect(screen.getByText('Online library')).toBeTruthy();
+  expect(screen.queryByRole('region', { name: 'Media pool' })).toBeNull();
+});

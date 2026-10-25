@@ -1626,3 +1626,10 @@
    closes, so the panel runs off the window.
    ponytail: drop this once Aether-UI clears --aui-studio-aux-extend itself. */
 .aui-shell[data-design="studio"]:not(:has(.aui-shell-bottom > *)) .aui-studio-aux-sidebar { height: 100%; }
+
+/* Media panel: the Comments widget's frame and tabs; the pool page is the
+   shared Files browser (CAD) without its own outer padding. */
+.map-media { height: 100%; box-sizing: border-box; }
+.map-media > .aui-tab-browser { flex: 1; height: auto; padding: 0; }
+.map-media-browse { flex: 1; min-height: 0; overflow: auto; }
+.map-project-pool .aui-tab-browser-head > .aui-text-field-wrap, .map-project-pool .aui-tab-browser-head > .aui-text-field { flex: 1; min-width: 0; }

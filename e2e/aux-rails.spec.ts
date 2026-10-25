@@ -22,6 +22,9 @@ test('left aux toolbar follows CAD, with Files and the Media pool',async({page,b
   await page.keyboard.press('Escape');
   await pool.getByRole('button',{name:'Thumbnail view'}).click();
   await page.screenshot({path:info.outputPath('media-pool-thumbnails.png')});
+  await page.getByRole('radiogroup',{name:'Media tabs'}).getByRole('radio',{name:/Browse/}).click();
+  await expect(page.getByRole('searchbox',{name:'Search Pixabay or paste a link'})).toBeVisible();
+  await page.screenshot({path:info.outputPath('media-browse.png')});
   await aux.getByRole('button',{name:'Files'}).click();
   await expect(page.getByRole('region',{name:'Files'})).toBeVisible();
   await page.screenshot({path:info.outputPath('files.png')});

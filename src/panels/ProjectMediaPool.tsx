@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type MouseEvent, type ReactNode } from 'react';
-import { AetherIcon, IconButton, Menu, MenuButton, TextField, type MenuItem } from '@aether/ui';
+import { AetherIcon, IconButton, Menu, MenuButton, SegmentedControl, TextField, type MenuItem } from '@aether/ui';
 import type { MapShow } from '../document';
 import { projectClips } from '../compound-clips';
 import { POOL_DRAG_TYPE, poolUses, removePoolAsset } from '../media-pool';
@@ -22,7 +22,7 @@ const keep = (key: string, value: string) => { try { localStorage.setItem(key, v
  * thumbnails. The gallery is where new things come from; this is what you have.
  */
 // ponytail: borrows the shared Files browser's classes (aui-tab-browser*) so both side panels look alike.
-export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewClip, onImport, onGallery, onRemoveClip, add, cleanup }: {
+export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewClip, onImport, onGallery, onRemoveClip, add, cleanup, browse }: {
   show: MapShow; urls: Record<string, string>; edit: (change: (show: MapShow) => MapShow) => void;
   /** A single pick: an asset shows its properties; a clip is picked to place. */
   onPick: (ref: PoolRef) => void; onOpenClip: (id: string) => void;
@@ -31,7 +31,10 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
   add?: { label: string; run: (assetID: string) => void };
   /** Deletes stored files no saved show uses (hosted); ready once saved. */
   cleanup?: { ready: boolean; run: () => void };
+  /** The Browse tab: what can be imported (online library, own files). */
+  browse?: ReactNode;
 }) {
+  const [tab, setTab] = useState<'pool' | 'browse'>('pool');
   const [view, setView] = useState<View>(() => read('aether-map.media-pool.view', 'list', ['list', 'gallery']));
   const [sort, setSort] = useState<Sort>(() => read('aether-map.media-pool.sort', 'added', ['added', 'name', 'type']));
   const [bin, setBin] = useState<string | null>(null);
@@ -171,21 +174,20 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
         onBlur={e => rename(key, e.target.value)} onKeyDown={e => { if (e.key === 'Enter') rename(key, e.currentTarget.value); if (e.key === 'Escape') setRenaming(null); e.stopPropagation(); }} />
     : <strong>{name}</strong>;
 
-  return <section className="aui-tab-browser map-project-pool" data-view={view} aria-label="Media pool"
+  const pool = <section className="aui-tab-browser map-project-pool" data-view={view} aria-label="Media pool"
     onKeyDown={event => {
       if (event.target instanceof HTMLInputElement || !chosen.length) return;
       if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); remove(chosen); }
       if (event.key === 'F2' && chosen.length === 1) { event.preventDefault(); setRenaming(chosen[0]); }
     }}>
     <header className="aui-tab-browser-head">
-      <h2>Media pool</h2>
+      <TextField aria-label="Search media pool" placeholder="Search the media pool" value={query} onChange={e => setQuery(e.target.value)} />
       <MenuButton className="aui-tab-browser-add" label="Add to the media pool" items={createItems} onSelect={id => run(null, id)}><AetherIcon name="plus" /></MenuButton>
       <span className="aui-tab-browser-views" role="group" aria-label="View">
         <IconButton label="List view" aria-pressed={view === 'list'} onClick={() => chooseView('list')}><AetherIcon name="list" /></IconButton>
         <IconButton label="Thumbnail view" aria-pressed={view === 'gallery'} onClick={() => chooseView('gallery')}><AetherIcon name="grid-2" /></IconButton>
       </span>
     </header>
-    <TextField aria-label="Search media pool" placeholder="Search the media pool" value={query} onChange={e => setQuery(e.target.value)} />
     <nav className="aui-tab-browser-path" aria-label="Bin path">
       <button type="button" aria-label="Back to Master" disabled={!open} {...dropInto(undefined)} onClick={() => setBin(null)}><AetherIcon name="home" /></button>
       <AetherIcon name="chevron-right" aria-hidden="true" />
@@ -212,5 +214,12 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
     <Menu open={Boolean(context)} anchor={context} applicationCommands={false} ariaLabel="Media pool options"
       items={context?.key ? [...itemMenu(context.key), ...viewItems] : [...createItems, ...viewItems]}
       onSelect={action => { if (context) run(context.key, action); }} onClose={() => setContext(null)} />
+  </section>;
+  if (!browse) return pool;
+  // The Comments widget's header: the same control, the same full-width tabs.
+  return <section className="ps-review-conversation map-media" aria-label="Media">
+    <SegmentedControl className="ps-review-conversation-tabs" ariaLabel="Media tabs" value={tab} onChange={value => setTab(value as 'pool' | 'browse')}
+      options={[{ id: 'pool', label: 'Media pool', icon: <AetherIcon name="collection-folder" /> }, { id: 'browse', label: 'Browse', icon: <AetherIcon name="search" /> }]} />
+    {tab === 'pool' ? pool : <div className="map-media-browse">{browse}</div>}
   </section>;
 }
