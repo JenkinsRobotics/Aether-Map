@@ -1,6 +1,6 @@
 import { activeScene, type MapShow, type Surface } from './document';
 import { addPoolAsset, addVisualTrack, placePoolAsset, orderedVisuals } from './media-pool';
-import { currentTimelineID, timelineDuration, timelineVisuals } from './timelines';
+import { currentTimelineID, isClip, timelineDuration, timelineVisuals } from './timelines';
 import type { Visual } from './visual-model';
 
 /** Simple and advanced authoring share the same pool, tracks, clips and targets. */
@@ -22,7 +22,8 @@ export function addSimpleVisual(show: MapShow, source: Surface['source'], name: 
   const scene = activeScene(show);
   const timeline = show.timelines?.find(t => t.id === currentTimelineID(show));
   const surfaces = scene.surfaces.filter(s => !s.sceneCanvas && s.kind !== 'mask');
-  const targets = timeline?.surfaceID ? [{ sceneID: scene.id, surfaceID: timeline.surfaceID }]
+  // Inside a clip a visual draws on the board, so it aims nowhere.
+  const targets = isClip(timeline) ? [] : timeline?.surfaceID ? [{ sceneID: scene.id, surfaceID: timeline.surfaceID }]
     : surfaces.length ? surfaces.map(s => ({ sceneID: scene.id, surfaceID: s.id })) : [{ sceneID: scene.id }];
   let next = poolID ? show : addPoolAsset(show, source, name);
   const assetID = poolID ?? next.pool!.at(-1)!.id;

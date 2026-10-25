@@ -471,6 +471,19 @@ describe("Aether Map", () => {
     expect(redo.hasAttribute('disabled') || redo.getAttribute('aria-disabled') === 'true').toBe(true);
   });
 
+  it("Content's sidebar: Media pool lists clips, and a colour added in Content lands in the open clip only", () => {
+    render(<App />);
+    changeWorkspace('Content');
+    const tabs = screen.getByRole('radiogroup', { name: 'Content panel view' });
+    fireEvent.click(within(tabs).getByRole('radio', { name: /Media pool/ }));
+    expect(screen.getByRole('treeitem', { name: /Clip 1/ })).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('region', { name: 'Map tools' })).getByRole('button', { name: 'Colour' }));
+    fireEvent.click(within(tabs).getByRole('radio', { name: /Visuals/ }));
+    expect(within(screen.getByRole('tree', { name: 'Clip visuals' })).getByRole('treeitem', { name: /Colour/ })).toBeTruthy();
+    changeWorkspace('Scene');
+    expect(screen.queryByRole('treeitem', { name: /^Colour/ })).toBeNull();
+  });
+
   it("reorders simple layers with undo/redo and preserves their order across editor modes", () => {
     render(<App />);
     addLayerSurface();

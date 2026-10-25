@@ -101,3 +101,16 @@ export function clipUses(show: MapShow, clipID: string, seen = new Set<string>()
   });
   return found.filter((t, i) => found.findIndex(o => o.sceneID === t.sceneID && o.surfaceID === t.surfaceID) === i);
 }
+
+/** A copy of a clip with its own tracks and visuals (nested uses still point
+ * at the same inner clips). */
+export function duplicateClip(show: MapShow, clipID: string): MapShow {
+  const clip = show.timelines?.find(t => t.id === clipID);
+  if (!isClip(clip)) return show;
+  const id = nextId('timeline'), tracks = (show.tracks ?? []).filter(t => t.timelineID === clipID);
+  const trackIDs = new Map(tracks.map(t => [t.id, nextId('track')]));
+  return { ...show,
+    timelines: [...(show.timelines ?? []), { ...structuredClone(clip), id, name: `${clip.name} copy` }],
+    tracks: [...(show.tracks ?? []), ...tracks.map(t => ({ ...structuredClone(t), id: trackIDs.get(t.id)!, timelineID: id }))],
+    visuals: [...(show.visuals ?? []), ...(show.visuals ?? []).filter(v => trackIDs.has(v.trackID ?? '')).map(v => ({ ...structuredClone(v), id: nextId('visual'), trackID: trackIDs.get(v.trackID!)! }))] };
+}

@@ -12,7 +12,7 @@ export interface Board { widthPx: number; heightPx: number }
 /** A timeline with a `board` is a compound clip: it belongs to the project, not a
  * canvas (its `sceneID` only records where it was made), and its visuals draw on
  * the board whatever their targets say. Without one it is a scene on its canvas. */
-export interface MapTimeline { id: string; name: string; sceneID: string; durationS: number; surfaceID?: string; board?: Board }
+export interface MapTimeline { id: string; name: string; sceneID: string; durationS: number; surfaceID?: string; board?: Board; /** Media pool folder (clips only). */ folder?: string }
 export const isClip = (t: MapTimeline | undefined): t is MapTimeline & { board: Board } => !!t?.board;
 /** How a clip's board lands in the frame it is used in. */
 export type ClipFit = 'cover' | 'stretch';

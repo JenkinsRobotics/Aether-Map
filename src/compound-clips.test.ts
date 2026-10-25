@@ -2,10 +2,11 @@ import { expect, it } from 'vitest';
 import { emptyShow, newScene, newSurface, quadCorners, type MapShow } from './document';
 import { canNestTimeline, createTimeline, currentTimelineID, MAIN_TIMELINE, placeTimeline, timelineVisuals, removeSceneTimelines, timelineTracks, validateTimelines } from './timelines';
 import { clipPictures, sceneVisuals } from './visual-render';
-import { assignClip, clipUses, createClip, ensureSurfaceTracks, isClip, projectClips, surfaceTrack, wrapInClip } from './compound-clips';
+import { assignClip, clipUses, createClip, duplicateClip, ensureSurfaceTracks, isClip, projectClips, surfaceTrack, wrapInClip } from './compound-clips';
 import { parseShow, serializeShow } from './show-file';
 import type { Visual } from './visual-model';
 import { normalizeDocument } from './normalize-document';
+import { addSimpleVisual } from './simple-visuals';
 
 const fill = (id: string, trackID: string, targets: Visual['targets'] = []): Visual => ({ id, name: id, trackID, startS: 0, durationS: 60, inS: 0, loop: true, continuous: true,
   targets, mapping: 'repeat', color: '#f00', opacity: 1, source: { mediaId: null, rect: [0, 0, 100, 100], fill: '#ff0000' } });
@@ -202,4 +203,21 @@ it('transitionS fades a clip use in', () => {
   expect(sceneVisuals(next, next.scenes[0], 1)[0].opacity).toBeCloseTo(0.5);
   expect(sceneVisuals(next, next.scenes[0], 2)[0].opacity).toBeCloseTo(1);
   expect(parseShow(serializeShow(next)).visuals!.find(v => v.timelineRefID === clip)!.transitionS).toBe(2);
+});
+
+it('duplicateClip copies the clip with its own tracks and visuals', () => {
+  const { show, clip } = assignFixture();
+  const next = duplicateClip(show, clip);
+  const copy = projectClips(next).at(-1)!;
+  expect(copy.name).toBe('Card copy');
+  expect(copy.id).not.toBe(clip);
+  expect(timelineVisuals(next, copy.id)).toHaveLength(1);
+  expect(timelineVisuals(next, copy.id)[0].id).not.toBe('red');
+  expect(timelineVisuals(next, clip)).toHaveLength(1);
+});
+
+it('a visual added inside a clip aims at no surface', () => {
+  const { show, clip } = assignFixture();
+  const next = addSimpleVisual({ ...show, activeTimelineID: clip }, { mediaId: null, rect: [0, 0, 10, 10], fill: '#00f' }, 'Blue');
+  expect(timelineVisuals(next, clip).at(-1)!.targets).toEqual([]);
 });

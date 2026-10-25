@@ -151,8 +151,9 @@ import { useCameraCleanup } from "./live/output-live";
 import { MapRibbon, type SceneToolKind } from "./panels/MapRibbon";
 import { ShowFileTabs, type DocumentEntry } from "./panels/ShowFileTabs";
 import { MapDocumentHeader, MapWorkspaceControls } from "./panels/MapDocumentHeader";
-import { createClip, projectClips } from "./compound-clips";
+import { createClip, duplicateClip, projectClips } from "./compound-clips";
 import { ClipBoard } from "./panels/ClipBoard";
+import { ClipPoolTree } from "./panels/ClipPoolTree";
 import { ClipProperties } from "./panels/ClipProperties";
 import { MapCameraControls, MapViewTools } from "./panels/MapViewTools";
 import { assetCredit, type AssetResult } from "./assets/openverse";
@@ -355,11 +356,21 @@ export default function App() {
   const [xray, setXray] = useState(false);
   // Visualization's left panel: standard tabs, Surfaces tree | Visual layers.
   const [vizPanelTab, setVizPanelTab] = useState<"list" | "visuals">("visuals");
+  // Content and Scene: Media pool (the project's clips) | Visuals (what the clip holds).
+  const [poolTab, setPoolTab] = useState<Record<"content" | "visualization", "pool" | "visuals">>(() => {
+    const read = (key: string) => { try { return localStorage.getItem(key) === 'visuals' ? 'visuals' as const : 'pool' as const; } catch { return 'pool' as const; } };
+    return { content: read('aether-map.content-tab'), visualization: read('aether-map.scene-tab') };
+  });
+  const pickPoolTab = (room: "content" | "visualization", tab: "pool" | "visuals") => {
+    setPoolTab(current => ({ ...current, [room]: tab }));
+    try { localStorage.setItem(room === 'content' ? 'aether-map.content-tab' : 'aether-map.scene-tab', tab); } catch { /* Optional preference. */ }
+  };
   const vizTab = vizPanelTab;
   // "+" opens the Visual gallery in both editors.
   // The one visual gallery, both editors: 'add', or the visual being replaced.
   const [gallery, setGallery] = useState<'add' | string | null>(null);
   const addVisual = () => setGallery('add');
+  const newClip = () => { const next = createClip(stored, `Clip ${projectClips(stored).length + 1}`); edit(() => ({ ...next, activeTimelineID: stored.activeTimelineID })); setOpenClipID(next.activeClipID!); };
   /** Adds a scene visual exactly as the simple editor does. */
   const addSceneVisual = (source: Surface["source"], name: string, poolID?: string) => {
     const next = addSimpleVisual(show, source, name, poolID);
@@ -1409,7 +1420,14 @@ export default function App() {
           content: (<>
             {/* Visualization: standard tabs Surfaces | Visual layers (the
                 concept); other rooms keep the List/Cards view switch. */}
-            {mode === "visualization"
+            {mode === "content"
+              ? <div className="map-visual-panel-head">
+                  <div className="map-visual-panel-title"><strong>Layers</strong>
+                    <IconButton label={poolTab.content === 'pool' ? 'New clip' : 'Add layer'} onClick={poolTab.content === 'pool' ? newClip : addVisual}><AetherIcon name="plus"/></IconButton></div>
+                  <SegmentedControl className="ps-review-conversation-tabs" ariaLabel="Content panel view" value={poolTab.content} onChange={value=>pickPoolTab('content', value as "pool" | "visuals")}
+                    options={[{id:"pool",label:"Media pool",icon:<AetherIcon name="timeline-tracks"/>},{id:"visuals",label:"Visuals",icon:<AetherIcon name="palette"/>}]}/>
+                </div>
+              : mode === "visualization"
               // The reference head: title + add, then the standard full-width
               // tabs (the Comments | Tasks widget's control).
               ? <div className="map-visual-panel-head">
@@ -1424,7 +1442,17 @@ export default function App() {
             {/* Visualization: one asset set, two views — the List tree and the
                 Visuals cards — filtered to a working surface. No layers or
                 outputs tree here; that is Mapping's general list tree. */}
-            {((panel: (view: "tree" | "layers" | "scenes" | "scene-picker") => React.ReactNode) => mode === "visualization"
+            {((panel: (view: "tree" | "layers" | "scenes" | "scene-picker") => React.ReactNode) => mode === "content"
+            ? (poolTab.content === 'pool'
+              ? <ClipPoolTree show={show} selectedID={openClip?.id ?? null} onSelect={id => { setOpenClipID(id); setSelectedClipID(null); setSelectedID(null); }}
+                  onCreate={newClip} onRename={(id, name) => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, name } : t) }))}
+                  onDuplicate={id => edit(s => duplicateClip(s, id))} onRemove={id => { edit(s => removeTimeline(s, id)); if (id === openClip?.id) setOpenClipID(null); }}
+                  onFolder={(id, folder) => edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, folder } : t) }))} />
+              : <div className="map-visual-layers">
+                  <VisualAssetsPanel ariaLabel="Clip visuals" view="tree" addLabel="Add layer" urls={urls} show={show} selectedID={selectedClipID} onSelect={selectAsset}
+                    onChange={assets.change} onRemove={assets.remove} onDuplicate={assets.duplicate} onMove={assets.move} onDrop={assets.drop} onAdd={addVisual} />
+                </div>)
+            : mode === "visualization"
             // Visualization mirrors Mapping's three sections: Media (visuals
             // only — never a timeline container), Scenes, then Timelines.
             // Selecting a scene or a timeline switches the media list.
