@@ -11,13 +11,14 @@ export function TreeContextArea({ items, onSelect, label, shortcut, children }: 
 }) {
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   return <div className="map-tree-context-area" onKeyDown={event => {
+    if (event.defaultPrevented) return;
     const key = event.key === "Backspace" ? "Delete" : event.key;
     if (!shortcut || (key !== "Delete" && key !== "F2") || event.metaKey || event.ctrlKey || event.altKey) return;
     if (!(event.target as Element).matches('[role="treeitem"][aria-selected="true"]')) return;
     event.preventDefault(); shortcut(key);
   }} onContextMenu={event => {
-    if ((event.target as Element).closest('[role="treeitem"], [role="menu"]') || !items.length) return;
-    event.preventDefault(); setAt({ x: event.clientX, y: event.clientY });
+    if ((event.target as Element).closest('input, textarea, [contenteditable], [role="treeitem"], [role="menu"], li') || !items.length) return;
+    event.preventDefault(); event.stopPropagation(); setAt({ x: event.clientX, y: event.clientY });
   }}>
     {children}
     {at && <Menu className="aui-collection-popup" open anchor={at} ariaLabel={label} items={items}

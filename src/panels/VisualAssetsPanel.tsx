@@ -176,7 +176,7 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
     detail={asset => duration(asset.clip as Visual)}
     thumbnail={asset => urls ? <VisualThumbnail source={visualSource(show, asset.clip as Visual)} show={show} urls={urls} /> : icon(asset.kind)}
     onDrop={(id, targetID, before) => { const asset = assets.find(a => a.id === id); if (asset && !locked(asset) && id !== targetID) onDrop(asset.surface.id, id, targetID, targetID, before); }} /></TreeContextArea>;
-  return <TreeContextArea label="Asset options" items={createItems} onSelect={panelCommand} shortcut={runShortcut}><TreePanel ariaLabel={ariaLabel} nodes={nodes} rootInset={0} revealSelection
+  return <TreeContextArea label="Asset options" items={createItems} onSelect={panelCommand} shortcut={runShortcut}><TreePanel backgroundItems={createItems.slice(1)} onBackgroundCommand={panelCommand} ariaLabel={ariaLabel} nodes={nodes} rootInset={0} revealSelection
     filterOptions={Object.keys(ICONS).map(kind => ({ id: kind, label: kind }))}
     selectedIDs={new Set(current)}
     canMove={(id, targetID, position) => {
@@ -225,7 +225,7 @@ function VisualCards({ ariaLabel, assets, selectedIDs, menu, command, onSelect, 
     {assets.map(asset => <li key={asset.id}
       className={`map-visual-card${selectedIDs.includes(asset.id) ? ' is-selected' : ''}${asset.clip?.enabled === false ? ' is-hidden' : ''}`}
       draggable={!locked(asset.id)} onDragStart={event => { setDragging(asset.id); event.dataTransfer.effectAllowed = 'move'; }}
-      onContextMenu={event => { event.preventDefault(); event.stopPropagation(); setContext({ id: asset.id, x: event.clientX, y: event.clientY }); }}
+      onContextMenu={event => { event.preventDefault(); event.stopPropagation(); if (!selectedIDs.includes(asset.id)) onSelect(asset.id, 'single'); setContext({ id: asset.id, x: event.clientX, y: event.clientY }); }}
       onDragEnd={() => setDragging(null)} onDragOver={event => { if (dragging && dragging !== asset.id) event.preventDefault(); }}
       onDrop={event => { event.preventDefault(); if (!dragging) return;
         const box = event.currentTarget.getBoundingClientRect(); onDrop(dragging, asset.id, event.clientY < box.top + box.height / 2); setDragging(null); }}>

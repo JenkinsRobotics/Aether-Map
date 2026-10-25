@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { emptyShow } from '../document';
 import { addSimpleVisual } from '../simple-visuals';
 import { VisualAssetsPanel } from './VisualAssetsPanel';
+import { ApplicationContextMenu } from '@aether/ui/ApplicationContextMenu';
 
 afterEach(cleanup);
 
@@ -14,7 +15,7 @@ const menuLabels = () => screen.getAllByRole('menuitem').concat(screen.queryAllB
 for (const view of ['cards', 'tree'] as const) {
   it(`${view}: right-click on a visual offers its controls, Add layer and View`, () => {
     const p = props();
-    render(<VisualAssetsPanel show={show()} {...p} view={view} />);
+    render(<><ApplicationContextMenu name="Map" /><VisualAssetsPanel show={show()} {...p} view={view} /></>);
     const row = view === 'cards' ? screen.getByRole('button', { name: 'Select Red' }) : screen.getByRole('treeitem', { name: /Red/ });
     fireEvent.contextMenu(row);
     const labels = menuLabels();
@@ -23,9 +24,10 @@ for (const view of ['cards', 'tree'] as const) {
 
   it(`${view}: right-click on empty space offers Add layer and View, and View switches`, () => {
     const p = props();
-    const { container } = render(<VisualAssetsPanel show={show()} {...p} view={view} />);
-    fireEvent.contextMenu(container.querySelector('.map-tree-context-area')!);
-    expect(screen.getByRole('menuitem', { name: /Add layer/ })).toBeTruthy();
+    const { container } = render(<><ApplicationContextMenu name="Map" /><VisualAssetsPanel show={show()} {...p} view={view} /></>);
+    fireEvent.contextMenu(container.querySelector(view === 'tree' ? '.aui-tree-panel-content' : '.map-visual-cards')!);
+    expect(screen.getAllByRole('menuitem', { name: /Add layer/ })).toHaveLength(1);
+    expect(screen.queryByRole('menuitem', { name: /Undo|Redo|settings/ })).toBeNull();
     fireEvent.click(screen.getByRole('menuitem', { name: /View/ }));
     fireEvent.click(screen.getByRole('menuitemradio', { name: view === 'cards' ? /List/ : /Cards/ }));
     expect(p.onView).toHaveBeenCalledWith(view === 'cards' ? 'tree' : 'cards');
@@ -56,4 +58,16 @@ it('tree: Ctrl-click picks several, and Delete removes them all at once', () => 
   expect(screen.getAllByRole('treeitem').filter(r => r.getAttribute('aria-selected') === 'true')).toHaveLength(2);
   fireEvent.keyDown(screen.getByRole('treeitem', { name: /Blue/ }), { key: 'Delete' });
   expect(new Set(p.onRemoveMany.mock.calls[0][0])).toEqual(new Set(s.visuals!.map(v => v.id)));
+});
+
+it('cards: right-click selects the target before applying its visibility command', () => {
+  const p = props();
+  const s = two();
+  render(<VisualAssetsPanel show={s} {...p} view="cards" />);
+  fireEvent.click(screen.getByRole('button', { name: 'Select Red' }));
+  fireEvent.contextMenu(screen.getByRole('button', { name: 'Select Blue' }));
+  expect(screen.getByRole('button', { name: 'Select Blue' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByRole('button', { name: 'Select Red' }).getAttribute('aria-pressed')).toBe('false');
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Hide asset' }));
+  expect(p.onChange).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ id: s.visuals!.find(v => v.name === 'Blue')!.id, enabled: false }));
 });

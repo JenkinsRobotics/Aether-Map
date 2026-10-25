@@ -18,7 +18,6 @@ import { TimelineMixer } from './panels/TimelineMixer';
 import { poolSource, POOL_SOURCES } from './pool-sources';
 import { AssetBrowser } from './panels/AssetBrowser';
 import { currentTimelineID, timelineName, createTimeline, removeTimeline, timelineTracks, timelineVisuals, MAIN_TIMELINE, TIMELINE_DRAG_PREFIX, placeTimeline, canNestTimeline, withTimelineDuration } from './timelines';
-import { useContextCommands } from '@aether/ui';
 import { TimelineAudioProvider } from './live/TimelineAudioContext';
 import { TimelineAudio } from './panels/TimelineAudio';
 import { newScene, newSurface, showForOutput } from './document';
@@ -536,11 +535,6 @@ export default function App() {
     selection: { surface_ids: [...new Set([...selectedLayerIDs, ...(selectedID ? [selectedID] : [])])], clip_id: selectedClipID, asset_id: selectedPoolID },
     commit: next => edit(next), undo, redo,
   });
-
-  useContextCommands([
-    { id:'undo', label:'Undo', heading:'Edit', shortcut:'Mod+Z', disabled:!(document_.canUndo), run:undo },
-    { id:'redo', label:'Redo', shortcut:'Mod+Shift+Z', disabled:!(document_.canRedo), run:redo },
-  ]);
 
   const store = async (name: string) => {
 

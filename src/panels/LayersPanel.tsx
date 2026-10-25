@@ -439,7 +439,7 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
     const item = shortcutRow ? rowMenu(shortcutRow).find(entry => entry.shortcut === key && !entry.disabled) : undefined;
     if (item && shortcutRow) command(shortcutRow, item.id);
   };
-  return <TreeContextArea label={view === "scenes" ? "Canvas options" : "Layer options"} items={createItems} onSelect={create} shortcut={runShortcut}><TreePanel ariaLabel={view === "scenes" ? "Canvases" : "Layers"} filterOptions={view === "scenes" ? undefined : [
+  return <TreeContextArea label={view === "scenes" ? "Canvas options" : "Layer options"} items={createItems} onSelect={create} shortcut={runShortcut}><TreePanel backgroundItems={createItems.slice(plus.length)} onBackgroundCommand={create} ariaLabel={view === "scenes" ? "Canvases" : "Layers"} filterOptions={view === "scenes" ? undefined : [
     { id: 'folder', label: 'Folders and groups', icon: <AetherIcon name="collection-folder" /> },
     { id: 'scene', label: 'Canvases', icon: <AetherIcon name="scene" /> },
     { id: 'surface', label: 'Surfaces', icon: <AetherIcon name="surface-map" /> },

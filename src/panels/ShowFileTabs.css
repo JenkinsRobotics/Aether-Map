@@ -7,3 +7,7 @@
 
 
 .map-file-save { display: flex; align-items: center; gap: 8px; padding: 0 12px; flex: none; }
+
+/* Fill the auxiliary panel so its empty area belongs to the Files browser. */
+.map-file-browser { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.map-file-browser > .aui-tab-browser { flex: 1; }

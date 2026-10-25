@@ -1,7 +1,7 @@
 {
   "name": "aether-map",
   "private": true,
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "type": "module",
   "scripts": {
     "predev": "node scripts/prepare-vendor.mjs",
@@ -18,7 +18,7 @@
     "@aether/assets": "file:vendor/aether-assets-0.2.0-alpha.29.tgz",
     "@aether/session": "file:vendor/aether-session-0.2.0-alpha.190.tgz",
     "@aether/sketch": "file:vendor/aether-sketch-0.2.0-alpha.5.tgz",
-    "@aether/ui": "file:vendor/aether-ui-0.2.0-alpha.208.tgz",
+    "@aether/ui": "file:vendor/aether-ui-0.2.0-alpha.211.tgz",
     "@mediapipe/tasks-vision": "1.0.1",
     "@paper-design/shaders": "0.0.80",
     "@paper-design/shaders-react": "0.0.80",

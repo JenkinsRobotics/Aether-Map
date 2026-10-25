@@ -1,5 +1,30 @@
 # Aether Map status
 
+## Context menus — 2026-10-25
+
+Built on the committed alpha-0.1.3 Files/media/tray checkpoint. Shared Aether UI
+alpha.211 applies the CAD context-menu standard to Map: menus contain actions
+for the clicked item or panel; there is no generic Undo/Redo/Settings popup or
+footer. Native text editing keeps the browser menu.
+
+Layers and Outputs backgrounds expose their available creation, folder, device,
+recording and tree-filter controls. Visuals backgrounds retain Add layer and
+View in both cards and list layouts, without duplicate entries. Right-clicking
+a card selects that target while preserving an existing selected group. The
+Files browser fills its panel, so its blank area offers New design and view
+controls. Its product-supplied capabilities determine available folder actions.
+Submenus keep focus and remain open through live panel refreshes. Existing
+history shortcuts, canvas zoom, timeline clipboard and item commands remain.
+
+Verification: 1,190 tests / 166 files pass; typecheck and production frontend /
+automation builds pass. Five Chrome workflows cover the committed Files/media
+layout, panel creation/device actions, row menus, Visuals view switching, Files
+blank-area controls, scoped canvas zoom, native fields and timeline copy/paste.
+The regenerated worker is byte-identical to the alpha-0.1.3 checkpoint. UI211
+has 921 passing shared tests. Earlier stale browser selectors were replaced with
+the actual Content workflow and portalled timeline toolbar. The repository's
+previous broad e2e failures remain documented under alpha-0.1.3 below.
+
 ## Map release alpha-0.1.3 — 2026-10-25: Media pool and the suite's left aux bar
 
 Installed 2026-10-25 through Studio's per-app update (source `397ada9`, no restart;
