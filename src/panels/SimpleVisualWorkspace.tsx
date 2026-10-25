@@ -8,7 +8,7 @@ import type { Visual } from '../visual-model';
 import { visualSource } from '../media-pool';
 import { visualSurface } from '../visual-document';
 import { simpleVisuals, visualIsLocked } from '../simple-visuals';
-import { timelineDuration } from '../timelines';
+import { isClip, timelineDuration } from '../timelines';
 import { mediaTime } from '../clips';
 import { formatTime } from '../cues';
 import { ShaderThumbnail } from '../features/ShaderThumbnail';
@@ -64,7 +64,7 @@ export function SimpleVisualWorkspace({ show, urls, selectedID, timeS, playing, 
       </section>}
       <section className="map-simple-preview" aria-label="Scene preview">
         <ShowPreview scenePreview show={show} urls={urls} timeS={timeS} playing={playing} focus={renderSurface}
-          placement={picked && onPlacement && !locked && !nested ? { visual: picked, onChange: placement => onPlacement(picked, placement) } : undefined} />
+          placement={picked && onPlacement && !locked && (!nested || isClip(show.timelines?.find(t => t.id === picked.timelineRefID))) ? { visual: picked, onChange: placement => onPlacement(picked, placement) } : undefined} />
         {!visuals.length && <div className="map-simple-empty"><AetherIcon name="palette" /><h2>Your surfaces, brought to life</h2><p>Add a visual from the gallery, create a color or text, or import your own image or video.</p><Button appearance="flat" onClick={onBrowse}>Browse visual gallery</Button></div>}
       </section>
       </div>

@@ -3,6 +3,7 @@ import { currentTimelineID, isClip, scheduledVisuals, timelineVisuals, type Boar
 import { visualSource } from './media-pool';
 import { project, solveHomography } from './homography';
 import { quadCorners } from './document';
+import { contentPlacementCorners } from './visual-placement';
 import { newScene, newSurface, type MapShow, type Scene, type Surface, type Point, type Rect } from './document';
 import { evaluateSurface, type ResolvedSurface } from './playback';
 import { normalizeVisuals } from './visual-document';
@@ -27,13 +28,19 @@ export function clipPictures(show: MapShow, clipID: string, timeS: number, input
   return renderTimeline(show, board, timeS, clip.id, false, undefined, inputs, false, true);
 }
 
-/** Maps a clip's board into `frame` (whose corners are `corners`): cover keeps
- * the board's proportions and overflows the frame; stretch fills it exactly. */
-function boardInto(board: Board, frame: Rect, corners: Surface['corners'], fit: ClipStep['fit']): (p: Point) => Point {
-  const [fx, fy, fw, fh] = frame, sx = fw / board.widthPx, sy = fh / board.heightPx, s = Math.max(sx, sy);
-  const [kx, ky, ox, oy] = fit === 'cover' ? [s, s, fx + (fw - board.widthPx * s) / 2, fy + (fh - board.heightPx * s) / 2] : [sx, sy, fx, fy];
+/** Where a clip's board sits in `frame` before any placement: cover keeps the
+ * board's proportions and overflows the frame; stretch fills it exactly. */
+export function boardBounds(board: Board, frame: Rect, fit: ClipStep['fit']): Rect {
+  const [fx, fy, fw, fh] = frame, s = Math.max(fw / board.widthPx, fh / board.heightPx);
+  return fit === 'cover' ? [fx + (fw - board.widthPx * s) / 2, fy + (fh - board.heightPx * s) / 2, board.widthPx * s, board.heightPx * s] : frame;
+}
+
+/** Maps a clip's board into `frame` (whose corners are `corners`), moved and
+ * sized by the use's placement as any visual is in its frame. */
+function boardInto(board: Board, frame: Rect, corners: Surface['corners'], fit: ClipStep['fit'], placement?: ClipStep['placement']): (p: Point) => Point {
+  const toFrame = solveHomography(quadCorners([0, 0, board.widthPx, board.heightPx]), contentPlacementCorners(placement, frame, boardBounds(board, frame, fit)));
   const toCorners = solveHomography(quadCorners(frame), corners);
-  return p => project(toCorners, [p[0] * kx + ox, p[1] * ky + oy]);
+  return p => project(toCorners, project(toFrame, p));
 }
 
 function renderTimeline(input: MapShow, scene: Scene, timeS: number, timelineID: string, placeholders = false, onlySurfaceID?: string, inputs:VisualMotionInputs={}, calibration = false, asBoard = false): ResolvedSurface[] {
@@ -59,8 +66,8 @@ function renderTimeline(input: MapShow, scene: Scene, timeS: number, timelineID:
   });
   // Clip pictures travel out through each clip use: into the next board, then
   // (outermost) onto its surfaces, the canvas, or the root clip's own board.
-  const into = (pictures: ResolvedSurface[], board: Board, frame: Rect, corners: Surface['corners'], fit: ClipStep['fit'], outline: Point[][], suffix = '', opacity = 1): ResolvedSurface[] => {
-    const map = boardInto(board, frame, corners, fit);
+  const into = (pictures: ResolvedSurface[], step: ClipStep, frame: Rect, corners: Surface['corners'], outline: Point[][], suffix = '', opacity = 1): ResolvedSurface[] => {
+    const map = boardInto(step.board, frame, corners, step.fit, step.placement);
     return pictures.map(p => ({ ...p, id: `${p.id}${suffix}`, corners: p.corners.map(map) as Surface['corners'],
       masks: p.masks.length || p.shape === 'ellipse' || p.radiusPx ? targetShapes(p).map(m => m.map(map)) : outline,
       shape: undefined, radiusPx: undefined, maskCurves: undefined, bend: undefined, opacity: p.opacity * opacity }));
@@ -69,17 +76,17 @@ function renderTimeline(input: MapShow, scene: Scene, timeS: number, timelineID:
     let out = pictures;
     for (const [i, step] of clips.entries()) {
       const outer = clips[i + 1]?.board;
-      if (outer) { const frame: Rect = [0, 0, outer.widthPx, outer.heightPx]; out = into(out, step.board, frame, quadCorners(frame), step.fit, []); continue; }
+      if (outer) { const frame: Rect = [0, 0, outer.widthPx, outer.heightPx]; out = into(out, step, frame, quadCorners(frame), []); continue; }
       if (step.hosts) { out = step.hosts.flatMap(id => {
         const found = geometry.surfaces.find(s => s.id === id);
         if (!found || !found.enabled || (onlySurfaceID && onlySurfaceID !== id)) return [];
         const host = evaluateSurface(found, calibration ? 0 : timeS, show.media, context);
-        // Cover overflows the surface, so clip to it; stretch only needs a real outline (as r23).
-        const outline = step.fit === 'cover' || host.masks.length || host.shape === 'ellipse' || host.radiusPx ? targetShapes(host) : [];
-        return into(out, step.board, host.source.rect, host.corners, step.fit, outline, `@${id}`, host.opacity);
+        // Cover or a placement can overflow the surface, so clip to it; stretch only needs a real outline (as r23).
+        const outline = step.fit === 'cover' || step.placement || host.masks.length || host.shape === 'ellipse' || host.radiusPx ? targetShapes(host) : [];
+        return into(out, step, host.source.rect, host.corners, outline, `@${id}`, host.opacity);
       }); continue; }
       const frame: Rect = [0, 0, w, h];
-      out = into(out, step.board, frame, quadCorners(frame), step.fit, step.fit === 'cover' ? [quadCorners(frame)] : []);
+      out = into(out, step, frame, quadCorners(frame), step.fit === 'cover' || step.placement ? [quadCorners(frame)] : []);
     }
     return out;
   };

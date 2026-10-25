@@ -19,3 +19,23 @@ it('the scene render shows the backdrop image while it is toggled on', () => {
   rerender(<ShowPreview scenePreview show={{ ...show }} {...props} />);
   expect(container.querySelector('.map-setup-background')).toBeNull();
 });
+
+it("a clip use's handles frame the clip's board as it lands on the surface", async () => {
+  const { newSurface, quadCorners } = await import('../document');
+  const { createClip, ensureSurfaceTracks, assignClip, surfaceTrack } = await import('../compound-clips');
+  const { MAIN_TIMELINE } = await import('../timelines');
+  let show = emptyShow();
+  const tall = { ...newSurface(show.output, 0), id: 'tall', corners: quadCorners([0, 0, 300, 600]) };
+  tall.source = { ...tall.source, rect: [0, 0, 300, 600] };
+  show.scenes[0].surfaces = [tall];
+  show = createClip(show, 'Card', { widthPx: 1920, heightPx: 1080 });
+  const clip = show.activeClipID!;
+  show = ensureSurfaceTracks(show, MAIN_TIMELINE);
+  show = assignClip(show, clip, surfaceTrack(show, MAIN_TIMELINE, 'tall')!.id, 0);
+  const use = show.visuals!.find(v => v.timelineRefID === clip)!;
+  const { container } = render(<ShowPreview scenePreview show={show} urls={{}} timeS={0} playing={false} placement={{ visual: use, onChange: vi.fn() }} />);
+  // Cover: the board's full height fits the surface, its width overflows centred.
+  const w = 1920 * 600 / 1080, x = (300 - w) / 2;
+  const points = container.querySelector('[aria-label="Move visual"]')!.getAttribute('points')!.split(' ').map(p => p.split(',').map(Number));
+  expect(points[0][0]).toBeCloseTo(x); expect(points[2][0]).toBeCloseTo(x + w); expect(points[2][1]).toBeCloseTo(600);
+});

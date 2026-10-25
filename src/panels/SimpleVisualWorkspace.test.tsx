@@ -10,7 +10,7 @@ import { normalizeDocument } from '../normalize-document';
 import { addSimpleVisual, moveSimpleVisual, simpleVisuals } from '../simple-visuals';
 import { duplicateVisual } from '../visual-document';
 vi.mock('../features/ShaderThumbnail', () => ({ ShaderThumbnail: () => <span /> }));
-vi.mock('./ShowPreview', () => ({ ShowPreview: () => <div>Scene pixels</div> }));
+vi.mock('./ShowPreview', () => ({ ShowPreview: ({ placement }: { placement?: unknown }) => <div data-placement={placement ? 'on' : 'off'}>Scene pixels</div> }));
 vi.mock('./InputPreview', () => ({ InputPreview: () => <div>Source pixels</div> }));
 afterEach(cleanup);
 const white = (show: MapShow, name = 'White') => addSimpleVisual(show, { mediaId: null, rect: [0, 0, 100, 100], fill: '#fff' }, name);
@@ -104,4 +104,18 @@ test('the center workspace is the render and transport; empty state opens the ga
     onPlay={vi.fn()} onSeek={vi.fn()} onChange={vi.fn()} onBrowse={onBrowse} />);
   fireEvent.click(screen.getByRole('button', { name: 'Browse visual gallery' })); expect(onBrowse).toHaveBeenCalled();
   expect(screen.queryByRole('region', { name: 'Layer properties' })).toBeNull();
+});
+test('a clip picked on a surface gets placement handles, like any visual', async () => {
+  const { createClip, ensureSurfaceTracks, assignClip, surfaceTrack } = await import('../compound-clips');
+  const { MAIN_TIMELINE } = await import('../timelines');
+  let show = normalizeDocument(emptyShow());
+  show.scenes[0].surfaces = [{ ...newSurface(show.output, 0), id: 'wall' }];
+  show = createClip(show, 'Card');
+  const clip = show.activeClipID!;
+  show = ensureSurfaceTracks(show, MAIN_TIMELINE);
+  show = assignClip(show, clip, surfaceTrack(show, MAIN_TIMELINE, 'wall')!.id, 0);
+  const use = show.visuals!.find(v => v.timelineRefID === clip)!;
+  render(<SimpleVisualWorkspace show={show} urls={{}} selectedID={use.id} timeS={0} playing={false}
+    onPlay={vi.fn()} onSeek={vi.fn()} onChange={vi.fn()} onBrowse={vi.fn()} onPlacement={vi.fn()} />);
+  expect(screen.getByText('Scene pixels').getAttribute('data-placement')).toBe('on');
 });

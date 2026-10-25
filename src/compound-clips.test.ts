@@ -269,3 +269,15 @@ it('a scene made in this editor stays a scene, and migration decides each old ti
   const reaimed = { ...once, visuals: once.visuals!.map(v => v.timelineRefID ? { ...v, targets: [{ sceneID: once.activeSceneId }] } : v) };
   expect(normalizeDocument(reaimed).timelines!.find(t => t.id === t4)!.board).toBeUndefined();
 });
+
+it("a clip use's placement moves and sizes the clip on its surface", () => {
+  const { show, canvas2, clip } = fixture();
+  const placed = onTop(show, canvas2, clip);
+  const look = (s: MapShow) => sceneVisuals(s, s.scenes.find(c => c.id === canvas2)!, 0)[0].corners;
+  expect(look(placed)).toEqual(quadCorners([200, 100, 500, 400]));
+  // Left half of the surface: centred at 25% across, half as wide.
+  const half = { ...placed, visuals: placed.visuals!.map(v => v.timelineRefID === clip ? { ...v, placement: { xPercent: 25, yPercent: 50, widthPercent: 50, heightPercent: 100, rotationDeg: 0 } } : v) };
+  const [a, , c] = look(half);
+  expect(a[0]).toBeCloseTo(200); expect(a[1]).toBeCloseTo(100);
+  expect(c[0]).toBeCloseTo(450); expect(c[1]).toBeCloseTo(500);
+});

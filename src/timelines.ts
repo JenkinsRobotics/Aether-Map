@@ -1,3 +1,4 @@
+import type { VisualPlacement } from './visual-placement';
 import { sourceMotionAt, hasSourceMotion } from './source-motion';
 import { visualSource } from './media-pool';
 import { visualMotionAt, type VisualMotionInputs } from './visual-motion';
@@ -19,7 +20,8 @@ export const isClip = (t: MapTimeline | undefined): t is MapTimeline & { board: 
 export type ClipFit = 'cover' | 'stretch';
 /** One clip use on the way out: the board it draws, how it fits the next frame,
  * and (outermost, in a scene) the surfaces it is projected onto. */
-export interface ClipStep { board: Board; fit: ClipFit; hosts?: string[] }
+/** One use of a clip: its board, how it fits, where it moved and sized it, and (outermost on a canvas) its surfaces. */
+export interface ClipStep { board: Board; fit: ClipFit; placement?: VisualPlacement; hosts?: string[] }
 export function currentTimelineID(show: MapShow): string {
   return show.timelines?.some(t => t.id === show.activeTimelineID && (isClip(t) || t.sceneID === show.activeSceneId)) ? show.activeTimelineID! : MAIN_TIMELINE;
 }
@@ -107,7 +109,7 @@ export function scheduledVisuals(show: MapShow, timeS: number, id = currentTimel
         if (visual.transitionS) opacity *= Math.min(1, Math.max(0, (time - visual.startS) / visual.transitionS));
         if (isClip(child)) {
           // Surfaces only mean something on a canvas; inside a clip a use fills its board.
-          const step: ClipStep = { board: child.board, fit: visual.clipFit ?? 'stretch', ...(!board && surfaces.length ? { hosts: surfaces } : {}) };
+          const step: ClipStep = { board: child.board, fit: visual.clipFit ?? 'stretch', ...(visual.placement ? { placement: visual.placement } : {}), ...(!board && surfaces.length ? { hosts: surfaces } : {}) };
           visit(child.id, clock, next, opacity * visual.opacity, gain, hosts, [step, ...uses], child.board);
         } else if (!board) visit(child.id, clock, next, opacity * visual.opacity, gain, hosts ?? (surfaces.length ? surfaces : undefined));
       } else result.push({ visual: path.length ? { ...visual, id: `${path.join('/')}/${visual.id}`, opacity: visual.opacity * opacity, legacyTrack: visual.legacyTrack ? `${path.join('/')}/${visual.legacyTrack}` : undefined } : visual, track, timeS: time, gain, ...(hosts ? { hosts } : {}), ...(board ? { board, clips: uses } : {}) });

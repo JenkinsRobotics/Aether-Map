@@ -4,7 +4,7 @@ import { quadCorners, sceneLayers, showForOutput, type MapShow, type Quad, type 
 import type { Visual } from '../visual-model';
 import { sceneSize } from '../scene-size';
 import { outputRegion, cropTransform } from '../output-crop';
-import { sceneVisuals } from '../visual-render';
+import { boardBounds, sceneVisuals } from '../visual-render';
 import { OutputSurface } from '../output';
 import { TestPattern } from '../features/TestPattern';
 import { SceneBackdrop } from '../SceneBackdrop';
@@ -47,8 +47,10 @@ export function ShowPreview({ show, output, urls, timeS, playing, scenePreview =
   const frame: Rect = target ? target.source.rect : [0, 0, logical.width, logical.height];
   const corners: Quad = target ? target.corners : quadCorners(frame);
   const source = placement && visualSource(show, placement.visual);
+  // A clip use's picture is its board, fitted to the frame.
+  const useBoard = placement?.visual.timelineRefID ? show.timelines?.find(t => t.id === placement.visual.timelineRefID)?.board : undefined;
   const handles = (style: React.CSSProperties, toLocal: (x: number, y: number) => [number, number], unitPx: number) => placement && source &&
-    <PlacementHandles value={placement.visual.placement} frame={frame} bounds={contentBounds(source, frame, measureTextBounds(source))}
+    <PlacementHandles value={placement.visual.placement} frame={frame} bounds={useBoard ? boardBounds(useBoard, frame, placement.visual.clipFit ?? 'stretch') : contentBounds(source, frame, measureTextBounds(source))}
       unitPx={unitPx} style={style} toLocal={toLocal} onChange={placement.onChange} onDone={placement.onDone} />;
 
   if (focus) {
