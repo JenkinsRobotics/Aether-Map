@@ -1,10 +1,11 @@
 import { expect, it } from 'vitest';
 import { emptyShow, newScene, newSurface, quadCorners, type MapShow } from './document';
-import { canNestTimeline, placeTimeline, removeSceneTimelines, timelineTracks, validateTimelines } from './timelines';
+import { canNestTimeline, createTimeline, placeTimeline, removeSceneTimelines, timelineTracks, validateTimelines } from './timelines';
 import { clipPictures, sceneVisuals } from './visual-render';
 import { createClip, isClip, projectClips } from './compound-clips';
 import { parseShow, serializeShow } from './show-file';
 import type { Visual } from './visual-model';
+import { normalizeDocument } from './normalize-document';
 
 const fill = (id: string, trackID: string, targets: Visual['targets'] = []): Visual => ({ id, name: id, trackID, startS: 0, durationS: 60, inS: 0, loop: true, continuous: true,
   targets, mapping: 'repeat', color: '#f00', opacity: 1, source: { mediaId: null, rect: [0, 0, 100, 100], fill: '#ff0000' } });
@@ -80,4 +81,52 @@ it('documents without clips load as before', () => {
   const restored = parseShow(serializeShow({ ...plain, version: 12 }));
   expect(restored.timelines ?? []).toEqual(plain.timelines ?? []);
   expect(projectClips(restored)).toEqual([]);
+});
+
+/** The r23 shape: Timeline 3 (one full-canvas fill) nested in Timeline 4 on surfaces a and b. */
+function r23() {
+  let show = emptyShow();
+  const sceneID = show.activeSceneId;
+  const a = { ...newSurface(show.output, 0), id: 'a', corners: quadCorners([100, 100, 400, 300]) };
+  const b = { ...newSurface(show.output, 1), id: 'b', corners: quadCorners([600, 200, 900, 700]) };
+  show.scenes[0].surfaces = [a, b];
+  show = createTimeline(show, 'Timeline 3');
+  const t3 = show.activeTimelineID!, t3Track = timelineTracks(show, t3).find(t => t.kind === 'video')!;
+  show = { ...show, visuals: [...(show.visuals ?? []), fill('text', t3Track.id, [{ sceneID }])] };
+  show = createTimeline(show, 'Timeline 4');
+  const t4 = show.activeTimelineID!, t4Track = timelineTracks(show, t4).find(t => t.kind === 'video')!;
+  show = placeTimeline(show, t3, t4Track.id, 0);
+  show = { ...show, visuals: show.visuals!.map(v => v.timelineRefID === t3 ? { ...v, targets: [{ sceneID, surfaceID: 'a' }, { sceneID, surfaceID: 'b' }] } : v) };
+  return { show, t3, t4 };
+}
+
+it('an r23 nested project renders identically after migration', () => {
+  const { show, t3 } = r23();
+  const after = normalizeDocument(show);
+  expect(isClip(after.timelines!.find(t => t.id === t3))).toBe(true);
+  const look = (s: MapShow) => sceneVisuals(s, s.scenes[0], 2).map(p => ({ corners: p.corners, masks: p.masks, opacity: p.opacity }));
+  const before = look(show), migrated = look(after);
+  expect(migrated).toHaveLength(2);
+  migrated.forEach((p, i) => {
+    p.corners.forEach((c, k) => { expect(c[0]).toBeCloseTo(before[i].corners[k][0]); expect(c[1]).toBeCloseTo(before[i].corners[k][1]); });
+    expect(p.masks).toEqual(before[i].masks); expect(p.opacity).toBe(before[i].opacity);
+  });
+});
+
+it('a timeline with surface-targeted visuals stays a scene', () => {
+  const { show, t4 } = r23();
+  expect(normalizeDocument(show).timelines!.find(t => t.id === t4)!.board).toBeUndefined();
+});
+
+it('migration is idempotent', () => {
+  const once = normalizeDocument(r23().show);
+  expect(normalizeDocument(once)).toEqual(once);
+});
+
+it('a migrated clip a show plays as a scene still fills that canvas', () => {
+  const { show, clip } = fixture();
+  const canvas2 = show.scenes.find(s => s.id === 'canvas-2')!;
+  const small = { ...canvas2, artboard: { widthPx: 1280, heightPx: 720 } };
+  const played = { ...show, scenes: show.scenes.map(s => s.id === small.id ? small : s), activeSceneId: small.id, activeTimelineID: clip };
+  expect(sceneVisuals(played, small, 0).map(p => p.corners)).toEqual([quadCorners([0, 0, 1280, 720])]);
 });

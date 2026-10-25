@@ -24,7 +24,7 @@ export function clipPictures(show: MapShow, clipID: string, timeS: number, input
   const clip = show.timelines?.find(t => t.id === clipID);
   if (!isClip(clip)) return [];
   const board = { ...newScene(clip.name, clip.board), id: `board:${clip.id}`, surfaces: [] };
-  return renderTimeline(show, board, timeS, clip.id, false, undefined, inputs);
+  return renderTimeline(show, board, timeS, clip.id, false, undefined, inputs, false, true);
 }
 
 /** Maps a clip's board into `frame` (whose corners are `corners`): cover keeps
@@ -36,8 +36,11 @@ function boardInto(board: Board, frame: Rect, corners: Surface['corners'], fit: 
   return p => project(toCorners, [p[0] * kx + ox, p[1] * ky + oy]);
 }
 
-function renderTimeline(input: MapShow, scene: Scene, timeS: number, timelineID: string, placeholders = false, onlySurfaceID?: string, inputs:VisualMotionInputs={}, calibration = false): ResolvedSurface[] {
+function renderTimeline(input: MapShow, scene: Scene, timeS: number, timelineID: string, placeholders = false, onlySurfaceID?: string, inputs:VisualMotionInputs={}, calibration = false, asBoard = false): ResolvedSurface[] {
   const show = normalizeVisuals(input);
+  // A clip played as a scene (a show's scene clip) fills the canvas, as scenes always have.
+  const root = show.timelines?.find(t => t.id === timelineID);
+  const rootStep: ClipStep[] = !asBoard && isClip(root) ? [{ board: root.board, fit: 'stretch' }] : [];
   const geometry = show.scenes.find(s => s.id === scene.id) ?? scene;
   const context = { ...inputs, lfos: show.lfos, sceneTimeS: timeS, ...(calibration ? { modulation: false as const } : {}) };
   const occupied = new Set<string>();
@@ -71,7 +74,9 @@ function renderTimeline(input: MapShow, scene: Scene, timeS: number, timelineID:
         const found = geometry.surfaces.find(s => s.id === id);
         if (!found || !found.enabled || (onlySurfaceID && onlySurfaceID !== id)) return [];
         const host = evaluateSurface(found, calibration ? 0 : timeS, show.media, context);
-        return into(out, step.board, host.source.rect, host.corners, step.fit, targetShapes(host), `@${id}`, host.opacity);
+        // Cover overflows the surface, so clip to it; stretch only needs a real outline (as r23).
+        const outline = step.fit === 'cover' || host.masks.length || host.shape === 'ellipse' || host.radiusPx ? targetShapes(host) : [];
+        return into(out, step.board, host.source.rect, host.corners, step.fit, outline, `@${id}`, host.opacity);
       }); continue; }
       const frame: Rect = [0, 0, w, h];
       out = into(out, step.board, frame, quadCorners(frame), step.fit, step.fit === 'cover' ? [quadCorners(frame)] : []);
@@ -80,7 +85,7 @@ function renderTimeline(input: MapShow, scene: Scene, timeS: number, timelineID:
   };
   const rendered = scheduledVisuals(show, timeS, timelineID, inputs).flatMap(({ visual, track, timeS, hosts, board, clips }) => {
     const out = place(visual, track, timeS, board);
-    return board ? outward(out, clips ?? []) : hosts ? hosted(out, hosts) : out;
+    return board ? outward(out, [...(clips ?? []), ...rootStep]) : hosts ? hosted(out, hosts) : out;
   });
   function place(visual: ReturnType<typeof scheduledVisuals>[number]['visual'], track: ReturnType<typeof scheduledVisuals>[number]['track'], timeS: number, board?: Board): ResolvedSurface[] {
     if (track?.kind === 'audio' || track?.enabled === false) return [];

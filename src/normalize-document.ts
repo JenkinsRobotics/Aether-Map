@@ -7,8 +7,9 @@ import { normalizeVisuals } from './visual-document';
 import { normalizeMediaPool } from './media-pool';
 import { normalizeSurfaceTimelines } from './surface-timelines';
 import { normalizeShowTimeline } from './show-timeline';
+import { migrateTimelinesToClips } from './compound-clips';
 
 /** One document upgrade path for editor opening, edits and saved-file agents. */
 export function normalizeDocument(show: MapShow): MapShow {
-  return normalizeShowTimeline(surfaceMotionVersion(visualLookVersion(sourceMotionVersion(visualMotionVersion(normalizeSurfaceTimelines(normalizeMediaPool(normalizeVisuals(show))))))));
+  return migrateTimelinesToClips(normalizeShowTimeline(surfaceMotionVersion(visualLookVersion(sourceMotionVersion(visualMotionVersion(normalizeSurfaceTimelines(normalizeMediaPool(normalizeVisuals(show)))))))));
 }
