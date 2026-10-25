@@ -1364,7 +1364,9 @@ export default function App() {
   const documentEntries: DocumentEntry[] = [
     ...(show.shows ?? []).map(p => ({ id: `show:${p.id}`, label: p.name, kind: 'show' as const, icon: <AetherIcon name="play" /> })),
     { id: `scene:${MAIN_TIMELINE}`, label: 'Main', kind: 'scene', icon: <AetherIcon name="timeline-tracks" /> },
-    ...(show.timelines ?? []).map(t => ({ id: `scene:${t.id}`, label: t.name, kind: 'scene' as const, icon: <AetherIcon name="timeline-tracks" /> })),
+    // Scenes, then clips (which open in Content).
+    ...(show.timelines ?? []).filter(t => !isClip(t)).map(t => ({ id: `scene:${t.id}`, label: t.name, kind: 'scene' as const, icon: <AetherIcon name="timeline-tracks" /> })),
+    ...projectClips(show).map(t => ({ id: `clip:${t.id}`, label: t.name, kind: 'scene' as const, icon: <AetherIcon name="timeline-tracks" /> })),
   ];
   return (
     <TimelineAudioProvider><ModulationContext.Provider value={{ lfos: show.lfos ?? DEFAULT_LFOS, timeS, onLfos: lfos => edit(current => ({ ...current, lfos })) }}>
@@ -1407,8 +1409,9 @@ export default function App() {
       sidebarVariant={sidebarVariant}
       preservePanelContent
       bottom={dockWidget === "files" ? <ShowFileTabs file={file} saveState={saveState} connection={documentConnection} onSaveCopy={()=>rename(true)} status={error||status} fileActions={<span ref={setFileMenuTarget}/>}
-        entries={documentEntries} activeEntry={mode==='show'?`show:${activeShow(show)?.id}`:mode==='mapping'?undefined:`scene:${currentTimelineID(show)}`}
+        entries={documentEntries} activeEntry={mode==='show'?`show:${activeShow(show)?.id}`:mode==='mapping'?undefined:mode==='content'?`clip:${openClip?.id}`:`scene:${currentTimelineID(show)}`}
         onEntry={entry=>{const [kind,id]=[entry.kind,entry.id.slice(entry.id.indexOf(':')+1)];
+          if(entry.id.startsWith('clip:')){setOpenClipID(id);enterMode('content');return;}
           if(kind==='show'){if(id!==activeShow(show)?.id)edit(s=>({...s,activeShowID:id}));enterMode('show');}
           else{enterMode('visualization');if(id!==currentTimelineID(show))openTimeline(id);}}}
         onCreate={kind=>{if(kind==='show'){edit(s=>{const n=normalizeShowTimeline(s),p=newShowProgram(n,`Show ${(n.shows?.length??0)+1}`);return {...n,shows:[...(n.shows??[]),p],activeShowID:p.id};});enterMode('show');return;}

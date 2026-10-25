@@ -100,7 +100,7 @@ export async function clickRibbon(page: Page, name: string) {
   }
 }
 /** Use the shared header switcher and verify the selected workspace. */
-export async function switchWorkspace(page: Page, name: "Mapping" | "Scene" | "Visualization" | "Sequence" | "Show") {
+export async function switchWorkspace(page: Page, name: "Mapping" | "Content" | "Scene" | "Visualization" | "Sequence" | "Show") {
   // The Visualization workspace was renamed Scene (2026-10-22).
   if (name === 'Sequence' || name === 'Visualization') name = 'Scene';
   const current = page.getByRole('button', {name:`Workspace: ${name}`, exact:true});

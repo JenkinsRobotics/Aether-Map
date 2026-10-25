@@ -1,5 +1,41 @@
 # Aether Map status
 
+## 0.1.0-alpha.3 — 2026-10-24: Content and Scene workspaces
+
+Workspaces are now Mapping | Content | Scene | Show. Design:
+`docs/superpowers/specs/2026-10-24-content-and-scene-workspaces-design.md`.
+- **Content** builds compound clips with no surfaces. Each clip sits on its own
+  board (a preset size, or a surface's proportions), with layers, placement
+  handles and its own timeline.
+  - Media pool | Visuals tabs: the project's clips (folders; each row says where
+    it plays) and what the open clip holds.
+  - Properties: name, board, length, and "Used on N surfaces".
+- **Scene** assigns clips.
+  - Pick a clip in the Media pool and the surface row puts it on surfaces,
+    looping for the scene.
+  - The advanced timeline gets a track per surface to drop clips on. A pool
+    item dropped there becomes a one-visual clip.
+  - A selected surface shows what plays now and next, Fill or Stretch, and a
+    fade-in.
+- **Model:** a clip is a timeline with a `board`.
+  - It belongs to the project: deleting a canvas keeps it.
+  - It fills a surface without stretching (cover, clipped to the surface's
+    outline).
+  - Clips nest inside clips, and a clip can't contain itself.
+  - Document version 13.
+- **Older projects:** a timeline whose visuals all fill the canvas becomes a
+  clip and draws exactly as before, including when a show plays it on another
+  canvas. Each old timeline is decided once.
+- **Not yet / limits:**
+  - Timelines aimed at particular surfaces stay scenes, and their direct
+    visuals stay editable in Scene's Visuals tab.
+  - Scene's Add tools still add ordinary scene visuals.
+  - Only the outermost host applies to nested surface hosting.
+  - A picture's own mask isn't intersected with the surface outline.
+  - Selected-tab text in the shared segmented control is hard to read in the
+    light theme (Aether-UI style).
+  - No node effects page yet.
+
 ## Installed release — 2026-10-23 (r23)
 
 `map-visualizer-20261023-r23`. Since r20:
