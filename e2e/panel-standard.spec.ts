@@ -19,7 +19,7 @@ test('shared panel headers and reconnect notifications retain their bounds in bo
   for(const theme of ['dark','light']){
     await page.evaluate(theme=>{document.documentElement.classList.toggle('aether-light-theme',theme==='light');document.documentElement.dataset.aetherTheme=theme;},theme);
     let expected;
-    for(const [tab,title] of [['Comments','Comments & tasks'],['AI advisor','AI chat'],['Files','Files'],['Version control','Version control']]){
+    for(const [tab,title] of [['Comments','Comments & tasks'],['AI advisor','AI chat'],['Files','Files'],['Version control','History & versions']]){
       await rail.getByRole('button',{name:tab,exact:true}).click();
       await expect(header.getByRole('heading',{name:title,exact:true})).toBeVisible();
       const bounds=await measure();
