@@ -29,7 +29,15 @@ test('History shares the four-cell aux toolbar and returns to an editing step wi
   await expect(history.locator('[data-inactive=true]')).toHaveCount(0);
   await page.screenshot({path:info.outputPath('map-editing-history.png')});
   await page.getByRole('radio', {name:'Version control',exact:true}).click();
-  await expect(page.getByRole('region',{name:'Version control',exact:true})).toBeVisible();
+  const versions = page.getByRole('region',{name:'Version control',exact:true});
+  await expect(versions).toBeVisible();
+  await expect(versions.getByRole('button',{name:'Create branch',exact:true})).toHaveCount(0);
+  await expect(versions.getByRole('button',{name:'Merge branches',exact:true})).toHaveCount(0);
+  await versions.getByRole('button',{name:'Version actions',exact:true}).click();
+  await expect(page.getByRole('menuitem',{name:'Create branch',exact:true})).toBeVisible();
+  await expect(page.getByRole('menuitem',{name:'Merge branches',exact:true})).toBeVisible();
+  await page.screenshot({path:info.outputPath('map-version-actions.png')});
+  await page.keyboard.press('Escape');
   await page.getByRole('radio', {name:'History',exact:true}).click();
   await expect(rows).toHaveCount(2);
 });
