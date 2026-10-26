@@ -23,7 +23,7 @@ skips the wizard, taking the host address from wherever it was fetched and the
 device name from the hostname:
 
 ```bash
-curl -sSL http://<server>:8780/api/map/install.sh | bash
+curl -sSL https://<server>:8780/api/map/install.sh | bash
 ```
 
 Either way, re-running is how a device picks up a new player version or a
@@ -44,7 +44,7 @@ answers on a phone:
 | Step | Asks for |
 |---|---|
 | Wi-Fi | The network this projector should use. Scanned live; a wrong passphrase is reported, not swallowed. |
-| Host | Where Aether Studio is running. `studio.local:8780` is accepted as typed. |
+| Host | Where Aether Studio is running. `aetherstudio.local:8780` is accepted as typed and means HTTPS. |
 | Name | What this projector is called in Aether Map. |
 | Device | Keep the display awake, play audio, allow player updates. |
 

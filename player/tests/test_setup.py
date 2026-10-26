@@ -138,7 +138,13 @@ def test_a_wrong_passphrase_is_reported_not_swallowed(config):
 
 
 def test_a_host_typed_on_a_phone_is_accepted_without_a_scheme(config):
+    # Studio only listens on the network over HTTPS, so a bare host means https.
     assert setup.apply_step("server", {"server_url": "studio.local:8780"}, config, FakeNetwork())[0]
+    assert config["server_url"] == "https://studio.local:8780"
+
+
+def test_an_explicit_http_host_is_kept(config):
+    assert setup.apply_step("server", {"server_url": "http://studio.local:8780"}, config, FakeNetwork())[0]
     assert config["server_url"] == "http://studio.local:8780"
 
 

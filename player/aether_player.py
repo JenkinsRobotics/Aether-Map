@@ -42,7 +42,7 @@ CONFIG_LOCK = threading.RLock()
 # once: the document format moved to 3 and this list still said (1, 2), which
 # made every current show fail to deploy with "unsupported layout". The test
 # suite now reads show-file.ts and fails if the two disagree.
-SUPPORTED_LAYOUT_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+SUPPORTED_LAYOUT_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
 
 
 try:
