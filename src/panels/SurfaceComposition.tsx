@@ -75,7 +75,7 @@ export function SurfaceComposition({show,surface,timeS,playing,urls,selectedID,o
               onChange(setVisualMotionBase(selected.visual,delta[0]?{xPercent:p.xPercent+delta[0]*step/selected.local[2]*100}:{yPercent:p.yPercent+delta[1]*step/selected.local[3]*100},true));
             }}
             onPointerMove={event=>{const d=drag.current;if(!d)return;const p=project(d.inverse,point(event));let placement=d.start;
-              if(typeof d.kind==='number')placement=resizeContentPlacement(d.start,d.kind,p,d.frame,d.bounds);
+              if(typeof d.kind==='number')placement=resizeContentPlacement(d.start,d.kind,p,d.frame,d.bounds,!event.shiftKey);
               else if(d.kind==='move')placement=readVisualPlacement({...d.start,xPercent:d.start.xPercent+(p[0]-d.point[0])/d.frame[2]*100,yPercent:d.start.yPercent+(p[1]-d.point[1])/d.frame[3]*100});
               else {const cx=d.frame[0]+d.frame[2]*d.start.xPercent/100,cy=d.frame[1]+d.frame[3]*d.start.yPercent/100;
                 placement={...d.start,rotationDeg:d.start.rotationDeg+(Math.atan2(p[1]-cy,p[0]-cx)-Math.atan2(d.point[1]-cy,d.point[0]-cx))*180/Math.PI};}

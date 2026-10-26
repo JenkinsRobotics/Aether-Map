@@ -100,10 +100,13 @@ function renderTimeline(input: MapShow, scene: Scene, timeS: number, timelineID:
     if (show.media.some(m => m.id === source.mediaId && m.kind === 'audio')) return [];
     if (visual.enabled === false || (!visual.continuous && (timeS < visual.startS || timeS >= visual.startS + visual.durationS))) return [];
     if (visual.legacyTrack) { if (occupied.has(visual.legacyTrack)) return []; occupied.add(visual.legacyTrack); }
-    const targets = board ? [{ ...newSurface({ width: board.widthPx, height: board.heightPx }, 0), id: 'board', corners: quadCorners([0, 0, board.widthPx, board.heightPx]), mediaTimeS: timeS }]
+    // Whole-board and whole-canvas targets: their frame is that full rectangle, not
+    // newSurface's square default, or a moved visual is placed in a square and stretched.
+    const whole = (width: number, height: number, id: string) => ({ ...newSurface({ width, height }, 0), id, corners: quadCorners([0, 0, width, height]), source: { mediaId: null, rect: [0, 0, width, height] as Rect }, mediaTimeS: timeS });
+    const targets = board ? [whole(board.widthPx, board.heightPx, 'board')]
       : visual.targets.filter(t => t.sceneID === scene.id).flatMap(t => {
       if (t.surfaceID) { const surface = geometry.surfaces.find(s => s.id === t.surfaceID); return surface ? [evaluateSurface(surface, calibration ? 0 : timeS, show.media, context)] : []; }
-      return [{ ...newSurface({ width: w, height: h }, 0), id: scene.id, corners: [[0, 0], [w, 0], [w, h], [0, h]] as Surface['corners'], mediaTimeS: timeS }];
+      return [whole(w, h, scene.id)];
     });
     if (!targets.length) return [];
     const points = targets.flatMap(t => t.corners);

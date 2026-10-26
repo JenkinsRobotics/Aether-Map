@@ -51,10 +51,13 @@ export function contentPlacementCorners(value:VisualPlacement|undefined,frame:Re
     return [frame[0]+frame[2]*p.xPercent/100+dx*Math.cos(r)-dy*Math.sin(r),frame[1]+frame[3]*p.yPercent/100+dx*Math.sin(r)+dy*Math.cos(r)];
   }) as Quad;
 }
-export function resizeContentPlacement(start:VisualPlacement,corner:number,point:Point,frame:Rect,bounds:Rect):VisualPlacement {
+/** Resize about the opposite corner; `keepAspect` scales both axes alike (surfaces' locked aspect). */
+export function resizeContentPlacement(start:VisualPlacement,corner:number,point:Point,frame:Rect,bounds:Rect,keepAspect=false):VisualPlacement {
   const anchor=contentPlacementCorners(start,frame,bounds)[(corner+2)%4],r=start.rotationDeg*Math.PI/180;
   const dx=point[0]-anchor[0],dy=point[1]-anchor[1],sx=corner===0||corner===3?-1:1,sy=corner<2?-1:1;
-  const next=readVisualPlacement({...start,widthPercent:sx*(dx*Math.cos(r)+dy*Math.sin(r))/bounds[2]*100,heightPercent:sy*(-dx*Math.sin(r)+dy*Math.cos(r))/bounds[3]*100});
+  let width=sx*(dx*Math.cos(r)+dy*Math.sin(r))/bounds[2]*100,height=sy*(-dx*Math.sin(r)+dy*Math.cos(r))/bounds[3]*100;
+  if(keepAspect){const k=Math.max(width/start.widthPercent,height/start.heightPercent);width=start.widthPercent*k;height=start.heightPercent*k;}
+  const next=readVisualPlacement({...start,widthPercent:width,heightPercent:height});
   const moved=contentPlacementCorners(next,frame,bounds)[(corner+2)%4];
   return readVisualPlacement({...next,xPercent:next.xPercent+(anchor[0]-moved[0])/frame[2]*100,yPercent:next.yPercent+(anchor[1]-moved[1])/frame[3]*100});
 }

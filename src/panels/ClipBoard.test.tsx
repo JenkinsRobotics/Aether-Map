@@ -35,6 +35,7 @@ it('dragging a visual updates its placement', () => {
   const svg = container.querySelector('.map-placement-handles')!, box = container.querySelector('.map-placement-box')!;
   (box as Element).setPointerCapture = () => {};
   fireEvent.pointerDown(box, { clientX: 500, clientY: 250, pointerId: 1 });
-  fireEvent.pointerMove(svg, { clientX: 600, clientY: 250, pointerId: 1 });
+  // Alt moves without snapping (jsdom's board has no size to measure snap distance by).
+  fireEvent.pointerMove(svg, { clientX: 600, clientY: 250, pointerId: 1, altKey: true });
   expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ xPercent: 60 }));
 });

@@ -55,3 +55,14 @@ it('focused Span preview retains the shared window and alpha projection instead 
   expect(placementProjectionStyle(focused)?.layers).toHaveLength(2);
   expect(s.scenes[0].surfaces[0].corners).toEqual([[100,80],[500,100],[450,420],[120,400]] as Quad);
 });
+
+// Assets resize like surfaces and the backdrop: from the opposite corner, keeping proportions.
+it('a corner resize can keep the content proportions, anchored at the opposite corner', async () => {
+  const { resizeContentPlacement, contentPlacementCorners, DEFAULT_PLACEMENT } = await import('./visual-placement');
+  const frame: [number, number, number, number] = [0, 0, 1000, 500], bounds: [number, number, number, number] = [250, 0, 500, 500];
+  const next = resizeContentPlacement(DEFAULT_PLACEMENT, 2, [900, 400], frame, bounds, true);
+  expect(next.widthPercent).toBeCloseTo(next.heightPercent);
+  const [a, , c] = contentPlacementCorners(next, frame, bounds);
+  expect(a[0]).toBeCloseTo(250); expect(a[1]).toBeCloseTo(0);
+  expect((c[0] - a[0]) / (c[1] - a[1])).toBeCloseTo(1);
+});

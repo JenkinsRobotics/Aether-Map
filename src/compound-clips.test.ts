@@ -43,6 +43,19 @@ it('a clip renders on its board regardless of targets', () => {
   expect(pictures[0].corners).toEqual([[0, 0], [1000, 0], [1000, 500], [0, 500]]);
 });
 
+// A moved visual on a board or whole canvas is placed in that frame, not in
+// newSurface's square default, so moving it never changes its proportions.
+it('a moved visual keeps its proportions on a clip board and on a whole canvas', () => {
+  const { show, clip } = fixture();
+  const moved = { xPercent: 45, yPercent: 55, widthPercent: 100, heightPercent: 100, rotationDeg: 0 };
+  const placed = { ...show, visuals: show.visuals!.map(v => v.id === 'red' ? { ...v, placement: moved } : v) };
+  expect(clipPictures(placed, clip, 0)[0].contentFrame).toEqual([0, 0, 1000, 500]);
+  const canvas = show.scenes.find(s => s.id === show.activeSceneId)!, { width, height } = show.output;
+  const onCanvas = { ...show, tracks: [...(show.tracks ?? []), { id: 'canvas-track', name: 'Canvas', kind: 'video' as const, targets: [{ sceneID: canvas.id }], enabled: true, locked: false }],
+    visuals: [...show.visuals!, { ...fill('blue', 'canvas-track', [{ sceneID: canvas.id }]), placement: moved }] };
+  expect(sceneVisuals(onCanvas, canvas, 0).find(p => p.id.startsWith('blue'))!.contentFrame).toEqual([0, 0, width, height]);
+});
+
 it('a clip made on Canvas 1 plays on Canvas 2 surfaces', () => {
   const { show, canvas2, top, clip } = fixture();
   const next = onTop(show, canvas2, clip);
