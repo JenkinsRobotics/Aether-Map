@@ -104,6 +104,7 @@ export interface DocumentHistory<T> {
   amend: (next: (current: T) => T) => void;
   undo: () => void;
   redo: () => void;
+  goTo: (index: number) => void;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -131,6 +132,7 @@ export function useDocumentHistory<T>(initial: T | (() => T)): DocumentHistory<T
 
   return {
     checkpoint: state,
+    goTo: (index) => setState(current => goToHistory(current, index)),
     beginGesture,
     endGesture,
     restoreCheckpoint,
@@ -153,4 +155,13 @@ export function amendHistory<T>(state: History<T>, next: T): History<T> {
 export function restoreHistoryCheckpoint<T>(checkpoint: History<T>, next: T): History<T> {
   return next === checkpoint.present ? { ...checkpoint, lastKey: null, lastAt: 0 }
     : pushHistory(checkpoint, next, null, Date.now());
+}
+
+/** Move within the existing undo chain without creating a new edit or losing redo. */
+export function goToHistory<T>(state: History<T>, index: number): History<T> {
+  if (state.gesture || !Number.isInteger(index) || index < 0 || index > state.past.length + state.future.length) return state;
+  let next = state;
+  while (next.past.length > index) next = undoHistory(next);
+  while (next.past.length < index) next = redoHistory(next);
+  return next;
 }

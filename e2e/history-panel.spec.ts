@@ -1,0 +1,35 @@
+import { expect, test } from '@playwright/test';
+import { signIn, switchWorkspace, clickRibbon } from './helpers';
+
+test('History shares the four-cell aux toolbar and returns to an editing step with redo intact', async ({ page, baseURL }, info) => {
+  await signIn(page, baseURL!);
+  await page.goto('/map/index.html?new=show');
+  await switchWorkspace(page, 'Mapping');
+  await clickRibbon(page, 'New Surface');
+  await clickRibbon(page, 'New Surface');
+  await expect(page.locator('.map-surface')).toHaveCount(2);
+  const toolbar = page.getByRole('toolbar', { name: 'Aux toolbar' });
+  await expect(toolbar.getByRole('button')).toHaveCount(4);
+  await toolbar.getByRole('button', { name: 'Version control', exact: true }).click();
+  await page.getByRole('radio', { name: 'History', exact: true }).click();
+  const history = page.getByRole('region', { name: 'Editing history', exact: true });
+  const rows = history.getByRole('listitem');
+  await expect(rows).toHaveCount(2);
+  const step = rows.first().locator('.aui-edit-history-disclosure');
+  await step.click(); await expect(step).toHaveAttribute('aria-expanded', 'true');
+  await step.click(); await expect(step).toHaveAttribute('aria-expanded', 'false');
+  await rows.first().click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: /Undo|Redo|settings/ })).toHaveCount(0);
+  await page.getByRole('menuitem', { name: 'Return to this step', exact: true }).click();
+  await expect(page.locator('.map-surface')).toHaveCount(1);
+  await expect(history.locator('[data-inactive=true]')).toHaveCount(1);
+  await rows.last().getByRole('button', { name: /^Actions for/ }).click();
+  await page.getByRole('menuitem', { name: 'Return to this step', exact: true }).click();
+  await expect(page.locator('.map-surface')).toHaveCount(2);
+  await expect(history.locator('[data-inactive=true]')).toHaveCount(0);
+  await page.screenshot({path:info.outputPath('map-editing-history.png')});
+  await page.getByRole('radio', {name:'Version control',exact:true}).click();
+  await expect(page.getByRole('region',{name:'Version control',exact:true})).toBeVisible();
+  await page.getByRole('radio', {name:'History',exact:true}).click();
+  await expect(rows).toHaveCount(2);
+});

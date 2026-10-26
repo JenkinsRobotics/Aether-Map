@@ -111,6 +111,7 @@ import { parseShow, serializeShow } from "./show-file";
 import { importSurfacesFromSvg } from "./svg-import";
 import { TOOL_SHORTCUTS, type MaskTool } from "./mask/tools";
 import { surfaceFromPath } from "./mask/shape-surface";
+import { MapHistoryPanel } from "./panels/MapHistoryPanel";
 import { useDocumentHistory } from "./history";
 import { evaluateShow } from "./playback";
 import {
@@ -1500,7 +1501,7 @@ export default function App() {
       // The simple visuals editor rides the same standard frame: full aux
       // panel set and footer toggles, with only the timeline kept to the
       // advanced visualization and show rooms.
-      ], { features: "layers", advisor: "agent",  }, documentConnection).filter(panel=>panel.id!=="part-manager" && panel.id!=="tasks")
+      ], { features: "layers", advisor: "agent",  }, documentConnection, { historyTabStorageKey: "aether-map.history-tab", history: <MapHistoryPanel history={document_} writable={file?.writable !== false}/> }).filter(panel=>panel.id!=="part-manager" && panel.id!=="tasks")
         .map(panel=>["create-version","notes","reminders"].includes(panel.id)?{...panel,inToolbar:false}:panel)
         .concat([
           {id:"files",title:"Files",icon:<AetherIcon name="folder"/>,content:<MapFilesPanel documentID={file?.id ?? null} connection={documentConnection}>{fileTabs('browser')}</MapFilesPanel>},
