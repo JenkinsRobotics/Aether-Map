@@ -17,6 +17,13 @@ test('mapping panel backgrounds and rows use their own commands', async ({ page,
   for (const name of ['New Surface', 'New canvas', 'New folder', 'Add a ready-made canvas', 'Show in tree']) {
     await expect(page.getByRole('menuitem', { name, exact: true })).toHaveCount(1);
   }
+  const backgroundLabels = await page.locator('[role="menu"] .aui-menu-label').allTextContents();
+  await page.keyboard.press('Escape');
+  const panel = layers.locator('..');
+  await panel.getByRole('button', { name: 'Layers options', exact: true }).click();
+  expect(await page.locator('[role="menu"] .aui-menu-label').allTextContents()).toEqual(backgroundLabels);
+  expect(Math.round((await panel.locator('.aui-collection-heading').boundingBox())!.height)).toBe(45);
+  expect(Math.round((await panel.locator('.aui-collection-footer').boundingBox())!.height)).toBe(54);
   await page.screenshot({ path: info.outputPath('layers-background.png') });
   await page.getByRole('menuitem', { name: 'New folder', exact: true }).click();
   const rename = page.getByRole('textbox', { name: /^Rename Folder/ });

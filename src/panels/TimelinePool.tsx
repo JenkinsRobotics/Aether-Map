@@ -83,7 +83,7 @@ export function TimelineTree({ show, actions }: { show: MapShow; actions: Timeli
   const plus: TreeControl[] = [{ id: 'new', label: 'New scene', icon: <AetherIcon name="plus" />, onClick: create }];
   const createItems = [{ id: 'list-new', label: 'New scene', icon: <AetherIcon name="plus" />, separatorBefore: true }];
   return <TreeContextArea label="Scene options" items={createItems} onSelect={create}
-    shortcut={key => { const item = menu(current).find(entry => entry.id === (key === 'Delete' ? 'delete' : 'rename') && !entry.disabled); if (item) command(current, item.id); }}><TreePanel ariaLabel="Scenes" rootInset={0} selectedIDs={new Set([current])}
+    shortcut={key => { const item = menu(current).find(entry => entry.id === (key === 'Delete' ? 'delete' : 'rename') && !entry.disabled); if (item) command(current, item.id); }}><TreePanel ariaLabel="Scenes" selectedIDs={new Set([current])}
     nodes={entries.map(t => ({ id: t.id, label: t.name, category: t.surfaceID ? 'Surface scene' : 'Scene', icon: <AetherIcon name="timeline-tracks" /> }))}
     onSelect={ids => { const id = ids.at(-1); if (id && id !== current) actions.onOpen(id); }} onActivate={actions.onOpen}
     controls={[]} headerControls={plus} controlsLabel="Scene controls" menuLabel="Scene options" menuItems={menu}

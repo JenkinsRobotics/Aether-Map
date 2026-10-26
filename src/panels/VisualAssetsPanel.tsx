@@ -176,7 +176,7 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
     detail={asset => duration(asset.clip as Visual)}
     thumbnail={asset => urls ? <VisualThumbnail source={visualSource(show, asset.clip as Visual)} show={show} urls={urls} /> : icon(asset.kind)}
     onDrop={(id, targetID, before) => { const asset = assets.find(a => a.id === id); if (asset && !locked(asset) && id !== targetID) onDrop(asset.surface.id, id, targetID, targetID, before); }} /></TreeContextArea>;
-  return <TreeContextArea label="Asset options" items={createItems} onSelect={panelCommand} shortcut={runShortcut}><TreePanel backgroundItems={createItems.slice(1)} onBackgroundCommand={panelCommand} ariaLabel={ariaLabel} nodes={nodes} rootInset={0} revealSelection
+  return <TreeContextArea label="Asset options" items={createItems} onSelect={panelCommand} shortcut={runShortcut}><TreePanel backgroundItems={createItems.slice(1)} onBackgroundCommand={panelCommand} ariaLabel={ariaLabel} nodes={nodes} revealSelection
     filterOptions={Object.keys(ICONS).map(kind => ({ id: kind, label: kind }))}
     selectedIDs={new Set(current)}
     canMove={(id, targetID, position) => {

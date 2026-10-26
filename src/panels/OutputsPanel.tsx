@@ -128,7 +128,7 @@ export function OutputsPanel({ show, selectedID, displays, documentID, onSelect,
     else if (action === "list-record") { if (recording.recording) stopRecording(); else void startRecording(showName); }
   };
   const plus: TreeControl[] = [{ id: "new", label: "New output", icon: <AetherIcon name="plus" />, onClick: onAdd }];
-  return <TreeContextArea label="Output options" items={listItems} onSelect={listCommand} shortcut={key => { if (selectedID) command(selectedID, key === "Delete" ? "delete" : "rename"); }}><TreePanel backgroundItems={listItems.slice(1)} onBackgroundCommand={listCommand} ariaLabel="Outputs" rootInset={0} nodes={nodes}
+  return <TreeContextArea label="Output options" items={listItems} onSelect={listCommand} shortcut={key => { if (selectedID) command(selectedID, key === "Delete" ? "delete" : "rename"); }}><TreePanel backgroundItems={listItems.slice(1)} onBackgroundCommand={listCommand} ariaLabel="Outputs" nodes={nodes}
     selectedIDs={new Set(selectedID ? [selectedID] : [])}
     onSelect={(ids) => { const id = ids.at(-1); if (id) onSelect(id); }}
     onActivate={onOpen}

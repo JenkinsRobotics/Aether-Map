@@ -451,7 +451,7 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
     { id: 'tracker', label: 'Trackers', icon: <AetherIcon name="tracker" /> },
     { id: 'colour', label: 'Colours', icon: <AetherIcon name="palette" /> },
     { id: 'backdrop', label: 'Backdrops', icon: <AetherIcon name="image" /> },
-  ]} rootInset={0} nodes={nodes} selectedIDs={selectedIDs}
+  ]} nodes={nodes} selectedIDs={selectedIDs}
     expandedIDs={expandedIDs}
     onToggle={(id, open) => setCollapsed((current) => {
       const next = new Set(current);

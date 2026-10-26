@@ -190,7 +190,7 @@ export function CueList({ show, selectedID, onSelect, onEdit }: { show: MapShow;
   const createItems = [{ id: 'list-new', label: 'New cue', icon: <AetherIcon name="plus" />, separatorBefore: true }];
   const nodes: TreeNode[] = cues.map(c => ({ id: c.id, label: c.name, category: 'Cue', icon: <AetherIcon name={c.trigger === 'go' ? 'play' : c.trigger === 'midi' ? 'sliders' : 'history'} />,
     badge: c.trigger === 'timeline' ? formatTime(c.atS ?? 0) : c.trigger === 'midi' ? `CC ${c.control ?? '–'}` : 'GO' }));
-  return <TreeContextArea label="Cue options" items={createItems} onSelect={add} shortcut={key => { if (key === 'Delete' && selectedID) remove(selectedID); }}><TreePanel ariaLabel="Cues" rootInset={0} nodes={nodes} selectedIDs={new Set(selectedID ? [selectedID] : [])}
+  return <TreeContextArea label="Cue options" items={createItems} onSelect={add} shortcut={key => { if (key === 'Delete' && selectedID) remove(selectedID); }}><TreePanel ariaLabel="Cues" nodes={nodes} selectedIDs={new Set(selectedID ? [selectedID] : [])}
     onSelect={ids => onSelect(ids.at(-1) ?? null)} controls={[]} headerControls={plus} controlsLabel="Cue controls" menuLabel="Cue options"
     menuItems={() => [{ id: 'delete', label: 'Delete cue', icon: <AetherIcon name="delete" />, shortcut: 'Delete' as const, danger: true }]}
     onCommand={(id, action) => action === 'delete' ? remove(id) : add()} emptyState={<span>No cues yet — + adds one</span>} /></TreeContextArea>;
@@ -259,7 +259,7 @@ export function ShowExportPanel({ show, name, urls, documentID, dirty, onOpenOut
 export function PlayersTree({ show, onManage }: { show: MapShow; onManage: () => void }) {
   const { list, online } = useMapDevices();
   const controls: TreeControl[] = [{ id: 'manage', label: 'Manage players', icon: <AetherIcon name="hardware" />, onClick: onManage }];
-  return <TreePanel ariaLabel="Players" rootInset={0} controls={controls} controlsLabel="Player controls" selectedIDs={new Set()} onSelect={() => {}}
+  return <TreePanel ariaLabel="Players" controls={controls} controlsLabel="Player controls" selectedIDs={new Set()} onSelect={() => {}}
     headerControls={controls}
     nodes={list.map(device => {
       const outputs = show.outputs.filter(o => o.kind === 'edge' && o.deviceId === device.id).map(o => o.name);

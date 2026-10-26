@@ -56,7 +56,8 @@ it('adds a scene clip to a canvas track and edits it in Properties', () => {
 
 it('creates cues with a trigger and an action, and sets the show length', () => {
   render(<Harness />);
-  fireEvent.click(screen.getByRole('button', { name: 'New cue' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Create in Cue controls' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'New cue' }));
   fireEvent.change(screen.getByRole('combobox', { name: 'Cue trigger' }), { target: { value: 'timeline' } });
   fireEvent.change(screen.getByRole('combobox', { name: 'Cue action' }), { target: { value: 'blackout-on' } });
   expect(timeline().cues[0]).toMatchObject({ trigger: 'timeline', action: 'blackout-on' });
