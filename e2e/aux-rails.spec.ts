@@ -28,4 +28,12 @@ test('left aux toolbar follows CAD, with Files and the Media pool',async({page,b
   await aux.getByRole('button',{name:'Files'}).click();
   await expect(page.getByRole('region',{name:'Files'})).toBeVisible();
   await page.screenshot({path:info.outputPath('files.png')});
+  // The agent is CAD's: no sharing banner, and its composer stays inside the sidebar.
+  await aux.getByRole('button',{name:/Aether Agent|AI advisor/}).click();
+  const agent=page.getByRole('region',{name:'Projection assistant'});
+  await expect(agent.getByRole('button',{name:'Agent connections'})).toBeVisible();
+  await expect(agent.getByRole('button',{name:/Share this editor/})).toHaveCount(0);
+  const [panel,side]=await Promise.all([agent.boundingBox(),page.locator('.aui-studio-aux-sidebar').boundingBox()]);
+  expect(panel!.y+panel!.height).toBeLessThanOrEqual(side!.y+side!.height+1);
+  await page.screenshot({path:info.outputPath('agent.png')});
 });

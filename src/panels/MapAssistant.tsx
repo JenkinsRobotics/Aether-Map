@@ -1,9 +1,10 @@
-import { LiveEditorAccess } from '@aether/session/LiveEditorAccess';
+import { useLiveEditorAccess } from '@aether/session/LiveEditorAccess';
 import { useState } from 'react';
 import type { AgentInteraction } from '@aether/ui/AgentServices';
-import { AetherIcon, Button, FieldRow, IconButton, MenuButton, NumberField, WorkspaceAgent } from '@aether/ui';
+import { AetherIcon, Button, FieldRow, MenuButton, NumberField, WorkspaceAgent } from '@aether/ui';
 import { type AssistantMessage } from '@aether/ui/concept-widgets';
 import { studioAgentService } from '@aether/session/agent';
+import { studioAgentAccessService } from '@aether/session/agent-access';
 import type { MapShow, Scene } from '../document';
 import { sceneSize } from '../scene-size';
 import { buildProjectionPackage } from '../projection-export/package';
@@ -33,7 +34,8 @@ export function MapAssistant({ show, scene, surfaceIDs, mediaUrls, session, onSe
   const [busy, setBusy] = useState(false), [status, setStatus] = useState('');
   const selected = scene.surfaces.filter(s => surfaceIDs.includes(s.id) && s.kind !== 'mask' && !s.sceneCanvas);
   const size = sceneSize(show, scene);
-  const [chatVersion, setChatVersion] = useState(0);
+  // CAD's composition: sharing sits in the header's Agent connections, not a banner.
+  const sharing = useLiveEditorAccess({ app: 'map', documentID: new URLSearchParams(location.search).get('document'), interaction });
   const targetName = target === 'selection' ? selected.map(s => s.name).join(', ') || 'No surfaces selected' : scene.name;
   async function download() {
     if (busy || !prompt.trim() || (target === 'selection' && !selected.length)) return;
@@ -48,10 +50,9 @@ export function MapAssistant({ show, scene, surfaceIDs, mediaUrls, session, onSe
     finally { setBusy(false); }
   }
   return <section aria-label="Projection assistant" style={{ height: '100%', minHeight: 0 }}>
-    <LiveEditorAccess app="map" documentID={new URLSearchParams(location.search).get('document')} interaction={interaction}/>
-    <WorkspaceAgent key={`${scene.id}:${chatVersion}`} service={provider.service} app="map" detail={scene.name}
+    <WorkspaceAgent key={scene.id} service={provider.service} access={studioAgentAccessService} sharing={sharing} app="map" detail={scene.name}
       interaction={provider.interaction}
-      contextText={JSON.stringify({ scene: scene.name, size, target: targetName, durationSeconds: durationS, maskSVG: sceneSvg(show, scene, true, target === 'selection' ? selected.map(s => s.id) : undefined), surfaces: (target === 'selection' ? selected : scene.surfaces).map(s => ({ id: s.id, name: s.name, kind: s.kind })) })} onMessages={messages => onSession({ messages })}
+      contextText={JSON.stringify({ scene: scene.name, size, target: targetName, durationSeconds: durationS, maskSVG: sceneSvg(show, scene, true, target === 'selection' ? selected.map(s => s.id) : undefined), surfaces: (target === 'selection' ? selected : scene.surfaces).map(s => ({ id: s.id, name: s.name, kind: s.kind })) })} onMessages={messages => { onSession({ messages }); if (!messages.length) setStatus(''); }}
       messages={messages} notice={status}
       toolbar={<>
         <MapAgentTools interaction={interaction} sceneID={scene.id} show={show}/>
@@ -62,7 +63,6 @@ export function MapAssistant({ show, scene, surfaceIDs, mediaUrls, session, onSe
             <Button disabled={busy || !prompt.trim() || (target === 'selection' && !selected.length)} onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); void download(); }}>{busy ? 'Preparing…' : 'Download creative brief'}</Button>
           </div>
         </details>
-        <IconButton label="New chat" disabled={busy} onClick={() => { onSession({ messages: [] }); setStatus(''); setChatVersion(v => v + 1); }}><AetherIcon name="document"/></IconButton>
       </>}
       context={<><AetherIcon name="scene"/><span aria-label="Agent selection" title={`${targetName} · ${size.width} × ${size.height}`}>{targetName}</span></>}
       composerActions={<>
