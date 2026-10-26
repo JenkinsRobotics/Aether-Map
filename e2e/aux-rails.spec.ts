@@ -18,10 +18,11 @@ test('left aux toolbar is the standard four; the Media pool is on the right',asy
   await expect(pool.getByRole('list',{name:'Media pool items'}).getByRole('button',{name:/^Clip 1/})).toBeVisible();
   const items=pool.getByRole('list',{name:'Media pool items'}), box=(await items.boundingBox())!;
   await items.click({button:'right',position:{x:20,y:box.height-6}});
-  await expect(page.getByRole('menuitem',{name:/New bin/})).toBeVisible();
+  await expect(page.getByRole('menuitem',{name:/New folder/})).toBeVisible();
   await page.screenshot({path:info.outputPath('media-pool.png')});
   await page.keyboard.press('Escape');
-  await pool.getByRole('button',{name:'Thumbnail view'}).click();
+  await pool.getByRole('button',{name:'Media view'}).click();
+  await page.getByRole('menuitemradio',{name:'Thumbnails'}).click();
   await page.screenshot({path:info.outputPath('media-pool-thumbnails.png')});
   await page.getByRole('radiogroup',{name:'Media tabs'}).getByRole('radio',{name:/Browse/}).click();
   await expect(page.getByRole('searchbox',{name:'Search Pixabay or paste a link'})).toBeVisible();
@@ -31,6 +32,20 @@ test('left aux toolbar is the standard four; the Media pool is on the right',asy
   const filesView=page.getByRole('radiogroup',{name:'Files view'});
   await expect(filesView.getByRole('radio')).toHaveText(['This show','Drive']);
   await expect(filesView).toHaveClass(/aui-segmented-control--panel/);
+  // This show is the Media pool with the document's shows and scenes (CAD's design contents).
+  const contents=page.getByRole('region',{name:'Files navigation'}).getByRole('list',{name:'Media pool items'});
+  await expect(contents.getByRole('button',{name:/^Main/})).toBeVisible();
+  const cbox=(await contents.boundingBox())!;
+  await contents.click({button:'right',position:{x:20,y:cbox.height-6}});
+  for(const name of [/New scene/,/New show/,/New clip/,/New folder/,/Import media/,/Add from gallery/]) await expect(page.getByRole('menuitem',{name})).toBeVisible();
+  await page.screenshot({path:info.outputPath('files-menu.png')});
+  await page.keyboard.press('Escape');
+  // Opening another timeline switches rooms but keeps Files open.
+  await contents.getByRole('button',{name:/^Show 1/}).click();
+  await expect(page.getByRole('region',{name:'Files navigation'})).toBeVisible();
+  await expect(contents.getByRole('button',{name:/^Show 1/})).toHaveAttribute('aria-current','page');
+  await contents.getByRole('button',{name:/^Main/}).click();
+  await expect(page.getByRole('region',{name:'Files navigation'})).toBeVisible();
   await page.screenshot({path:info.outputPath('files.png')});
   await filesView.getByRole('radio',{name:/Drive/}).click();
   await expect(page.getByRole('region',{name:'Drive files'})).toBeVisible();

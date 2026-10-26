@@ -89,6 +89,7 @@ import { ProgramPanel } from "./panels/ProgramPanel";
 import { SceneProperties } from "./panels/SceneProperties";
 import { DeviceManager } from "./panels/DeviceManager";
 import { ProjectMediaPool } from "./panels/ProjectMediaPool";
+import type { PoolRef } from "./media-bins";
 import { OutputDialog } from "./panels/OutputDialog";
 import {
   ExportWorkspace,
@@ -407,6 +408,10 @@ export default function App() {
   const [timelineHeight, setTimelineHeight] = useState(() => readTimelineHeight(trayHeightKind(readTrayPanels("mapping"))));
   const stageRef = useRef<HTMLDivElement>(null);
 
+  // Each room has its own shell (remounted on switch); a switch made from
+  // Files reopens Files in the new room instead of that room's default.
+  const keepFiles = useRef(false);
+  useEffect(() => { if (keepFiles.current) { keepFiles.current = false; workspaceShell.current?.showPanel('files'); } }, [mode, simple]);
   const enterMode = useCallback((next: MapWorkspace) => {
 
 
@@ -1149,31 +1154,48 @@ export default function App() {
     return { leftPanels: left.filter(stays).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)), rightPanels: [...right, ...left.filter(panel => !stays(panel)).map(panel => ({ ...panel, separatorBefore: false }))] };
   };
   // The file row (bottom dock) and CAD's left Files browser: the same tabs.
-  const fileTabs = (variant: 'bar' | 'browser') => <ShowFileTabs variant={variant} file={file} saveState={saveState} connection={documentConnection} onSaveCopy={()=>rename(true)} status={error||status} fileActions={variant === 'bar' ? <span ref={setFileMenuTarget}/> : undefined}
-        entries={documentEntries} activeEntry={mode==='show'?`show:${activeShow(show)?.id}`:mode==='mapping'?undefined:mode==='content'?`clip:${openClip?.id}`:`scene:${currentTimelineID(show)}`}
-        onEntry={entry=>{const [kind,id]=[entry.kind,entry.id.slice(entry.id.indexOf(':')+1)];
+  // The one file row's entries for this document: its Shows and Scenes.
+  // Canvases are not files: they live in Mapping's layer tree (artboards).
+  const documentEntries: DocumentEntry[] = [
+    ...(show.shows ?? []).map(p => ({ id: `show:${p.id}`, label: p.name, kind: 'show' as const, icon: <AetherIcon name="play" /> })),
+    { id: `scene:${MAIN_TIMELINE}`, label: 'Main', kind: 'scene', icon: <AetherIcon name="timeline-tracks" /> },
+    // Scenes, then clips (which open in Content).
+    ...(show.timelines ?? []).filter(t => !isClip(t)).map(t => ({ id: `scene:${t.id}`, label: t.name, kind: 'scene' as const, icon: <AetherIcon name="timeline-tracks" /> })),
+    ...projectClips(show).map(t => ({ id: `clip:${t.id}`, label: t.name, kind: 'scene' as const, icon: <AetherIcon name="timeline-tracks" /> })),
+  ];
+  const openEntry = (entry: DocumentEntry) => {const [kind,id]=[entry.kind,entry.id.slice(entry.id.indexOf(':')+1)];
           if(entry.id.startsWith('clip:')){setOpenClipID(id);enterMode('content');return;}
           if(kind==='show'){if(id!==activeShow(show)?.id)edit(s=>({...s,activeShowID:id}));enterMode('show');}
-          else{enterMode('visualization');if(id!==currentTimelineID(show))openTimeline(id);}}}
-        onCreate={kind=>{if(kind==='show'){edit(s=>{const n=normalizeShowTimeline(s),p=newShowProgram(n,`Show ${(n.shows?.length??0)+1}`);return {...n,shows:[...(n.shows??[]),p],activeShowID:p.id};});enterMode('show');return;}
-          {edit(s=>createTimeline(s,`Scene ${(show.timelines?.length??0)+2}`));enterMode('visualization');}}} contents={{activeID:show.activeSceneId, documentGroups:[{id:"scenes",label:"Scenes",items:show.scenes.map(scene=>({id:scene.id,name:scene.name,kind:"scene",detail:"Scene",icon:<AetherIcon name="scene"/>}))}], onOpenItem:item=>selectScene(item.id)}}/>;
+          else{enterMode('visualization');if(id!==currentTimelineID(show))openTimeline(id);}};
+  const createEntry = (kind: 'scene' | 'show' | 'file') => {if(kind==='show'){edit(s=>{const n=normalizeShowTimeline(s),p=newShowProgram(n,`Show ${(n.shows?.length??0)+1}`);return {...n,shows:[...(n.shows??[]),p],activeShowID:p.id};});enterMode('show');return;}
+          {edit(s=>createTimeline(s,`Scene ${(show.timelines?.length??0)+2}`));enterMode('visualization');}};
+  const activeEntryID = mode==='show'?`show:${activeShow(show)?.id}`:mode==='mapping'?undefined:mode==='content'?`clip:${openClip?.id}`:`scene:${currentTimelineID(show)}`;
+  const fileTabs = (variant: 'bar' | 'browser') => <ShowFileTabs variant={variant} file={file} saveState={saveState} connection={documentConnection} onSaveCopy={()=>rename(true)} status={error||status} fileActions={variant === 'bar' ? <span ref={setFileMenuTarget}/> : undefined}
+        entries={documentEntries} activeEntry={activeEntryID} onEntry={openEntry} onCreate={createEntry} contents={{activeID:show.activeSceneId, documentGroups:[{id:"scenes",label:"Scenes",items:show.scenes.map(scene=>({id:scene.id,name:scene.name,kind:"scene",detail:"Scene",icon:<AetherIcon name="scene"/>}))}], onOpenItem:item=>selectScene(item.id)}}/>;
   // The project's Media pool: imported media, sources and clips, in bins.
-  const assetsPanel = (
-    <ProjectMediaPool show={show} urls={urls} edit={change => edit(change)}
-      onPick={ref => {
+  const poolProps = {show, urls, edit: (change: (s: MapShow) => MapShow) => edit(change),
+      onPick: (ref: PoolRef) => {
         if (ref.kind === 'asset') { setSelectedPoolID(ref.id); setSelectedClipID(null); setSelectedID(null); workspaceShell.current?.showPanel('properties'); }
         else if (mode === 'content') { setOpenClipID(ref.id); setSelectedPoolID(null); setSelectedClipID(null); setSelectedID(null); }
         else if (mode === 'visualization') { setScenePickID(ref.id); setSelectedPoolID(null); setSelectedClipID(null); setSelectedID(null); }
-      }}
-      onOpenClip={id => { setOpenClipID(id); enterMode('content'); }}
-      onNewClip={bin => { newClip(bin); enterMode('content'); }}
-      onImport={bin => openMediaPicker({ kind: 'pool', bin }, 'image/*,video/*,audio/*')}
-      onGallery={addVisual}
-      onRemoveClip={id => { edit(s => removeTimeline(s, id)); if (id === openClip?.id) setOpenClipID(null); if (id === scenePickID) setScenePickID(null); }}
-      add={mode === 'content' || mode === 'visualization' ? { label: mode === 'content' ? 'Add to clip' : 'Add to scene', run: id => { const asset = show.pool?.find(a => a.id === id); if (asset) addSceneVisual(asset.source, asset.name, asset.id); } } : undefined}
-      browse={<AssetBrowser targetLayer={null} destination="pool" onChooseFile={() => openMediaPicker({ kind: 'pool' }, 'image/*,video/*,audio/*')} onImport={importAsset} />}
-      cleanup={hosted ? { ready: Boolean(file) && !dirty, run: () => { void cleanupMedia().then(n => setStatus(n ? `Deleted ${n} unused file${n === 1 ? '' : 's'}.` : 'Nothing to clean up.'), problem => setError((problem as Error).message)); } } : undefined} />
-  );
+      },
+      onOpenClip: (id: string) => { setOpenClipID(id); enterMode('content'); },
+      onNewClip: (bin?: string) => { newClip(bin); enterMode('content'); },
+      onImport: (bin?: string) => openMediaPicker({ kind: 'pool', bin }, 'image/*,video/*,audio/*'),
+      onGallery: addVisual,
+      onRemoveClip: (id: string) => { edit(s => removeTimeline(s, id)); if (id === openClip?.id) setOpenClipID(null); if (id === scenePickID) setScenePickID(null); },
+      add: mode === 'content' || mode === 'visualization' ? { label: mode === 'content' ? 'Add to clip' : 'Add to scene', run: (id: string) => { const asset = show.pool?.find(a => a.id === id); if (asset) addSceneVisual(asset.source, asset.name, asset.id); } } : undefined,
+      cleanup: hosted ? { ready: Boolean(file) && !dirty, run: () => { void cleanupMedia().then(n => setStatus(n ? `Deleted ${n} unused file${n === 1 ? '' : 's'}.` : 'Nothing to clean up.'), problem => setError((problem as Error).message)); } } : undefined};
+  const assetsPanel = <ProjectMediaPool {...poolProps}
+      browse={<AssetBrowser targetLayer={null} destination="pool" onChooseFile={() => openMediaPicker({ kind: 'pool' }, 'image/*,video/*,audio/*')} onImport={importAsset} />} />;
+  // Files › This show: the whole document's contents (CAD's design contents).
+  // Opening a show, scene or clip switches rooms; Files stays open there.
+  const stayInFiles = <T,>(run: (value: T) => void) => (value: T) => { keepFiles.current = true; run(value); };
+  const filesPool = <ProjectMediaPool {...poolProps} rootLabel={file?.name ?? 'Untitled show'}
+      onOpenClip={stayInFiles(poolProps.onOpenClip)} onNewClip={stayInFiles(poolProps.onNewClip)}
+      documents={{ entries: documentEntries, activeID: activeEntryID, onOpen: stayInFiles(openEntry), onCreate: stayInFiles(createEntry),
+        onRename: (entry, name) => { const id = entry.id.slice(entry.id.indexOf(':') + 1);
+          edit(s => entry.kind === 'show' ? { ...s, shows: s.shows?.map(p => p.id === id ? { ...p, name } : p) } : { ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, name } : t) }); } }} />;
 
   // Advanced keeps multi-timeline work in its own sidebar tab.
   const timelineActions: TimelinePoolActions = {
@@ -1360,15 +1382,6 @@ export default function App() {
   const showScenes = layersPanel("scene-picker");
   const viewableSurfaces = (scene?.surfaces ?? []).filter(s => !s.sceneCanvas && s.kind !== "mask");
   const renderSurface = viewableSurfaces.find(s => s.id === renderSurfaceID);
-  // The one file row's entries for this document: its Shows and Scenes.
-  // Canvases are not files: they live in Mapping's layer tree (artboards).
-  const documentEntries: DocumentEntry[] = [
-    ...(show.shows ?? []).map(p => ({ id: `show:${p.id}`, label: p.name, kind: 'show' as const, icon: <AetherIcon name="play" /> })),
-    { id: `scene:${MAIN_TIMELINE}`, label: 'Main', kind: 'scene', icon: <AetherIcon name="timeline-tracks" /> },
-    // Scenes, then clips (which open in Content).
-    ...(show.timelines ?? []).filter(t => !isClip(t)).map(t => ({ id: `scene:${t.id}`, label: t.name, kind: 'scene' as const, icon: <AetherIcon name="timeline-tracks" /> })),
-    ...projectClips(show).map(t => ({ id: `clip:${t.id}`, label: t.name, kind: 'scene' as const, icon: <AetherIcon name="timeline-tracks" /> })),
-  ];
   return (
     <TimelineAudioProvider><ModulationContext.Provider value={{ lfos: show.lfos ?? DEFAULT_LFOS, timeS, onLfos: lfos => edit(current => ({ ...current, lfos })) }}>
     <div className="map-editor aui-studio-app aether-theme-model-studio">
@@ -1504,7 +1517,7 @@ export default function App() {
       ], { features: "layers", advisor: "agent",  }, documentConnection, { historyTabStorageKey: "aether-map.history-tab", history: <MapHistoryPanel history={document_} writable={file?.writable !== false}/> }).filter(panel=>panel.id!=="part-manager" && panel.id!=="tasks")
         .map(panel=>["create-version","notes","reminders"].includes(panel.id)?{...panel,inToolbar:false}:panel)
         .concat([
-          {id:"files",title:"Files",icon:<AetherIcon name="folder"/>,content:<MapFilesPanel documentID={file?.id ?? null} connection={documentConnection}>{fileTabs('browser')}</MapFilesPanel>},
+          {id:"files",title:"Files",icon:<AetherIcon name="folder"/>,content:<MapFilesPanel documentID={file?.id ?? null} connection={documentConnection}>{filesPool}</MapFilesPanel>},
         ]), [
         {
           id: "properties",

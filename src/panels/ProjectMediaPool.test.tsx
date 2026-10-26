@@ -28,20 +28,20 @@ it('lists the project media and clips with its bins, in list or thumbnails', () 
   expect(screen.getByRole('region', { name: 'Media pool' }).getAttribute('data-view')).toBe('gallery');
 });
 
-it('right-click on empty space offers New clip, New bin, Import media, Open gallery and View', () => {
+it('right-click on empty space offers New clip, New folder, Import media, Add from gallery and View', () => {
   const a = actions();
   render(<Host a={a} />);
   fireEvent.contextMenu(screen.getByRole('list', { name: 'Media pool items' }));
-  for (const name of [/New clip/, /New bin/, /Import media/, /Open gallery/, /View/]) expect(screen.getByRole('menuitem', { name })).toBeTruthy();
+  for (const name of [/New clip/, /New folder/, /Import media/, /Add from gallery/, /View/]) expect(screen.getByRole('menuitem', { name })).toBeTruthy();
   fireEvent.click(screen.getByRole('menuitem', { name: /Import media/ }));
   expect(a.onImport).toHaveBeenCalledWith(undefined);
 });
 
-it('New bin adds a bin, and opening a bin imports into it', () => {
+it('New folder adds a bin, and opening a bin imports into it', () => {
   const a = actions();
   render(<Host a={a} />);
   fireEvent.contextMenu(screen.getByRole('list', { name: 'Media pool items' }));
-  fireEvent.click(screen.getByRole('menuitem', { name: /New bin/ }));
+  fireEvent.click(screen.getByRole('menuitem', { name: /New folder/ }));
   expect(items().getByRole('button', { name: /^Bin 1/ })).toBeTruthy();
   fireEvent.click(items().getByRole('button', { name: /^Footage/ }));
   expect(screen.getByText('Footage', { selector: '[aria-current="page"]' })).toBeTruthy();
@@ -106,4 +106,25 @@ it('media and bin row menus match their ellipsis, preserve native text and run k
   const crimson = items().getByRole('button',{name:/^Crimson/});
   fireEvent.keyDown(crimson,{key:'Backspace'});
   expect(items().queryByRole('button',{name:/^Crimson/})).toBeNull();
+});
+
+// Files › This show: CAD's design contents — the document's shows and scenes head the pool.
+it('lists, opens, creates and renames the shows and scenes it is given', () => {
+  const documents = { entries: [{ id: 'show:s1', label: 'Show 1', kind: 'show' as const, icon: <span /> }, { id: 'scene:main', label: 'Main', kind: 'scene' as const, icon: <span /> }],
+    activeID: 'scene:main', onOpen: vi.fn(), onCreate: vi.fn(), onRename: vi.fn() };
+  render(<ProjectMediaPool show={start()} urls={{}} edit={() => {}} {...actions()} documents={documents} rootLabel="DEMO" />);
+  expect(screen.getByRole('button', { name: 'DEMO' })).toBeTruthy();
+  expect(items().getByRole('button', { name: /^Main/ }).getAttribute('aria-current')).toBe('page');
+  fireEvent.click(items().getByRole('button', { name: /^Show 1/ }));
+  expect(documents.onOpen).toHaveBeenCalledWith(documents.entries[0]);
+  fireEvent.contextMenu(screen.getByRole('list', { name: 'Media pool items' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: /New scene/ }));
+  expect(documents.onCreate).toHaveBeenCalledWith('scene');
+  fireEvent.contextMenu(items().getByRole('button', { name: /^Main/ }));
+  expect((screen.getByRole('menuitem', { name: /Rename/ }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+  fireEvent.doubleClick(items().getByRole('button', { name: /^Show 1/ }));
+  const field = screen.getByRole('textbox', { name: 'Rename Show 1' });
+  fireEvent.keyDown(field, { key: 'Enter', target: { value: 'Opening' } });
+  expect(documents.onRename).toHaveBeenCalledWith(documents.entries[0], 'Opening');
 });

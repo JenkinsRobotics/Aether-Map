@@ -9,6 +9,7 @@ import { sourceKind } from '../surface-assets';
 import { formatBytes } from '../format';
 import { duplicateClip } from '../compound-clips';
 import { VisualThumbnail } from './SimpleVisualWorkspace';
+import type { DocumentEntry } from './ShowFileTabs';
 
 type View = 'list' | 'gallery';
 type Sort = 'added' | 'name' | 'type';
@@ -22,7 +23,7 @@ const keep = (key: string, value: string) => { try { localStorage.setItem(key, v
  * thumbnails. The gallery is where new things come from; this is what you have.
  */
 // ponytail: borrows the shared Files browser's classes (aui-tab-browser*) so both side panels look alike.
-export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewClip, onImport, onGallery, onRemoveClip, add, cleanup, browse }: {
+export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewClip, onImport, onGallery, onRemoveClip, add, cleanup, browse, documents, rootLabel = 'Master' }: {
   show: MapShow; urls: Record<string, string>; edit: (change: (show: MapShow) => MapShow) => void;
   /** A single pick: an asset shows its properties; a clip is picked to place. */
   onPick: (ref: PoolRef) => void; onOpenClip: (id: string) => void;
@@ -33,6 +34,11 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
   cleanup?: { ready: boolean; run: () => void };
   /** The Browse tab: what can be imported (online library, own files). */
   browse?: ReactNode;
+  /** The Files panel's "This show": the document's Shows and Scenes head the
+   * pool (CAD's design contents), and "+" creates them too. */
+  documents?: { entries: readonly DocumentEntry[]; activeID?: string; onOpen: (entry: DocumentEntry) => void;
+    onCreate: (kind: 'scene' | 'show') => void; onRename: (entry: DocumentEntry, name: string) => void };
+  rootLabel?: string;
 }) {
   const [tab, setTab] = useState<'pool' | 'browse'>('pool');
   const [view, setView] = useState<View>(() => read('aether-map.media-pool.view', 'list', ['list', 'gallery']));
@@ -94,20 +100,26 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
       { id: 'sort:type', label: 'Type', kind: 'radio', checked: sort === 'type' }] },
   ];
   const createItems: MenuItem[] = [
+    ...(documents ? [{ id: 'new-scene', label: 'New scene', icon: <AetherIcon name="palette" /> }, { id: 'new-show', label: 'New show', icon: <AetherIcon name="play" /> }] : []),
     { id: 'new-clip', label: 'New clip', icon: <AetherIcon name="timeline-tracks" /> },
-    { id: 'new-bin', label: 'New bin', icon: <AetherIcon name="collection-folder" /> },
+    { id: 'new-bin', label: 'New folder', icon: <AetherIcon name="collection-folder" /> },
     { id: 'import', label: 'Import media…', icon: <AetherIcon name="import" />, separatorBefore: true },
-    { id: 'gallery', label: 'Open gallery…', icon: <AetherIcon name="palette" /> },
+    { id: 'gallery', label: 'Add from gallery…', icon: <AetherIcon name="palette" /> },
     ...(cleanup ? [{ id: 'cleanup', label: 'Delete unused stored files', icon: <AetherIcon name="delete" />, separatorBefore: true, disabled: !cleanup.ready, disabledReason: 'Save the show first.' }] : []),
   ];
   const binMenu = (keys: readonly string[]): MenuItem => ({ id: 'move', label: keys.length > 1 ? `Move ${keys.length} items to bin` : 'Move to bin', icon: <AetherIcon name="collection-folder" />, children: [
     { id: 'bin:', label: 'Master', disabled: open === null },
     ...bins.map(b => ({ id: `bin:${b}`, label: b, disabled: b === open })),
-    { id: 'bin-new', label: 'New bin', icon: <AetherIcon name="plus" />, separatorBefore: true }] });
+    { id: 'bin-new', label: 'New folder', icon: <AetherIcon name="plus" />, separatorBefore: true }] });
+  const docs = documents?.entries.filter(d => !d.id.startsWith('clip:') && (q ? d.label.toLowerCase().includes(q) : !open)) ?? [];
+  const docByKey = (key: string) => documents?.entries.find(d => `doc:${d.id}` === key);
   const itemMenu = (key: string): MenuItem[] => {
-    if (key.startsWith('bin:')) return [{ id: 'open-bin', label: 'Open bin', icon: <AetherIcon name="file-folder" /> },
-      { id: 'rename', label: 'Rename bin', shortcut: 'F2', icon: <AetherIcon name="notes" /> },
-      { id: 'delete-bin', label: 'Delete bin', shortcut:'Delete', icon: <AetherIcon name="delete" />, danger: true, separatorBefore: true }];
+    if (key.startsWith('doc:')) return [{ id: 'open-doc', label: 'Open', icon: <AetherIcon name="file-folder" /> },
+      // Main is the document's own scene: always there, always "Main".
+      { id: 'rename', label: 'Rename', shortcut: 'F2', icon: <AetherIcon name="notes" />, disabled: key.endsWith(':main') }];
+    if (key.startsWith('bin:')) return [{ id: 'open-bin', label: 'Open folder', icon: <AetherIcon name="file-folder" /> },
+      { id: 'rename', label: 'Rename folder', shortcut: 'F2', icon: <AetherIcon name="notes" /> },
+      { id: 'delete-bin', label: 'Delete folder', shortcut:'Delete', icon: <AetherIcon name="delete" />, danger: true, separatorBefore: true }];
     const keys = chosen.includes(key) ? chosen : [key];
     if (keys.length > 1) {
       const unused = keys.filter(k => !byKey(k)?.uses).length;
@@ -122,9 +134,11 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
         disabledReason: e.uses ? 'Remove it from its timelines first.' : undefined }];
   };
   const run = (key: string | null, action: string) => {
-    const keys = key && !key.startsWith('bin:') ? (chosen.includes(key) ? chosen : [key]) : [];
-    const e = key ? byKey(key) : undefined;
-    if (action === 'new-clip') onNewClip(open ?? undefined);
+    const keys = key && !/^(bin|doc):/.test(key) ? (chosen.includes(key) ? chosen : [key]) : [];
+    const e = key ? byKey(key) : undefined, doc = key ? docByKey(key) : undefined;
+    if (action === 'new-scene' || action === 'new-show') documents?.onCreate(action === 'new-scene' ? 'scene' : 'show');
+    else if (action === 'open-doc' && doc) documents?.onOpen(doc);
+    else if (action === 'new-clip') onNewClip(open ?? undefined);
     else if (action === 'new-bin') edit(s => addBin(s, freshBin()));
     else if (action === 'import') onImport(open ?? undefined);
     else if (action === 'gallery') onGallery();
@@ -144,6 +158,8 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
   const rename = (key: string, value: string) => {
     const name = value.trim(); setRenaming(null);
     if (!name) return;
+    const doc = docByKey(key);
+    if (doc) { if (name !== doc.label) documents?.onRename(doc, name); return; }
     if (key.startsWith('bin:')) { if (open === key.slice(4)) setBin(name); edit(s => renameBin(s, key.slice(4), name)); return; }
     const e = byKey(key);
     if (e?.kind === 'asset') edit(s => ({ ...s, pool: s.pool?.map(a => a.id === e.id ? { ...a, name } : a) }));
@@ -152,7 +168,7 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
   const menuAt = (key: string | null) => (event: MouseEvent) => {
     if ((event.target as Element).closest('input,textarea,[contenteditable],[role="menu"]')) return;
     event.preventDefault(); event.stopPropagation();
-    if (key && !key.startsWith('bin:') && !chosen.includes(key)) setChosen([key]);
+    if (key && !/^(bin|doc):/.test(key) && !chosen.includes(key)) setChosen([key]);
     setContext({ key, x: event.clientX, y: event.clientY });
   };
   // Rows drag onto timeline tracks (the pool's drag type) and onto bins.
@@ -180,7 +196,7 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || !(event.target instanceof Element)
         || !event.target.matches('.aui-tab-browser-row')) return;
       const key = event.target.closest<HTMLElement>('[data-pool-key]')?.dataset.poolKey;
-      if (!key || (!key.startsWith('bin:') && !chosen.includes(key))) return;
+      if (!key || (!/^(bin|doc):/.test(key) && !chosen.includes(key))) return;
       const shortcut = event.key === 'Backspace' ? 'Delete' : event.key;
       const action = itemMenu(key).find(item => item.shortcut === shortcut && !item.disabled);
       if (action) { event.preventDefault(); event.stopPropagation(); run(key, action.id); }
@@ -195,10 +211,19 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
     <nav className="aui-tab-browser-path" aria-label="Bin path">
       <button type="button" aria-label="Back to Master" disabled={!open} {...dropInto(undefined)} onClick={() => setBin(null)}><AetherIcon name="home" /></button>
       <AetherIcon name="chevron-right" aria-hidden="true" />
-      <button type="button" disabled={!open} {...dropInto(undefined)} onClick={() => setBin(null)}>Master</button>
+      <button type="button" disabled={!open} {...dropInto(undefined)} onClick={() => setBin(null)}>{rootLabel}</button>
       {open && <><AetherIcon name="chevron-right" aria-hidden="true" /><span aria-current="page">{open}</span></>}
     </nav>
     <ul className="aui-tab-browser-items" aria-label="Media pool items" onContextMenu={menuAt(null)} onClick={event => { if (event.target === event.currentTarget) setChosen([]); }}>
+      {docs.map(d => { const key = `doc:${d.id}`; return <li key={key} data-pool-key={key} data-current={d.id === documents?.activeID || undefined} onContextMenu={menuAt(key)}>
+        <button type="button" className="aui-tab-browser-row" aria-current={d.id === documents?.activeID ? 'page' : undefined}
+          onClick={() => renaming !== key && documents?.onOpen(d)} onDoubleClick={() => !key.endsWith(':main') && setRenaming(key)}>
+          <span className="aui-tab-browser-thumb" data-kind="folder">{d.icon}</span>
+          <span className="aui-tab-browser-text">{label(key, d.label)}<small>{d.kind === 'show' ? 'Show' : 'Scene'}</small></span>
+        </button>
+        <MenuButton menuClassName="aui-collection-popup" className="aui-tab-browser-menu" label={`Options for ${d.label}`} placement="bottom-end"
+          items={itemMenu(key)} onSelect={action => run(key, action)}><AetherIcon name="more"/></MenuButton>
+      </li>; })}
       {!open && !q && bins.map(b => <li key={b} data-pool-key={`bin:${b}`} data-tab-folder={b} {...dropInto(b)} onContextMenu={menuAt(`bin:${b}`)}>
         <button type="button" className="aui-tab-browser-row" onClick={() => renaming !== `bin:${b}` && setBin(b)}>
           <span className="aui-tab-browser-thumb" data-kind="folder"><AetherIcon name="file-folder" /></span>
@@ -215,7 +240,7 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
         </button>
         <MenuButton menuClassName="aui-collection-popup" className="aui-tab-browser-menu" label={`Options for ${e.name}`} placement="bottom-end" items={itemMenu(e.key)} onSelect={action => run(e.key, action)}><AetherIcon name="more" /></MenuButton>
       </li>)}
-      {!shown.length && !(bins.length && !open && !q) && <li className="aui-tab-browser-empty">{q ? 'Nothing matches.' : open ? 'This bin is empty. Drag items here, or import into it.' : 'Import media, or right-click to make a clip or a bin.'}</li>}
+      {!shown.length && !docs.length && !(bins.length && !open && !q) && <li className="aui-tab-browser-empty">{q ? 'Nothing matches.' : open ? 'This bin is empty. Drag items here, or import into it.' : 'Import media, or right-click to make a clip or a folder.'}</li>}
     </ul>
     <Menu className="aui-collection-popup" open={Boolean(context)} anchor={context} applicationCommands={false} ariaLabel="Media pool options"
       items={context?.key ? itemMenu(context.key) : [...createItems, ...viewItems]}

@@ -63,10 +63,12 @@ test('visuals keep view and creation actions on both cards and tree backgrounds'
   await page.getByRole('menuitemradio', { name: 'Cards', exact: true }).click();
   await expect(page.getByRole('list', { name: 'Clip visuals', exact: true })).toBeVisible();
   await page.getByRole('toolbar', { name: 'Aux toolbar' }).getByRole('button', { name: 'Files', exact: true }).click();
-  const files = page.getByRole('region', { name: 'Files', exact: true });
-  await blankMenu(page, files.locator('.aui-tab-browser-items'));
-  await expect(page.getByRole('menuitem', { name: 'New design…', exact: true })).toBeVisible();
-  await page.getByRole('menuitemradio', { name: 'Gallery view', exact: true }).click();
+  // Files › This show is the document's Media pool, with its creation and view commands.
+  const files = page.getByRole('region', { name: 'Files navigation' }).getByRole('region', { name: 'Media pool' });
+  await blankMenu(page, files.getByRole('list', { name: 'Media pool items' }));
+  await expect(page.getByRole('menuitem', { name: 'New scene', exact: true })).toBeVisible();
+  await page.getByRole('menuitem', { name: 'View', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Thumbnails', exact: true }).click();
   await expect(files).toHaveAttribute('data-view', 'gallery');
   // Native editing menus must remain native even inside a context-enabled panel.
   const search = page.getByRole('searchbox', { name: 'Search Clip visuals' });
