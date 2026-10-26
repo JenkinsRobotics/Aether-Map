@@ -29,6 +29,16 @@ has 921 passing shared tests. Earlier stale browser selectors were replaced with
 the actual Content workflow and portalled timeline toolbar. The repository's
 previous broad e2e failures remain documented under alpha-0.1.3 below.
 
+## Map release alpha-0.1.6 — 2026-10-25: standard agent header
+
+Installed as Map `alpha-0.1.6` (source `32c2f12`, sha256 `7076a8a5…4efb3a`),
+previous `alpha-0.1.5`. The agent panel no longer draws the old
+`LiveEditorAccess` banner above the shared agent (which pushed the composer out
+of the sidebar); sharing is passed to `WorkspaceAgent` as CAD does and appears
+under Agent connections. Map's duplicate New chat is gone. Map's own Agent tools
+and ··· (creative brief) stay in the shared toolbar slot. Verified by
+`MapAssistant.test.tsx` and `e2e/aux-rails.spec.ts` (composer inside sidebar).
+
 ## Map release alpha-0.1.5 — 2026-10-25: Media pool | Browse tabs
 
 Installed 2026-10-25 through Studio's per-app update (source `167aeda`, no restart).
