@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AetherIcon, Button, DocumentTabBrowser, WorkspaceFileBar, type DocumentConnection, type DocumentFileManagerProps } from '@aether/ui';
+import { AetherIcon, PanelNotice, Button, DocumentTabBrowser, WorkspaceFileBar, type DocumentConnection, type DocumentFileManagerProps } from '@aether/ui';
 import { NewDesignDialog } from '@aether/ui/NewDesignDialog';
 import type { ReactElement } from 'react';
 import { sessionOwner, type SaveState } from '@aether/session/autosave';
@@ -84,7 +84,7 @@ export function ShowFileTabs({ file, saveState, connection, onSaveCopy, contents
       tabs={tabList.map(tab => ({ ...tab, current: tab.id === (activeEntry ? `entry:${activeEntry}` : active), onSelect: () => select(tab.id), ...(tab.id.startsWith('entry:') || busy ? {} : { onClose: () => close(tab.id) }) }))}
       onAdd={() => onCreate ? setCreating(true) : void navigate("/map/index.html?new=show")} onReorder={reorder}
       onDetach={id => { const tab = visible.find(item => tabKey(item) === id); if (tab) window.open(showTabURL(tab), '_blank'); }} />
-    {error && <div className="map-file-tabs-error" role="alert">{error}</div>}
+    <PanelNotice message={error}/>
     {creatingDialog}
   </div>;
   const pickerConnection: DocumentConnection = {...connection, openDocument: async id => {
@@ -97,7 +97,7 @@ export function ShowFileTabs({ file, saveState, connection, onSaveCopy, contents
         {saveState.phase === 'conflict' && file && <Button onClick={()=>location.reload()} title="Reload the saved version and compare it with this protected draft">Check saved version</Button>}
         {saveState.message && <Button onClick={onSaveCopy} title={saveState.message}>Save a copy</Button>}
       </div>} />
-    {error && <div className="map-file-tabs-error" role="alert">{error}</div>}
+    <PanelNotice message={error}/>
     {creatingDialog}
 
   </div>;

@@ -24,14 +24,9 @@ const openTimelineDock = () => {
 afterEach(cleanup);
 
 beforeEach(() => {
-  localStorage.removeItem("aether-map.bottom-dock.v1");
-  localStorage.removeItem("aether-map.visual-editor");
-  localStorage.removeItem("aether-map.visualization.ribbon-tab");
-  localStorage.removeItem("aether-map.tool-variants");
-  localStorage.removeItem("aether-map.mapping.ribbon-tab");
-  localStorage.removeItem("aether-map.toolbar-density");
-  localStorage.removeItem("aether-map.sequence.ribbon-tab");
-  localStorage.removeItem("aether-map.visuals-view");
+  // Every scenario starts as a new browser profile. Keep persistence within a
+  // scenario, but do not inherit a previous test's selected sidebar or layout.
+  localStorage.clear();
   installPointerEvents();
   vi.stubGlobal(
     "ResizeObserver",
@@ -93,10 +88,10 @@ const openDocumentControls = () => {
   if (files && files.getAttribute("aria-pressed") !== "true") fireEvent.click(files);
   fireEvent.click(screen.getAllByRole("button", { name: "Document controls" })[0]);
 };
-/** Opens the Media pool from the left aux toolbar and returns its items. */
+/** Opens the Media pool from the right sidebar tabs and returns its items. */
 const openPool = () => {
-  const button = within(document.querySelector(".aui-studio-aux-toolbar") as HTMLElement).getByRole("button", { name: "Media pool" });
-  if (button.getAttribute("aria-pressed") !== "true") fireEvent.click(button);
+  const button = within(screen.getByRole("toolbar", { name: "Right sidebar tabs" })).getByRole("button", { name: "Media pool" });
+  if (button.getAttribute("aria-pressed") !== "true" && button.getAttribute("aria-selected") !== "true") fireEvent.click(button);
   return within(screen.getByRole("list", { name: "Media pool items" }));
 };
 const documentCommand = (name: string) => {

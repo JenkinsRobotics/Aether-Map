@@ -1630,6 +1630,21 @@
 /* Media panel: the Comments widget's frame and tabs; the pool page is the
    shared Files browser (CAD) without its own outer padding. */
 .map-media { height: 100%; box-sizing: border-box; }
+/* The right sidebar wraps panels in an auto-height inspector; let the pool fill it. */
+.aui-inspector:has(> .map-media) { height: 100%; }
 .map-media > .aui-tab-browser { flex: 1; height: auto; padding: 0; }
 .map-media-browse { flex: 1; min-height: 0; overflow: auto; }
 .map-project-pool .aui-tab-browser-head > .aui-text-field-wrap, .map-project-pool .aui-tab-browser-head > .aui-text-field { flex: 1; min-width: 0; }
+/* CAD's Files panel (CADFilesPanel.css): review-style tabs over This show | Drive. */
+.map-files-panel { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.map-files-panel-heading { margin: 4px 8px 14px; }
+.map-files-panel-scopes { margin: 0 8px; }
+.map-files-panel-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.map-files-panel-content > * { flex: 1; min-height: 0; }
+.map-drive-browser > .aui-select-field { margin: 0 12px; }
+.map-drive-browser .aui-tab-browser-path { flex-wrap: wrap; }
+.map-drive-browser .aui-tab-browser-path > span { display: flex; align-items: center; min-width: 0; }
+.map-drive-browser .aui-tab-browser-path svg { width: 12px; height: 12px; flex-shrink: 0; }
+.map-drive-browser .aui-tab-browser-items > li { display: flex; align-items: center; }
+.map-drive-browser .aui-tab-browser-row { flex: 1; min-width: 0; padding-right: 6px; }
+.map-drive-browser .aui-tab-browser-items > li > .aui-icon-button { margin-right: 8px; flex-shrink: 0; }

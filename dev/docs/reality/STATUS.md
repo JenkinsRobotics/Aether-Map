@@ -427,3 +427,21 @@ Open questions for Jonathan:
 Known limits: the mapping workspace's surfaces drawer still floats over the
 canvas center rather than docking; dev against a running Studio host uses
 `.claude/launch.json`'s `AETHER_DEV_SERVER` (currently localhost:8780).
+
+## Shared auxiliary panels — 2026-10-25
+
+Completed the stopped Files/rail handoff: Comments, AI advisor, Versions and
+Files occupy the left toolbar; Media pool is on the right and its empty space
+supports New bin. Files uses shared This show/Drive panel tabs. Drive navigation
+is isolated in MapDriveBrowser. Both consume UI alpha.216 and assets alpha.30.
+All four headers share icon/title/action dimensions and a notification bell;
+connection and file errors do not insert rows or shift controls. AI uses the
+shared model/connections, mode and context footer. Ask/Plan use commands marked
+read-only in Map's existing authoritative catalog.
+
+The order-dependent App test inherited sidebar preferences from earlier tests.
+Each scenario now starts with isolated browser storage; preferences still persist
+within a scenario. All 1,193 tests pass. Production build passes; browser checks
+cover Files/Drive, Media pool empty-space actions, Content-to-Scene playback and
+save/reopen, plus all four headers and reconnect notices in light/dark themes.
+Evidence: `.verification/shared-panels-2026-10-25/` and `test-results/8873/`.

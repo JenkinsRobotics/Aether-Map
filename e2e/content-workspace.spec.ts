@@ -16,7 +16,7 @@ test('build a clip in Content and play it on two surfaces',async({page,baseURL},
   await page.screenshot({path:info.outputPath('content.png')});
   // Scene: pick the clip in the Media pool, then two cube faces in the surface row.
   await switchWorkspace(page,'Scene');
-  await page.getByRole('toolbar',{name:'Aux toolbar'}).getByRole('button',{name:'Media pool'}).click();
+  await page.getByRole('toolbar',{name:'Right sidebar tabs'}).getByRole('button',{name:'Media pool'}).click();
   const pool=page.getByRole('list',{name:'Media pool items'});
   await pool.getByRole('button',{name:/^Clip 1/}).click();
   const faces=page.getByRole('group',{name:'Asset surface assignments'}).getByRole('button',{name:/^Assign to (?!entire)/});

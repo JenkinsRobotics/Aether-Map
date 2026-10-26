@@ -50,6 +50,10 @@ export const mapAgentTools: AgentTool[] = [
     inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false },
   })),
 ];
+/** Ask and Plan expose only commands the product catalog marks read-only. */
+export const mapReadOnlyTools = ['aether_map_visual_preview', 'aether_map_mapping_preview', 'aether_map_show_inspect',
+  ...catalog.filter(item => item.writes === false).map(item => 'aether_' + item.id.replaceAll('.', '_'))];
+
 const evaluationSchema = mapAgentTools.find(t => t.name === 'aether_map_show_evaluate')!.inputSchema as Schema;
 evaluationSchema.properties = { ...evaluationSchema.properties, offset: inspectSchema.properties.offset, limit: inspectSchema.properties.limit };
 

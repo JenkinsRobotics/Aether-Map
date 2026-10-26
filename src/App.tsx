@@ -33,6 +33,7 @@ import { useDocumentConnection } from "@aether/session/useDocumentConnection";
 import "./CanvasLayout.css";
 import "./panels/MapInspector.css";
 import { MapAssistant, useMapAssistantSessions } from "./panels/MapAssistant";
+import { MapFilesPanel } from "./panels/MapFilesPanel";
 import { useMapAgent } from "./use-map-agent";
 import { mappingSvg, exportName } from "./projection-export/geometry";
 import { downloadProjection } from "./projection-export/archive";
@@ -1138,10 +1139,11 @@ export default function App() {
     ...(mode==="mapping"||simple?[]:[{id:"dock-timeline",label:"Timeline",icon:<AetherIcon name="timeline"/>,pressed:dockWidget==="timeline",onToggle:()=>pickBottomWidget("timeline")}]),
   ];
   // The left aux toolbar is the suite's (CAD): Comments, AI, Versions, Files,
-  // plus the Media pool. Map's other aux items sit on the right for now
+  // while Map's own panels sit on the right
   // (Jonathan, 2026-10-25). Command-only panels stay where their commands open them.
   const railPanels = (left: WorkspacePanel[], right: WorkspacePanel[]) => {
-    const order = ['comments', 'agent', 'versions', 'files', 'assets'], pinned = mode === 'show' ? 'show-outputs' : 'layers';
+    // The left aux toolbar is the suite standard only; Map's own panels go right.
+    const order = ['comments', 'agent', 'versions', 'files'], pinned = mode === 'show' ? 'show-outputs' : 'layers';
     const stays = (panel: WorkspacePanel) => panel.id === pinned || order.includes(panel.id) || panel.inToolbar === false;
     return { leftPanels: left.filter(stays).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)), rightPanels: [...right, ...left.filter(panel => !stays(panel)).map(panel => ({ ...panel, separatorBefore: false }))] };
   };
@@ -1501,7 +1503,7 @@ export default function App() {
       ], { features: "layers", advisor: "agent",  }, documentConnection).filter(panel=>panel.id!=="part-manager" && panel.id!=="tasks")
         .map(panel=>["create-version","notes","reminders"].includes(panel.id)?{...panel,inToolbar:false}:panel)
         .concat([
-          {id:"files",title:"Files",icon:<AetherIcon name="folder"/>,content:fileTabs('browser')},
+          {id:"files",title:"Files",icon:<AetherIcon name="folder"/>,content:<MapFilesPanel documentID={file?.id ?? null} connection={documentConnection}>{fileTabs('browser')}</MapFilesPanel>},
         ]), [
         {
           id: "properties",

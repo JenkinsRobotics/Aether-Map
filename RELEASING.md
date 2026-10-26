@@ -31,3 +31,8 @@ Package-manager versions and the shared UI dependency version are separate.
 
 Current source setup is local. Installed app bytes remain unchanged.
 Stable `0.1` on `master` and remote publication are later release operations.
+
+Shared auxiliary-panel changes must use Aether UI's `SidePanelHeader`,
+`PanelNotifications` and `SegmentedControl variant="panel"`. Verify Comments,
+AI, Versions and Files in both appearances and while disconnected with
+`e2e/panel-standard.spec.ts`; notifications must not move panel controls.
