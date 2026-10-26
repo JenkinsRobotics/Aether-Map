@@ -159,7 +159,7 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
   };
   // Header: a name and "+"; the rest is right-click (or Delete/F2 on a row).
   const controls: TreeControl[] = [{ id: 'add', label: addLabel, icon: <AetherIcon name="plus" />, onClick: onAdd }];
-  // Every menu of the panel ends with the panel's own commands: add, then the view.
+  // Background actions belong to the panel; row actions remain item-specific.
   const createItems: MenuItem[] = [{ id: 'list-add', label: addLabel, icon: <AetherIcon name="plus" />, separatorBefore: true },
     ...(onView ? [{ id: 'view', label: 'View', icon: <AetherIcon name="layers" />, children: [
       { id: 'view:cards', label: 'Cards', kind: 'radio' as const, checked: view === 'cards' },
@@ -168,7 +168,7 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
   const rowCommand = (id: string, action: string) => action === 'list-add' || action.startsWith('view:') ? panelCommand(action) : action.startsWith('many:') ? manyCommand(action) : command(id, action);
   const runShortcut = (key: 'Delete' | 'F2') => { if (multi) { if (key === 'Delete') removeMany(chosen); return; } const item = selected && menu(selected.id).find(entry => entry.id === (key === 'Delete' ? 'delete' : 'rename') && !entry.disabled); if (selected && item) command(selected.id, item.id); };
   if (view === 'cards') return <TreeContextArea label="Asset options" items={createItems} onSelect={panelCommand} shortcut={runShortcut}><VisualCards ariaLabel={ariaLabel} assets={[...assets].reverse()} selectedIDs={current}
-    menu={id => [...menu(id), ...createItems]} command={rowCommand} onSelect={(id, mode) => {
+    menu={menu} command={rowCommand} onSelect={(id, mode) => {
       const ordered = [...assets].reverse().map(a => a.id);
       if (mode === 'range' && current.length) { const [a, b] = [ordered.indexOf(current.at(-1)!), ordered.indexOf(id)].sort((x, y) => x - y); pick(ordered.slice(a, b + 1), 'range'); }
       else pick([id], mode);
@@ -198,7 +198,7 @@ export function VisualAssetsPanel({ show, selectedID, onSelect, onChange, onRemo
       if (folderOf(target) !== folderOf(asset)) setFolder(asset, folderOf(target));
     }}
     onSelect={pick} onActivate={id => { if (!id.startsWith(GROUP)) select(id); }}
-    controls={[]} headerControls={controls} controlsLabel="Asset controls" menuLabel="Asset options" menuItems={id => [...menu(id), ...createItems]}
+    controls={[]} headerControls={controls} controlsLabel="Asset controls" menuLabel="Asset options" menuItems={menu}
     onCommand={rowCommand} onAction={command} renamingID={renamingID} onCancelRename={() => setRenamingID(null)}
     onRename={(id, name) => {
       const trimmed = name.trim();
@@ -235,7 +235,7 @@ function VisualCards({ ariaLabel, assets, selectedIDs, menu, command, onSelect, 
         <span className="map-visual-card-thumb">{thumbnail(asset)}</span>
         <span className="map-visual-card-text"><strong>{asset.name}</strong><small>{detail(asset)}</small></span>
       </button>
-      <MenuButton className="map-visual-card-menu" label={`Options for ${asset.name}`} items={menu(asset.id)} onSelect={action => command(asset.id, action)}>
+      <MenuButton menuClassName="aui-collection-popup" className="map-visual-card-menu" label={`Options for ${asset.name}`} items={menu(asset.id)} onSelect={action => command(asset.id, action)}>
         <AetherIcon name="more" style={{ transform: 'rotate(90deg)' }} />
       </MenuButton>
     </li>)}

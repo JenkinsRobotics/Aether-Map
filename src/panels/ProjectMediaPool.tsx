@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type MouseEvent, type ReactNode } from 'react';
-import { AetherIcon, IconButton, Menu, MenuButton, SegmentedControl, TextField, type MenuItem } from '@aether/ui';
+import { AetherIcon, ListToolMenu, Menu, MenuButton, SegmentedControl, TextField, type MenuItem } from '@aether/ui';
 import type { MapShow } from '../document';
 import { projectClips } from '../compound-clips';
 import { POOL_DRAG_TYPE, poolUses, removePoolAsset } from '../media-pool';
@@ -107,11 +107,11 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
   const itemMenu = (key: string): MenuItem[] => {
     if (key.startsWith('bin:')) return [{ id: 'open-bin', label: 'Open bin', icon: <AetherIcon name="file-folder" /> },
       { id: 'rename', label: 'Rename bin', shortcut: 'F2', icon: <AetherIcon name="notes" /> },
-      { id: 'delete-bin', label: 'Delete bin', icon: <AetherIcon name="delete" />, danger: true, separatorBefore: true }];
+      { id: 'delete-bin', label: 'Delete bin', shortcut:'Delete', icon: <AetherIcon name="delete" />, danger: true, separatorBefore: true }];
     const keys = chosen.includes(key) ? chosen : [key];
     if (keys.length > 1) {
       const unused = keys.filter(k => !byKey(k)?.uses).length;
-      return [binMenu(keys), { id: 'delete', label: `Delete ${unused} unused item${unused === 1 ? '' : 's'}`, icon: <AetherIcon name="delete" />, danger: true, separatorBefore: true, disabled: !unused }];
+      return [binMenu(keys), { id: 'delete', label: `Delete ${unused} unused item${unused === 1 ? '' : 's'}`, shortcut: 'Delete', icon: <AetherIcon name="delete" />, danger: true, separatorBefore: true, disabled: !unused }];
     }
     const e = byKey(key)!;
     return [...(e.kind === 'clip' ? [{ id: 'open-clip', label: 'Open in Content', icon: <AetherIcon name="timeline-tracks" /> }] : add ? [{ id: 'add', label: add.label, icon: <AetherIcon name="plus" /> }] : []),
@@ -150,6 +150,7 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
     else if (e) edit(s => ({ ...s, timelines: s.timelines?.map(t => t.id === e.id ? { ...t, name } : t) }));
   };
   const menuAt = (key: string | null) => (event: MouseEvent) => {
+    if ((event.target as Element).closest('input,textarea,[contenteditable],[role="menu"]')) return;
     event.preventDefault(); event.stopPropagation();
     if (key && !key.startsWith('bin:') && !chosen.includes(key)) setChosen([key]);
     setContext({ key, x: event.clientX, y: event.clientY });
@@ -176,17 +177,20 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
 
   const pool = <section className="aui-tab-browser map-project-pool" data-view={view} aria-label="Media pool"
     onKeyDown={event => {
-      if (event.target instanceof HTMLInputElement || !chosen.length) return;
-      if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); remove(chosen); }
-      if (event.key === 'F2' && chosen.length === 1) { event.preventDefault(); setRenaming(chosen[0]); }
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || !(event.target instanceof Element)
+        || !event.target.matches('.aui-tab-browser-row')) return;
+      const key = event.target.closest<HTMLElement>('[data-pool-key]')?.dataset.poolKey;
+      if (!key || (!key.startsWith('bin:') && !chosen.includes(key))) return;
+      const shortcut = event.key === 'Backspace' ? 'Delete' : event.key;
+      const action = itemMenu(key).find(item => item.shortcut === shortcut && !item.disabled);
+      if (action) { event.preventDefault(); event.stopPropagation(); run(key, action.id); }
     }}>
     <header className="aui-tab-browser-head">
       <TextField aria-label="Search media pool" placeholder="Search the media pool" value={query} onChange={e => setQuery(e.target.value)} />
-      <MenuButton className="aui-tab-browser-add" label="Add to the media pool" items={createItems} onSelect={id => run(null, id)}><AetherIcon name="plus" /></MenuButton>
-      <span className="aui-tab-browser-views" role="group" aria-label="View">
-        <IconButton label="List view" aria-pressed={view === 'list'} onClick={() => chooseView('list')}><AetherIcon name="list" /></IconButton>
-        <IconButton label="Thumbnail view" aria-pressed={view === 'gallery'} onClick={() => chooseView('gallery')}><AetherIcon name="grid-2" /></IconButton>
-      </span>
+      <MenuButton menuClassName="aui-collection-popup" className="aui-tab-browser-add" label="Add to the media pool" items={createItems} onSelect={id => run(null, id)}><AetherIcon name="plus" /></MenuButton>
+      <ListToolMenu label="" ariaLabel="Media view" icon={<AetherIcon name={view === 'list' ? 'items' : 'layout'}/>}
+        items={[...(viewItems[0].children ?? [])]} onPick={id => run(null,id)}/>
+
     </header>
     <nav className="aui-tab-browser-path" aria-label="Bin path">
       <button type="button" aria-label="Back to Master" disabled={!open} {...dropInto(undefined)} onClick={() => setBin(null)}><AetherIcon name="home" /></button>
@@ -195,24 +199,26 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
       {open && <><AetherIcon name="chevron-right" aria-hidden="true" /><span aria-current="page">{open}</span></>}
     </nav>
     <ul className="aui-tab-browser-items" aria-label="Media pool items" onContextMenu={menuAt(null)} onClick={event => { if (event.target === event.currentTarget) setChosen([]); }}>
-      {!open && !q && bins.map(b => <li key={b} data-tab-folder={b} {...dropInto(b)} onContextMenu={menuAt(`bin:${b}`)}>
+      {!open && !q && bins.map(b => <li key={b} data-pool-key={`bin:${b}`} data-tab-folder={b} {...dropInto(b)} onContextMenu={menuAt(`bin:${b}`)}>
         <button type="button" className="aui-tab-browser-row" onClick={() => renaming !== `bin:${b}` && setBin(b)}>
           <span className="aui-tab-browser-thumb" data-kind="folder"><AetherIcon name="file-folder" /></span>
           <span className="aui-tab-browser-text">{label(`bin:${b}`, b)}<small>{entries.filter(e => e.folder === b).length} items</small></span>
         </button>
+        <MenuButton menuClassName="aui-collection-popup" className="aui-tab-browser-menu" label={`Options for ${b}`} placement="bottom-end"
+          items={itemMenu(`bin:${b}`)} onSelect={action => run(`bin:${b}`,action)}><AetherIcon name="more"/></MenuButton>
       </li>)}
-      {shown.map(e => <li key={e.key} data-current={chosen.includes(e.key) || undefined} draggable={renaming !== e.key} onDragStart={dragStart(e)} onContextMenu={menuAt(e.key)}>
+      {shown.map(e => <li key={e.key} data-pool-key={e.key} data-current={chosen.includes(e.key) || undefined} draggable={renaming !== e.key} onDragStart={dragStart(e)} onContextMenu={menuAt(e.key)}>
         <button type="button" className="aui-tab-browser-row" aria-pressed={chosen.includes(e.key)} title={e.detail}
           onClick={event => pick(e, event)} onDoubleClick={() => e.kind === 'clip' ? onOpenClip(e.id) : setRenaming(e.key)}>
           <span className="aui-tab-browser-thumb">{e.thumb}</span>
           <span className="aui-tab-browser-text">{label(e.key, e.name)}<small>{e.detail}</small></span>
         </button>
-        <MenuButton className="aui-tab-browser-menu" label={`Options for ${e.name}`} placement="bottom-end" items={itemMenu(e.key)} onSelect={action => run(e.key, action)}><AetherIcon name="more" /></MenuButton>
+        <MenuButton menuClassName="aui-collection-popup" className="aui-tab-browser-menu" label={`Options for ${e.name}`} placement="bottom-end" items={itemMenu(e.key)} onSelect={action => run(e.key, action)}><AetherIcon name="more" /></MenuButton>
       </li>)}
       {!shown.length && !(bins.length && !open && !q) && <li className="aui-tab-browser-empty">{q ? 'Nothing matches.' : open ? 'This bin is empty. Drag items here, or import into it.' : 'Import media, or right-click to make a clip or a bin.'}</li>}
     </ul>
-    <Menu open={Boolean(context)} anchor={context} applicationCommands={false} ariaLabel="Media pool options"
-      items={context?.key ? [...itemMenu(context.key), ...viewItems] : [...createItems, ...viewItems]}
+    <Menu className="aui-collection-popup" open={Boolean(context)} anchor={context} applicationCommands={false} ariaLabel="Media pool options"
+      items={context?.key ? itemMenu(context.key) : [...createItems, ...viewItems]}
       onSelect={action => { if (context) run(context.key, action); }} onClose={() => setContext(null)} />
   </section>;
   if (!browse) return pool;

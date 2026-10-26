@@ -64,3 +64,20 @@ it('outer card menus preserve editable fields and do not replace child item menu
   fireEvent.click(screen.getByRole('menuitem', { name: 'Add card' }));
   expect(select).toHaveBeenCalledExactlyOnceWith('add');
 });
+
+
+it('output right-click and ellipsis share row-only actions and F2 uses the same rename', () => {
+  const show = emptyShow();
+  render(<OutputsPanel show={show} selectedID={show.outputs[0].id} displays={{}} documentID={null}
+    onSelect={vi.fn()} onAdd={vi.fn()} onPatch={vi.fn()} onDelete={vi.fn()} onOpen={vi.fn()} onClose={vi.fn()} onDevices={vi.fn()} showName="Test"/>);
+  const row = screen.getByRole('treeitem');
+  fireEvent.contextMenu(row);
+  const labels = screen.getAllByRole('menuitem').map(item=>item.textContent);
+  expect(screen.queryByRole('menuitem',{name:/New output|Devices|Record the output|Undo|Redo|settings/})).toBeNull();
+  fireEvent.keyDown(document,{key:'Escape'});
+  fireEvent.click(screen.getByRole('button',{name:/Options for Output 1/}));
+  expect(screen.getAllByRole('menuitem').map(item=>item.textContent)).toEqual(labels);
+  fireEvent.keyDown(document,{key:'Escape'});
+  fireEvent.keyDown(row,{key:'F2'});
+  expect(screen.getByRole('textbox',{name:'Rename Output 1'})).toBeTruthy();
+});

@@ -192,7 +192,7 @@ export function CueList({ show, selectedID, onSelect, onEdit }: { show: MapShow;
     badge: c.trigger === 'timeline' ? formatTime(c.atS ?? 0) : c.trigger === 'midi' ? `CC ${c.control ?? '–'}` : 'GO' }));
   return <TreeContextArea label="Cue options" items={createItems} onSelect={add} shortcut={key => { if (key === 'Delete' && selectedID) remove(selectedID); }}><TreePanel ariaLabel="Cues" rootInset={0} nodes={nodes} selectedIDs={new Set(selectedID ? [selectedID] : [])}
     onSelect={ids => onSelect(ids.at(-1) ?? null)} controls={[]} headerControls={plus} controlsLabel="Cue controls" menuLabel="Cue options"
-    menuItems={() => [{ id: 'delete', label: 'Delete cue', icon: <AetherIcon name="delete" />, shortcut: 'Delete' as const, danger: true }, ...createItems]}
+    menuItems={() => [{ id: 'delete', label: 'Delete cue', icon: <AetherIcon name="delete" />, shortcut: 'Delete' as const, danger: true }]}
     onCommand={(id, action) => action === 'delete' ? remove(id) : add()} emptyState={<span>No cues yet — + adds one</span>} /></TreeContextArea>;
 }
 

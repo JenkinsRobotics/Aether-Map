@@ -3,8 +3,8 @@ import { useState, type ReactNode } from "react";
 
 /** Right-click on a tree's empty space offers its creation commands (rows
  * keep their own menu). Tree headers then need only a name and "+".
- * `shortcut` runs the selected row's Delete/F2 command, which the shared tree
- * only takes from header controls. */
+ * `shortcut` is a fallback for custom content; TreePanel handles its own
+ * selected row commands first and marks the event as handled. */
 export function TreeContextArea({ items, onSelect, label, shortcut, children }: {
   items: readonly MenuItem[]; onSelect: (id: string) => void; label: string;
   shortcut?: (key: "Delete" | "F2") => void; children: ReactNode;

@@ -413,7 +413,7 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
   };
 
   // Headers carry a name and one "+"; everything else is right-click: a row's
-  // own commands, then this list's creation commands (also on empty space).
+  // own commands; the panel background and + share creation commands.
   const creation: TreeControl[] = [
     { id: "new", label: "New Surface", icon: <AetherIcon name="plus" />, onClick: onAdd },
     { id: "new-scene", label: "New canvas", icon: <AetherIcon name="scene" />, onClick: () => scenes.openProperties(null) },
@@ -428,12 +428,12 @@ export function LayersPanel({ onTreeEdit, showAssets = true, show, selectedID, s
     // anything worth mapping. These arrive finished and projectable.
     { id: "preset", label: "Add a ready-made canvas", icon: <AetherIcon name="palette" />, onClick: scenes.openPresets },
   ].filter(c => picker ? false : view === "scenes" ? ["new-scene", "preset"].includes(c.id) : view === "layers" ? ["new", "folder"].includes(c.id) : true);
-  const plus = creation.slice(0, 1).map(c => ({ ...c, id: "new", icon: <AetherIcon name="plus" /> }));
+  const plus = creation;
   const createItems: MenuItem[] = creation.map((c, index) => ({ id: `create-${c.id}`, label: c.label, icon: c.icon, separatorBefore: index === 0 }));
   const create = (action: string) => creation.find(c => `create-${c.id}` === action)?.onClick();
   // Only what applies: commands that cannot run here are left out, except a
   // locked/last-item Delete (it explains itself) and section labels.
-  const rowMenu = (id: string): MenuItem[] => [...menuItems(id).filter(item => (!item.disabled || item.danger || item.id.endsWith("-header")) && !(picker && ["duplicate", "delete"].includes(item.id))), ...createItems];
+  const rowMenu = (id: string): MenuItem[] => [...menuItems(id).filter(item => (!item.disabled || item.danger || item.id.endsWith("-header")) && !(picker && ["duplicate", "delete"].includes(item.id)))];
   const shortcutRow = asset ? selectedClipID : selectedID ?? (view === "scenes" ? show.activeSceneId : null);
   const runShortcut = (key: "Delete" | "F2") => {
     const item = shortcutRow ? rowMenu(shortcutRow).find(entry => entry.shortcut === key && !entry.disabled) : undefined;

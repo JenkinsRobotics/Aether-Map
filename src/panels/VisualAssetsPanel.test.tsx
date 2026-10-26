@@ -13,13 +13,17 @@ const props = () => ({ selectedID: null, onSelect: vi.fn(), onChange: vi.fn(), o
 const menuLabels = () => screen.getAllByRole('menuitem').concat(screen.queryAllByRole('menuitemradio')).map(item => item.textContent?.replace(/\s+/g, ' ').trim());
 
 for (const view of ['cards', 'tree'] as const) {
-  it(`${view}: right-click on a visual offers its controls, Add layer and View`, () => {
+  it(`${view}: right-click and ellipsis on a visual offer the same item-only controls`, () => {
     const p = props();
     render(<><ApplicationContextMenu name="Map" /><VisualAssetsPanel show={show()} {...p} view={view} /></>);
     const row = view === 'cards' ? screen.getByRole('button', { name: 'Select Red' }) : screen.getByRole('treeitem', { name: /Red/ });
     fireEvent.contextMenu(row);
     const labels = menuLabels();
-    for (const name of ['Rename asset', 'Duplicate asset', 'Delete asset', 'Add layer', 'View']) expect(labels.some(l => l?.startsWith(name))).toBe(true);
+    for (const name of ['Rename asset', 'Duplicate asset', 'Delete asset']) expect(labels.some(l => l?.startsWith(name))).toBe(true);
+    expect(screen.queryByRole('menuitem', {name:/Add layer|View|Undo|Redo|settings/})).toBeNull();
+    fireEvent.keyDown(document, {key:'Escape'});
+    fireEvent.click(screen.getByRole('button', {name:'Options for Red'}));
+    expect(menuLabels()).toEqual(labels);
   });
 
   it(`${view}: right-click on empty space offers Add layer and View, and View switches`, () => {

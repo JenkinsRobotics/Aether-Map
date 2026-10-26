@@ -64,10 +64,10 @@ function changeWorkspace(name: "Mapping" | "Content" | "Scene") {
 
 function addLayerSurface() {
   const controls = screen.getAllByRole("group", { name: "Layer controls" })[0];
-  // The tray shows New Surface directly unless it overflows into More.
+  // The header exposes a single + with the panel creation menu.
   const direct = within(controls).queryByRole("button", { name: "New Surface" });
   if (direct) { fireEvent.click(direct); return; }
-  fireEvent.click(within(controls).getByRole("button", { name: "More Layer controls" }));
+  fireEvent.click(within(controls).getByRole("button", { name: "Create in Layer controls" }));
   fireEvent.click(screen.getByRole("menuitem", { name: "New Surface" }));
 }
 
@@ -264,7 +264,7 @@ describe("Aether Map", () => {
     expect(sceneRows().map((row) => row.textContent)).toEqual([expect.stringContaining("Canvas 1")]);
     expect(screen.queryByRole("tree", { name: "Canvases" })).toBeNull();
     const header = screen.getAllByRole("group", { name: "Layer controls" })[0];
-    expect(within(header).getAllByRole("button").map(b => b.getAttribute("aria-label"))).toEqual(["New Surface"]);
+    expect(within(header).getAllByRole("button").map(b => b.getAttribute("aria-label"))).toEqual(["Create in Layer controls"]);
   });
 
   it("mounts with a scene and an empty layer list", () => {
@@ -503,7 +503,7 @@ describe("Aether Map", () => {
     changeWorkspace('Content');
     fireEvent.click(within(screen.getByRole('region', { name: 'Map tools' })).getByRole('button', { name: 'Colour' }));
     const cards = screen.getByRole('list', { name: 'Clip visuals' });
-    fireEvent.contextMenu(within(cards).getByRole('button', { name: /^Select Colour/ }));
+    fireEvent.contextMenu(cards);
     fireEvent.click(screen.getByRole('menuitem', { name: /View/ }));
     fireEvent.click(screen.getByRole('menuitemradio', { name: /List/ }));
     expect(within(screen.getByRole('tree', { name: 'Clip visuals' })).getByRole('treeitem', { name: /Colour/ })).toBeTruthy();
@@ -625,8 +625,8 @@ describe("component deletion", () => {
     treeCommand("New canvas");
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
     fireEvent.click(ribbonTool("Cube"));
-    clickRow("Layers", "^Cube 3 layers$");
-    fireEvent.contextMenu(within(layerTree()).getAllByRole("treeitem", { name: /^Cube 3 layers$/ })[0]);
+    clickRow("Layers", "^Cube$");
+    fireEvent.contextMenu(within(layerTree()).getAllByRole("treeitem", { name: /^Cube$/ })[0]);
     fireEvent.click(screen.getByRole("menuitem", { name: /^Delete group/ }));
     expect(treeRows().map(row => row.getAttribute("aria-label") ?? row.textContent)).not.toContain("Cube");
     // The unrelated surface stays in Canvas 1; Canvas 2 is empty again.

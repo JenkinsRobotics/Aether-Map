@@ -23,7 +23,8 @@ it('lists the project media and clips with its bins, in list or thumbnails', () 
   expect(items().getByRole('button', { name: /^Red/ })).toBeTruthy();
   expect(items().getByRole('button', { name: /^Clip 1/ })).toBeTruthy();
   expect(items().getByRole('button', { name: /^Footage/ })).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Thumbnail view' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Media view' }));
+  fireEvent.click(screen.getByRole('menuitemradio', { name: 'Thumbnails' }));
   expect(screen.getByRole('region', { name: 'Media pool' }).getAttribute('data-view')).toBe('gallery');
 });
 
@@ -83,4 +84,26 @@ it('has the Comments widget tabs: Media pool, and Browse for what can be importe
   fireEvent.click(within(tabs).getByRole('radio', { name: /Browse/ }));
   expect(screen.getByText('Online library')).toBeTruthy();
   expect(screen.queryByRole('region', { name: 'Media pool' })).toBeNull();
+});
+
+
+it('media and bin row menus match their ellipsis, preserve native text and run keyboard commands', () => {
+  render(<Host a={actions()}/>);
+  for (const name of ['Red','Footage']) {
+    fireEvent.contextMenu(items().getByRole('button',{name:new RegExp('^'+name)}));
+    const labels = screen.getAllByRole('menuitem').map(item=>item.textContent);
+    expect(screen.queryByRole('menuitem',{name:/^View|^Sort by|Undo|Redo|settings/})).toBeNull();
+    fireEvent.keyDown(document,{key:'Escape'});
+    fireEvent.click(screen.getByRole('button',{name:'Options for '+name}));
+    expect(screen.getAllByRole('menuitem').map(item=>item.textContent)).toEqual(labels);
+    fireEvent.keyDown(document,{key:'Escape'});
+  }
+  const red = items().getByRole('button',{name:/^Red/});
+  fireEvent.click(red); fireEvent.keyDown(red,{key:'F2'});
+  const rename = screen.getByRole('textbox',{name:'Rename Red'});
+  expect(fireEvent.contextMenu(rename)).toBe(true);
+  fireEvent.change(rename,{target:{value:'Crimson'}}); fireEvent.keyDown(rename,{key:'Enter'});
+  const crimson = items().getByRole('button',{name:/^Crimson/});
+  fireEvent.keyDown(crimson,{key:'Backspace'});
+  expect(items().queryByRole('button',{name:/^Crimson/})).toBeNull();
 });

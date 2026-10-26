@@ -65,7 +65,7 @@ export async function clickRibbon(page: Page, name: string) {
   // Layers header menu, while the full ribbon holds the drawing shapes.
   if (name === "New Surface") {
     await page.getByRole("group", { name: "Layer controls" }).first()
-      .getByRole("button", { name: "More Layer controls" }).click();
+      .getByRole("button", { name: "Create in Layer controls" }).click();
     await page.getByRole("menuitem", { name: "New Surface" }).click();
     return;
   }

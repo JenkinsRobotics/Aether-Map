@@ -132,7 +132,7 @@ export function OutputsPanel({ show, selectedID, displays, documentID, onSelect,
     selectedIDs={new Set(selectedID ? [selectedID] : [])}
     onSelect={(ids) => { const id = ids.at(-1); if (id) onSelect(id); }}
     onActivate={onOpen}
-    controls={[]} headerControls={plus} controlsLabel="Output controls" menuLabel="Output options" menuItems={id => [...menuItems(id), ...listItems]}
+    controls={[]} headerControls={plus} controlsLabel="Output controls" menuLabel="Output options" menuItems={menuItems}
     onCommand={(id, action) => action.startsWith("list-") ? listCommand(action) : command(id, action)} onAction={command}
     renamingID={renamingID} onCancelRename={() => setRenamingID(null)}
     onRename={(id, name) => { onPatch(id, { name }); setRenamingID(null); }} /></TreeContextArea>;
