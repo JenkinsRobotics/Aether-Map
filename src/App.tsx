@@ -90,6 +90,9 @@ import { SceneProperties } from "./panels/SceneProperties";
 import { DeviceManager } from "./panels/DeviceManager";
 import { ProjectMediaPool } from "./panels/ProjectMediaPool";
 import type { PoolRef } from "./media-bins";
+import { carryLeftSidebar } from "./carry-left-sidebar";
+/** The suite's left aux toolbar (CAD): Comments, AI, Versions, Files. */
+const LEFT_AUX = ['comments', 'agent', 'versions', 'files'];
 import { OutputDialog } from "./panels/OutputDialog";
 import {
   ExportWorkspace,
@@ -408,10 +411,6 @@ export default function App() {
   const [timelineHeight, setTimelineHeight] = useState(() => readTimelineHeight(trayHeightKind(readTrayPanels("mapping"))));
   const stageRef = useRef<HTMLDivElement>(null);
 
-  // Each room has its own shell (remounted on switch); a switch made from
-  // Files reopens Files in the new room instead of that room's default.
-  const keepFiles = useRef(false);
-  useEffect(() => { if (keepFiles.current) { keepFiles.current = false; workspaceShell.current?.showPanel('files'); } }, [mode, simple]);
   const enterMode = useCallback((next: MapWorkspace) => {
 
 
@@ -1149,7 +1148,7 @@ export default function App() {
   // (Jonathan, 2026-10-25). Command-only panels stay where their commands open them.
   const railPanels = (left: WorkspacePanel[], right: WorkspacePanel[]) => {
     // The left aux toolbar is the suite standard only; Map's own panels go right.
-    const order = ['comments', 'agent', 'versions', 'files'], pinned = mode === 'show' ? 'show-outputs' : 'layers';
+    const order = LEFT_AUX, pinned = mode === 'show' ? 'show-outputs' : 'layers';
     const stays = (panel: WorkspacePanel) => panel.id === pinned || order.includes(panel.id) || panel.inToolbar === false;
     return { leftPanels: left.filter(stays).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)), rightPanels: [...right, ...left.filter(panel => !stays(panel)).map(panel => ({ ...panel, separatorBefore: false }))] };
   };
@@ -1189,11 +1188,8 @@ export default function App() {
   const assetsPanel = <ProjectMediaPool {...poolProps}
       browse={<AssetBrowser targetLayer={null} destination="pool" onChooseFile={() => openMediaPicker({ kind: 'pool' }, 'image/*,video/*,audio/*')} onImport={importAsset} />} />;
   // Files › This show: the whole document's contents (CAD's design contents).
-  // Opening a show, scene or clip switches rooms; Files stays open there.
-  const stayInFiles = <T,>(run: (value: T) => void) => (value: T) => { keepFiles.current = true; run(value); };
   const filesPool = <ProjectMediaPool {...poolProps} rootLabel={file?.name ?? 'Untitled show'}
-      onOpenClip={stayInFiles(poolProps.onOpenClip)} onNewClip={stayInFiles(poolProps.onNewClip)}
-      documents={{ entries: documentEntries, activeID: activeEntryID, onOpen: stayInFiles(openEntry), onCreate: stayInFiles(createEntry),
+      documents={{ entries: documentEntries, activeID: activeEntryID, onOpen: openEntry, onCreate: createEntry,
         onRename: (entry, name) => { const id = entry.id.slice(entry.id.indexOf(':') + 1);
           edit(s => entry.kind === 'show' ? { ...s, shows: s.shows?.map(p => p.id === id ? { ...p, name } : p) } : { ...s, timelines: s.timelines?.map(t => t.id === id ? { ...t, name } : t) }); } }} />;
 
@@ -1303,6 +1299,11 @@ export default function App() {
       for (const cue of activeShow(showRef.current)?.cues ?? []) if (cue.trigger === 'midi' && cue.control === cc) runCueRef.current(cue);
     });
   }, [mode]);
+  // The workspace never controls the left sidebar: switching rooms keeps it
+  // as it was (open, closed, which tab).
+  const room = { key: simple ? "aether-map.simple-visuals.studio-v1" : `aether-map.${mode}.studio-v1`, pinned: mode === "show" ? "show-outputs" : "layers" };
+  const lastRoom = useRef(room);
+  if (lastRoom.current.key !== room.key) { carryLeftSidebar(lastRoom.current, room, layout, LEFT_AUX); lastRoom.current = room; }
   if (!persistence.ready) return <div role="status" className="map-loading">{error || "Opening your show…"}</div>;
 
   // Show control: edit the show timeline; fire cues from the timeline, GO and MIDI.
@@ -1415,7 +1416,7 @@ export default function App() {
       // One shell per room: remounting on switch applies that room's defaults,
       // and the storage key keeps each room's own remembered layout.
       key={simple ? "simple-visuals" : mode}
-      storageKey={simple ? "aether-map.simple-visuals.studio-v1" : `aether-map.${mode}.studio-v1`}
+      storageKey={room.key}
       // Measure the stage within the window, never from its own split contents.
       style={{ height: "100%" }}
       preset={layout}

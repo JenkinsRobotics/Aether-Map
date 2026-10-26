@@ -46,6 +46,14 @@ test('left aux toolbar is the standard four; the Media pool is on the right',asy
   await expect(contents.getByRole('button',{name:/^Show 1/})).toHaveAttribute('aria-current','page');
   await contents.getByRole('button',{name:/^Main/}).click();
   await expect(page.getByRole('region',{name:'Files navigation'})).toBeVisible();
+  // A closed left sidebar stays closed across workspaces too.
+  await aux.getByRole('button',{name:'Files'}).click();
+  await expect(page.getByRole('region',{name:'Files navigation'})).toBeHidden();
+  await switchWorkspace(page,'Mapping');
+  await expect(page.getByRole('region',{name:'Files navigation'})).toBeHidden();
+  await aux.getByRole('button',{name:'Files'}).click();
+  await switchWorkspace(page,'Content');
+  await expect(page.getByRole('region',{name:'Files navigation'})).toBeVisible();
   await page.screenshot({path:info.outputPath('files.png')});
   await filesView.getByRole('radio',{name:/Drive/}).click();
   await expect(page.getByRole('region',{name:'Drive files'})).toBeVisible();
