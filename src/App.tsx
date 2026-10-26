@@ -24,7 +24,7 @@ import { newScene, newSurface, showForOutput } from './document';
 import { PoolProperties } from './panels/MediaPool';
 import { TimelineTree, type TimelinePoolActions } from './panels/TimelinePool';
 import { CompositionTimeline } from './panels/CompositionTimeline';
-import { visualSource, addPoolAsset, addVisualTrack, placePoolAsset, removePoolAsset, type PoolAsset } from './media-pool';
+import { visualSource, addPoolAsset, addVisualTrack, placePoolAsset, removePoolAsset, POOL_DRAG_TYPE, type PoolAsset } from './media-pool';
 import { SurfaceAnimationProperties } from './panels/SurfaceAnimationProperties';
 import { ModulationContext } from "./features/ModulationContext";
 import { DEFAULT_LFOS } from "./features/types";
@@ -50,7 +50,7 @@ import { useMapAutosave } from "./use-map-autosave";
 import { sceneSize } from "./scene-size";
 import { TransformPanel } from "./panels/TransformPanel";
 import { ColorPanel } from "./panels/ColorPanel";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   AetherIcon,
   Inspector,
@@ -685,6 +685,17 @@ export default function App() {
 
 
 
+  // Media pool rows drop onto the Content board or Scene preview: an asset is
+  // added as "Add to clip/scene" does; a clip is placed in the scene at the playhead.
+  const stageDrop = mode === 'content' || mode === 'visualization' ? {
+    onDragOver: (event: DragEvent) => { if (event.dataTransfer.types.includes(POOL_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } },
+    onDrop: (event: DragEvent) => {
+      const id = event.dataTransfer.getData(POOL_DRAG_TYPE); if (!id) return;
+      event.preventDefault();
+      if (id.startsWith(TIMELINE_DRAG_PREFIX)) { if (mode === 'visualization') placeFromPool(id, undefined, timeS); return; }
+      const asset = show.pool?.find(a => a.id === id); if (asset) addSceneVisual(asset.source, asset.name, asset.id);
+    },
+  } : {};
   const focusTimeline = () => {
     setPreviewOverride(null); setShowInput(true);
     seek(0); setSelectedClipID(null); setSelectedID(null); setSelectedTrackID(null); setSelectedPoolID(null);
@@ -1654,7 +1665,7 @@ export default function App() {
       />}
 
     >
-      <div ref={stageRef} className={`map-stage${mode === 'visualization' ? ' map-production-workspace' : ''}`}>
+      <div ref={stageRef} className={`map-stage${mode === 'visualization' ? ' map-production-workspace' : ''}`} {...stageDrop}>
         {/* Visualization's center, both editors: the selected scene's render
             fills the space, input side by side; advanced adds the timeline. */}
         {mode === 'content' ? (openClip ? <ClipBoard show={show} clipID={openClip.id} urls={urls} timeS={timeS} playing={transport.playing}
