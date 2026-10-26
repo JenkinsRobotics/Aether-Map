@@ -445,3 +445,10 @@ within a scenario. All 1,193 tests pass. Production build passes; browser checks
 cover Files/Drive, Media pool empty-space actions, Content-to-Scene playback and
 save/reopen, plus all four headers and reconnect notices in light/dark themes.
 Evidence: `.verification/shared-panels-2026-10-25/` and `test-results/8873/`.
+
+Installed independently as **alpha-0.1.7** (local source `45a56ac`), manifest
+`736fcb08ac727e7ebac0fc152fcd1e052b15011645636f2cf582ba6c76652881`.
+All 3,520 frontend files match the qualified build. Retained alpha-0.1.6's
+worker and all six Pi downloads. Server ready; Map loads and pings. Studio
+alpha-0.1.1, host PID 22157, database/configuration and CAD are unchanged.
+Shared UI gallery separately updated to alpha-0.1.3. No restart or push.
