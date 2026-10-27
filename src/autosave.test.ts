@@ -44,7 +44,7 @@ it('never retries a revision conflict or clears that draft when more edits arriv
   const save = vi.fn().mockRejectedValue(new SaveError('changed elsewhere', 409));
   const s = make(save); s.write('mine'); await expect(s.flush()).rejects.toThrow();
   s.write('more edits'); await vi.advanceTimersByTimeAsync(12000);
-  expect(save).toHaveBeenCalledTimes(1); expect(readRecovery('draft')).toEqual({ text: 'more edits', base: 0, blocked: 'changed elsewhere' });
+  expect(save).toHaveBeenCalledTimes(1); expect(readRecovery('draft')).toEqual({ text: 'more edits', base: 0, blocked: 'changed elsewhere', blockedStatus: 409 });
   s.dispose();
   const reopened = make(save); reopened.recover(readRecovery<number>('draft')!);
   await vi.advanceTimersByTimeAsync(12000);

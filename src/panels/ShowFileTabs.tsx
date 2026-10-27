@@ -31,8 +31,8 @@ export function ShowFileTabs({ file, saveState, connection, onSaveCopy, contents
   const [error, setError] = useState('');
   const branch = connection.branch ?? 'Main';
   const fileID=file?.id, fileName=file?.name, branchLabel=file?.branch_label ?? file?.branch ?? connection.branchLabel;
-  const saveLabel = saveState.phase === "saved" ? "Saved" : saveState.phase === "saving" || saveState.phase === "pending" ? "Saving…" : saveState.durable ? "Saved in this tab" : "Not saved";
-  const tabStatus = {status:saveLabel, statusTitle:saveState.message ?? "Autosave is always on."};
+  const saveLabel = saveState.phase === "saved" && file ? "Saved" : saveState.phase === "saving" || saveState.phase === "pending" ? "Saving…" : saveState.status === 401 ? "Sign in to save" : "Not saved to Studio";
+  const tabStatus = {status:saveLabel, statusTitle:saveState.message ?? (saveState.phase === 'saved' && file ? 'All changes are saved to Studio.' : 'Changes have not reached Studio yet.')};
   const active = file ? tabKey({id:file.id,branch}) : 'draft';
   useEffect(() => {
     let disposed = false;

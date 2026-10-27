@@ -53,7 +53,7 @@ test('offline refresh retains edits and offers an explicit recovery copy', async
   await page.route('**/api/**', route => route.abort());
   await add(page); await page.reload();
   await expect(layers(page)).toHaveCount(2);
-  await expect(page.getByRole('tablist', {name:'Open shows'}).getByRole('tab', { selected: true }).getByRole('status')).toHaveText('Saved in this tab');
+  await expect(page.getByRole('tablist', {name:'Open shows'}).getByRole('tab', { selected: true }).getByRole('status')).toHaveText('Not saved to Studio');
   await page.unroute('**/api/**');
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await recoverCopy(page, 'Recovered offline work');

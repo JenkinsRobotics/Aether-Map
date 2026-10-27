@@ -47,6 +47,7 @@ import { VisualProperties } from './panels/VisualProperties';
 
 import { activeAsset, assetSurface, appendContent, contentClip, allSources, patchAssetSource, sourceID } from './surface-assets';
 import { useMapAutosave } from "./use-map-autosave";
+import { SaveGuard } from './panels/SaveGuard';
 import { sceneSize } from "./scene-size";
 import { TransformPanel } from "./panels/TransformPanel";
 import { ColorPanel } from "./panels/ColorPanel";
@@ -484,12 +485,12 @@ export default function App() {
 
   // --- Document ------------------------------------------------------------
 
-  const autosaveShow = gestureSnapshot ?? show;
+  const autosaveShow = gestureSnapshot ?? stored;
   const snapshotText = useMemo(() => new TextDecoder().decode(serializeShow(autosaveShow)), [autosaveShow]);
   const resetDocument = document_.reset;
   const resetShow = useCallback((value: MapShow) => resetDocument(normalizeDocument(value)), [resetDocument]);
   const persistence = useMapAutosave({ text: snapshotText, reset: resetShow,
-    paused: false, setDirty, onError: setError });
+    paused: gestureSnapshot !== null, setDirty, onError: setError });
   const { file, saveState } = persistence;
   const documentConnection = useDocumentConnection({app:"map",id:file?.id,name:file?.name??"Untitled show",writable:file?.writable,flush:()=>persistence.save(),saveCopy:()=>persistence.save(`${file?.name.replace(/\.aethermap$/i, "")??"Show"} copy`,true)});
 
@@ -535,7 +536,7 @@ export default function App() {
   const agentInteraction = useMapAgent({
     contextKey: `${agentEditorID}:${new URLSearchParams(location.search).get('branch') ?? 'Main'}:${scene.id}`,
     show, writable: file?.writable !== false,
-    available: persistence.ready && !gestureSnapshot && !document_.checkpoint.gesture && !naming &&
+    available: persistence.ready && !persistence.recoveries.length && !gestureSnapshot && !document_.checkpoint.gesture && !naming &&
       !sceneDraft && !pickingPreset && !creatingMask && !addingShape && !managingDevices && !choosingOutput,
     canUndo: document_.canUndo, canRedo: document_.canRedo,
     selection: { surface_ids: [...new Set([...selectedLayerIDs, ...(selectedID ? [selectedID] : [])])], clip_id: selectedClipID, asset_id: selectedPoolID },
@@ -544,7 +545,7 @@ export default function App() {
 
   const store = async (name: string) => {
 
-    try { await persistence.save(name, copying); setError(""); setStatus("All changes saved."); }
+    try { await persistence.save(name, copying); setError(""); setStatus(""); }
     catch (problem) { setError((problem as Error).message); }
   };
   const rename = (copy = false) => {
@@ -1315,7 +1316,9 @@ export default function App() {
   const room = { key: simple ? "aether-map.simple-visuals.studio-v1" : `aether-map.${mode}.studio-v1`, pinned: mode === "show" ? "show-outputs" : "layers" };
   const lastRoom = useRef(room);
   if (lastRoom.current.key !== room.key) { carryLeftSidebar(lastRoom.current, room, layout, LEFT_AUX); lastRoom.current = room; }
-  if (!persistence.ready) return <div role="status" className="map-loading">{error || "Opening your show…"}</div>;
+  if (!persistence.ready) return <div role="status" className="map-loading">{error || "Opening your show…"}
+    {persistence.openingAuth && <Button onClick={() => location.assign(`/?next=${encodeURIComponent(location.pathname + location.search)}`)}>Sign in to open show</Button>}
+  </div>;
 
   // Show control: edit the show timeline; fire cues from the timeline, GO and MIDI.
   const editShowTimeline = (change: (timeline: ShowTimeline) => ShowTimeline) => edit(s => withActiveShow(normalizeShowTimeline(s), program => ({ ...program, ...change(program) })));
@@ -1409,6 +1412,8 @@ export default function App() {
         onSurfaceLook={(surfaceLook) => edit((current) => ({ ...current, surfaceLook }), "surface-look")}
         onShowPanel={id => workspaceShell.current?.showPanel(id)} />
       <div className="map-editor-content">
+      <SaveGuard state={saveState} recoveries={persistence.recoveries} onRecover={id => void persistence.recover(id)} onKeepSaved={persistence.keepSaved}
+        onSignIn={persistence.signIn} onRetry={() => void persistence.retry()} onCopy={() => rename(true)} onDownload={persistence.download} />
       <div className="map-editor-workspace">
     <WorkspaceShell pinnedPanels={[mode === "show" ? "show-outputs" : "layers"]}
       workspaceControls={<MapWorkspaceControls workspace={mode} onWorkspace={enterMode} visualEditor={visualEditor} onVisualEditor={changeVisualEditor}
@@ -1564,7 +1569,7 @@ export default function App() {
                 if(!members.some(s=>s.groupShape==='cube'))return null;
                 return <CubePosePanel key={selectedID} show={show} memberID={members[0].id} readOnly={file?.writable===false}
                   onChange={changes=>edit(current=>{try{return applyCubeGeometry(current,members[0].id,changes);}catch(error){queueMicrotask(()=>setError((error as Error).message));return current;}})}
-                  onGestureStart={()=>{gestureDirtyBefore.current=dirty;setGestureSnapshot(show);document_.beginGesture();}}
+                  onGestureStart={()=>{gestureDirtyBefore.current=dirty;setGestureSnapshot(stored);document_.beginGesture();}}
                   onGestureEnd={cancel=>{document_.endGesture(cancel);setGestureSnapshot(null);if(cancel)setDirty(gestureDirtyBefore.current);}}/>;
               })()
             : <PropertiesPanel
@@ -1729,7 +1734,7 @@ export default function App() {
               }, `move:${id}`)}
               onGestureStart={() => {
                 gestureDirtyBefore.current = dirty;
-                setGestureSnapshot(show);
+                setGestureSnapshot(stored);
                 document_.beginGesture();
               }}
               onGestureEnd={(cancel) => {

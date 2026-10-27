@@ -1,0 +1,19 @@
+.map-save-guard {
+  flex: 0 0 auto;
+  margin-top: max(56px, var(--aui-studio-header-height, 56px));
+  padding: 8px 12px;
+  background: var(--aether-color-bg-panel);
+  color: var(--aether-color-text);
+  border-bottom: 1px solid var(--aether-color-border);
+  max-height: 28vh;
+  overflow: auto;
+}
+.map-save-guard p { margin: 0; font-size: var(--aether-font-size-body); }
+.map-save-guard-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.map-save-guard-actions > span { font-size: 12px; }
