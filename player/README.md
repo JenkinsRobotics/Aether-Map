@@ -231,6 +231,66 @@ not silently adopted; re-enroll the updated player with a fresh device ID. Do no
 reset already-paired devices for this upgrade. This source change does not update
 or re-image any installed Pi.
 
+## Remote management
+
+A projector is often bolted where nobody can reach it, so nothing routine
+needs hands on the device.
+
+**Player updates.** Every 10 minutes (and on an *Update* command) the player
+downloads `/api/map/{aether_player,aether_setup,aether_receiver}.py` — the
+same public files `install.sh` uses, over the same TLS trust — and installs
+them if they differ and every file compiles. The previous files are kept in
+`/opt/aether-player/.previous`. `guard.sh` runs before every start (systemd
+`ExecStartPre`, never updated remotely): if the new player fails to start
+three times it restores the previous one and remembers the failed version in
+`.rejected` so it is not retried. A player that has run for a minute and
+reached the host is confirmed. A player that could not update itself is
+refused, so an older host cannot strand a device. *Update automatically* off
+stops the 10-minute check; an explicit Update still works. The show, media
+and Map renderer already update on every poll.
+
+**Check-in and commands.** Each 15-second poll, a paired player posts
+
+```json
+POST /api/map/device/status   (device bearer)
+{"status": {"player_version": "abc123def456", "app_release": "release-…",
+            "show": {"id": "…", "revision": 4}, "uptime_s": 7200,
+            "system_uptime_s": 90000, "disk_free_mb": 12000, "temperature_c": 52.4,
+            "model": "Raspberry Pi 5 Model B", "os": "Debian GNU/Linux 12 (bookworm)",
+            "hostname": "porch-pi", "address": "10.0.0.5", "permissions": {…},
+            "last_error": "…", "update_pending": false},
+ "results": [{"id": "c1", "ok": true, "detail": "identifying for 20 s"}]}
+→ {"commands": [{"id": "c2", "type": "reboot", "args": {}}]}
+```
+
+The host returns commands not yet reported in `results`. Each id runs once:
+it is saved as done before it runs, results are posted straight away, and
+`restart`/`reboot` happen only after that report. A repeated id is
+acknowledged as "already done". A host without this route is simply not
+called again until the next poll; nothing else changes.
+
+| Command | Args | Effect |
+|---|---|---|
+| `sync` | — | Redeploy the assigned show now, re-fetching the renderer |
+| `update` | — | Install the host's player now and restart |
+| `restart` | — | Restart the player service |
+| `reboot` | — | Reboot the Pi (polkit rule from `install.sh`) |
+| `reload` | — | Reload the projector page |
+| `identify` | `seconds` 1–120 | Fill the projector with its name |
+| `logs` | `lines` 1–200 | Return recent player log lines (≤ 8 KB) |
+| `set_server` | `url` | Switch host, only if `url/api/map/ping` answers |
+| `set_permissions` | `keep_display_awake`, `play_audio`, `allow_updates` | Save; display awake applies after reboot |
+| `add_wifi` | `ssid`, `password` | Save a Wi-Fi profile without leaving the current network |
+
+The Map Players panel expects the owner routes `POST /api/map/devices/command
+{device_id, type, args} → {id}` and, on each listed device, `status` (latest
+check-in or null) and `commands` (newest first: `id, type, state
+pending|done, ok, detail, created`). It shows the controls only when
+`status` is present.
+
+**Finding players.** Each player advertises `_aether-player._tcp` on port
+8777 with its `device_id` (`avahi-browse -rt _aether-player._tcp`).
+
 ## The sync loop
 
 Every 15 seconds the daemon announces itself and asks what it should be

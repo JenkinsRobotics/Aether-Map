@@ -1,1 +1,4 @@
 .map-device-dialog .aui-dialog { width: min(640px, 92vw); }
+
+/* Remote logs can run long; keep them inside the dialog. */
+.map-device-logs { max-height: 50vh; overflow: auto; white-space: pre-wrap; }

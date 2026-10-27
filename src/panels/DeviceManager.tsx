@@ -9,6 +9,7 @@ import { mirrorDevice, type CastStatus, type CastDiagnostics } from '../live-cas
 import { canDeployToDevice } from '../device-capabilities';
 import { PairDeviceForm } from './PairDeviceForm';
 import { deploymentReadiness } from '../deployment-readiness';
+import { DeviceRemote } from './DeviceRemote';
 
 /**
  * The workspace's paired players: pairing, naming, forgetting, and deploying a
@@ -126,6 +127,8 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
                   </Button>}
                   {device.document && <Button onClick={() => void act(() => devices.assign(device.id, null))}>Stop</Button>}
                 </div>
+                {device.status && <DeviceRemote device={{ ...device, status: device.status }}
+                  send={(type, args = {}) => act(() => devices.command(device.id, type, args))} />}
                 {cast?.id === device.id && <p role="status" className="map-hint">{cast.status} · {standalone ? "Ending mirroring returns this player to its assigned show." : "Keep the receiver app open on the TV."}</p>}
                 {cast?.id === device.id && diagnostics && <CastConnectionDetails value={diagnostics} />}
                 {!online(device) && device.document && <p className="map-hint">Offline: Stop takes effect on the next successful connection. The player may still be running its cached show.</p>}

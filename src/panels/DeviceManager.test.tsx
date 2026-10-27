@@ -9,7 +9,7 @@ const store = vi.hoisted(() => ({
   nowS: 0, error: '', setError: vi.fn(), refresh: vi.fn(), online: () => true,
 }));
 vi.mock('../use-map-devices', () => ({ useMapDevices: () => store, ago: () => '' }));
-vi.mock('../api', () => ({ hosted: true, androidReceiverAvailable: vi.fn(), androidReceiverDownloadURL: () => '/api/map/aether-map-receiver.apk', installerDownloadURL: () => '/installer', devices: { claim: vi.fn(), assign: vi.fn(), forget: vi.fn(), rename: vi.fn() } }));
+vi.mock('../api', () => ({ hosted: true, androidReceiverAvailable: vi.fn(), androidReceiverDownloadURL: () => '/api/map/aether-map-receiver.apk', installerDownloadURL: () => '/installer', devices: { claim: vi.fn(), assign: vi.fn(), forget: vi.fn(), rename: vi.fn(), command: vi.fn() } }));
 vi.mock('../live-cast', () => ({ mirrorDevice: vi.fn() }));
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(androidReceiverAvailable).mockResolvedValue(false); store.list = [{ id: 'pi', name: 'Porch', mine: true, claimed: true, document: null, seen: 0 }]; store.refresh.mockResolvedValue(undefined); });
 afterEach(cleanup);
@@ -83,4 +83,60 @@ it('a server with its own HTTPS authority pins it before installing', async () =
   expect(pinned).toContain('curl -sk https://aetherstudio.local:8443/api/network/ca.pem -o aether-ca.pem');
   expect(pinned).toContain(`echo "${'ab'.repeat(32)}  aether-ca.pem" | sha256sum -c`);
   expect(pinned).toContain('curl --cacert aether-ca.pem -sSL https://aetherstudio.local:8443/api/map/install.sh | bash');
+});
+
+const status = { player_version: 'abc123def456', app_release: 'release-1', show: { id: 'saved', revision: 4 }, uptime_s: 7200,
+  system_uptime_s: 90000, disk_free_mb: 12000, temperature_c: 52.4, model: 'Raspberry Pi 5 Model B', os: 'Debian GNU/Linux 12',
+  hostname: 'porch-pi', address: '10.0.0.5', permissions: { keep_display_awake: true, play_audio: true, allow_updates: true },
+  last_error: '2026-10-27 12:00:00 /api/map/media/a.png failed (timed out)', update_pending: false };
+const withStatus = (extra: Partial<MapDevice> = {}) => { store.list = [{ ...store.list[0], status, ...extra }]; vi.mocked(devices.command).mockResolvedValue({ id: 'c1' }); };
+
+it('keeps remote controls off a host that does not report device status', () => {
+  mount();
+  expect(screen.queryByRole('button', { name: 'Restart player' })).toBeNull();
+});
+it('shows what a remote player reports and sends it commands', async () => {
+  withStatus(); mount();
+  const details = screen.getByLabelText('Porch details').textContent!;
+  for (const text of ['Player abc123', '10.0.0.5', '52 °C', 'up 2 h', 'Raspberry Pi 5 Model B']) expect(details).toContain(text);
+  expect(screen.getByText(/a\.png failed/)).toBeTruthy();
+  for (const [name, type] of [['Identify', 'identify'], ['Sync now', 'sync'], ['Update player', 'update'], ['Restart player', 'restart']] as const) {
+    fireEvent.click(screen.getByRole('button', { name }));
+    await waitFor(() => expect(devices.command).toHaveBeenLastCalledWith('pi', type, type === 'identify' ? { seconds: 20 } : {}));
+  }
+  expect(store.refresh).toHaveBeenCalled();
+});
+it('asks before rebooting a remote player', async () => {
+  withStatus(); mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Reboot' }));
+  expect(devices.command).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Reboot Porch' }));
+  await waitFor(() => expect(devices.command).toHaveBeenCalledWith('pi', 'reboot', {}));
+});
+it('shows the result of the latest command, including logs', async () => {
+  withStatus({ commands: [{ id: 'c2', type: 'logs', state: 'done', ok: true, detail: 'line one\nline two', created: 1 }] });
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Logs' }));
+  await waitFor(() => expect(devices.command).toHaveBeenCalledWith('pi', 'logs', { lines: 100 }));
+  expect(screen.getByRole('dialog', { name: 'Porch logs' }).textContent).toContain('line two');
+  cleanup();
+  withStatus({ commands: [{ id: 'c3', type: 'set_server', state: 'done', ok: false, detail: 'could not reach https://x', created: 2 }] });
+  mount();
+  expect(screen.getByRole('status', { name: 'Porch last command' }).textContent).toContain('could not reach');
+});
+it('changes Wi-Fi, host and permissions from the network', async () => {
+  withStatus(); mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Device settings' }));
+  const dialog = screen.getByRole('dialog', { name: 'Porch settings' });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Wi-Fi network' }), { target: { value: 'Venue' } });
+  fireEvent.change(screen.getByLabelText('Wi-Fi password'), { target: { value: 'correct horse' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save network' }));
+  await waitFor(() => expect(devices.command).toHaveBeenCalledWith('pi', 'add_wifi', { ssid: 'Venue', password: 'correct horse' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Host address' }), { target: { value: 'studio.example:8780' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Use this host' }));
+  await waitFor(() => expect(devices.command).toHaveBeenCalledWith('pi', 'set_server', { url: 'studio.example:8780' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Play audio' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }));
+  await waitFor(() => expect(devices.command).toHaveBeenCalledWith('pi', 'set_permissions', { keep_display_awake: true, play_audio: false, allow_updates: true }));
+  expect(dialog).toBeTruthy();
 });

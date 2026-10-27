@@ -112,7 +112,32 @@ export interface MapDevice {
   /** Unix seconds of the device's last check-in. */
   seen: number;
   document: string | null;
+  /** The player's latest check-in. Omitted by hosts without remote management. */
+  status?: DeviceStatus | null;
+  /** Remote commands, newest first. */
+  commands?: DeviceCommand[];
 }
+
+/** What a player reports each check-in (player/aether_player.py device_status). */
+export interface DeviceStatus {
+  player_version: string;
+  app_release: string;
+  show: { id: string | null; revision: number | null };
+  uptime_s: number;
+  system_uptime_s: number | null;
+  disk_free_mb: number | null;
+  temperature_c: number | null;
+  model: string;
+  os: string;
+  hostname: string;
+  address: string;
+  permissions: Partial<Record<'keep_display_awake' | 'play_audio' | 'allow_updates', boolean>>;
+  last_error: string;
+  update_pending: boolean;
+}
+
+export type DeviceCommandType = 'sync' | 'update' | 'restart' | 'reboot' | 'reload' | 'identify' | 'logs' | 'set_server' | 'set_permissions' | 'add_wifi';
+export interface DeviceCommand { id: string; type: DeviceCommandType; state: 'pending' | 'done'; ok?: boolean; detail?: string; created: number }
 
 interface CastReply { session_id: string; answer: RTCSessionDescriptionInit | null; state: string }
 export const devices = {
@@ -128,6 +153,9 @@ export const devices = {
     post<{ device_id: string }>("/api/map/devices/assign", { device_id, document }),
   forget: (device_id: string) =>
     post<{ device_id: string }>("/api/map/devices/forget", { device_id }),
+  /** Queued by the host and run by the player at its next check-in. */
+  command: (device_id: string, type: DeviceCommandType, args: Record<string, unknown> = {}) =>
+    post<{ id: string }>("/api/map/devices/command", { device_id, type, args }),
 };
 
 /** The one-liner a networked device runs, pointed at whatever host serves this page. */
