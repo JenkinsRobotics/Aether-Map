@@ -355,7 +355,7 @@ function render(){
 <label for=psk>Password</label><input id=psk type=password autocomplete=off>
 <button id=go>Join network</button>`;
   if(state.step==="server")f.innerHTML=`<label for=url>Host address</label>
-<input id=url type=text inputmode=url placeholder="aetherstudio.local:8780" value="${esc(state.server_url)}">
+<input id=url type=text inputmode=url placeholder="aetherstudio.local:8780" value="${esc(state.server_url||"aetherstudio.local:8780")}">
 <button id=go>Continue</button>`;
   if(state.step==="name")f.innerHTML=`<label for=nm>Projector name</label>
 <input id=nm type=text placeholder="Front of house" value="${esc(state.name)}">

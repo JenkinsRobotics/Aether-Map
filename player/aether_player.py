@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import argparse
 import base64
+import collections
+import hashlib
 import io
 import ipaddress
 import json
@@ -19,9 +21,11 @@ import os
 import secrets
 import shutil
 import socket
+import subprocess
 import sys
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -33,6 +37,19 @@ from urllib.parse import urlsplit
 POLL_INTERVAL_SECONDS = 15
 TIMEOUT_SECONDS = 30
 CONFIG_LOCK = threading.RLock()
+
+# Remote management. A projector is often bolted somewhere nobody can reach, so
+# everything a person would otherwise do at the device — update the player,
+# restart, reboot, resync, change Wi-Fi or the host — arrives over the network.
+PLAYER_FILES = ("aether_player.py", "aether_setup.py", "aether_receiver.py")
+INSTALL_DIR = Path(__file__).resolve().parent
+UPDATE_INTERVAL_SECONDS = 600
+# A new player is trusted once it has run this long and reached the host;
+# until then install.sh's guard rolls it back if it keeps failing to start.
+CONFIRM_AFTER_SECONDS = 60
+STARTED = time.monotonic()
+RECENT_LOG: collections.deque = collections.deque(maxlen=200)
+WAKE = threading.Event()
 
 
 # Which show-file versions this player will deploy. The renderer that actually
@@ -59,6 +76,7 @@ def log(message: str) -> None:
     clean — and something is gained: a caller that reads this process's
     stdout for a value is not handed a log line instead.
     """
+    RECENT_LOG.append(time.strftime("%Y-%m-%d %H:%M:%S ") + message)
     print(f"[aether-player] {message}", file=sys.stderr, flush=True)
 
 
@@ -92,7 +110,8 @@ def save_config(config: dict) -> None:
         Path(staging.name).replace(path)
 
 
-def request(config: dict, path: str, *, data: bytes | None = None, timeout: int = TIMEOUT_SECONDS) -> bytes | None:
+def request(config: dict, path: str, *, data: bytes | None = None, timeout: int = TIMEOUT_SECONDS,
+            auth: bool = True, quiet: bool = False) -> bytes | None:
     # Until setup names a host there is nothing to call. A device out of the
     # box now boots into the wizard, so this is the normal early state, not a
     # broken install.
@@ -101,7 +120,7 @@ def request(config: dict, path: str, *, data: bytes | None = None, timeout: int 
     headers = {}
     if data is not None:
         headers["Content-Type"] = "application/json"
-    if config.get("token"):
+    if auth and config.get("token"):
         headers["Authorization"] = "Bearer " + config["token"]
     call = urllib.request.Request(
         config["server_url"] + path,
@@ -118,10 +137,12 @@ def request(config: dict, path: str, *, data: bytes | None = None, timeout: int 
         if path == "/api/map/device/show" and error.code in (401, 403, 404):
             log("show access revoked — stopping cached playback")
             return b'{"show":null}'
-        log(f"{path} failed ({error})")
+        if not quiet:
+            log(f"{path} failed ({error})")
         return None
     except (urllib.error.URLError, OSError) as error:
-        log(f"{path} failed ({error})")
+        if not quiet:
+            log(f"{path} failed ({error})")
         return None
 
 
@@ -144,6 +165,7 @@ def announce(config: dict) -> None:
     except ValueError:
         return
     config["_pairing"] = {"claimed": bool(reply.get("claimed")), "code": reply.get("code", "")}
+    config["_contact"] = time.monotonic()
     if reply.get("claimed"):
         if reply.get("token") and reply["token"] != config.get("token"):
             config["token"] = reply["token"]
@@ -321,11 +343,294 @@ def fetch_media(config: dict, show_dir: Path, name: str) -> bool:
 
 
 def sync_forever(config: dict, stop: threading.Event, network=None) -> None:
+    next_update = time.monotonic() + CONFIRM_AFTER_SECONDS
     while not stop.is_set():
         offer_setup_network(config, network)
         announce(config)
         pull_show(config)
-        stop.wait(POLL_INTERVAL_SECONDS)
+        check_in(config)
+        confirm_update(config)
+        if time.monotonic() >= next_update:
+            next_update = time.monotonic() + UPDATE_INTERVAL_SECONDS
+            if update_player(config):
+                restart_player()
+        WAKE.wait(POLL_INTERVAL_SECONDS)
+        WAKE.clear()
+
+
+# --- Player self-update ------------------------------------------------------
+
+def _read(path: Path) -> bytes:
+    try:
+        return path.read_bytes()
+    except OSError:
+        return b""
+
+
+def player_version(directory: Path | None = None) -> str:
+    """A short fingerprint of the installed player, the same on every device."""
+    digest = hashlib.sha256()
+    for name in PLAYER_FILES:
+        digest.update(name.encode() + b"\0" + _read(Path(directory or INSTALL_DIR) / name) + b"\0")
+    return digest.hexdigest()[:12]
+
+
+def update_player(config: dict, directory: Path | None = None, force: bool = False) -> bool:
+    """Install the player the host serves, if it differs. True means restart now.
+
+    The host's copies are the same public downloads install.sh fetches, over the
+    same TLS trust. Every file must compile before any is replaced; the old ones
+    are kept for install.sh's guard, which restores them if the new player keeps
+    failing to start and remembers that version so it is not tried again.
+    """
+    directory = Path(directory or INSTALL_DIR)
+    if not force and config.get("permissions", {}).get("allow_updates", True) is False:
+        return False
+    fresh = {}
+    for name in PLAYER_FILES:
+        raw = request(config, "/api/map/" + name, auth=False, quiet=True)
+        if not raw or len(raw) > 1024 * 1024:
+            return False
+        try:
+            compile(raw, name, "exec")
+        except (SyntaxError, ValueError):
+            log(f"refused player update: {name} is not valid Python")
+            return False
+        fresh[name] = raw
+    if b"def main(" not in fresh["aether_player.py"]:
+        log("refused player update: aether_player.py has no entry point")
+        return False
+    if b"def update_player(" not in fresh["aether_player.py"]:
+        # An older host's player cannot update itself, so installing it would
+        # leave this device unreachable for updates for good.
+        log("refused player update: it cannot update itself remotely")
+        return False
+    current = {name: _read(directory / name) for name in PLAYER_FILES}
+    if fresh == current or fresh == {name: _read(directory / ".rejected" / name) for name in PLAYER_FILES}:
+        return False
+    old = player_version(directory)
+    try:
+        previous = directory / ".previous"
+        previous.mkdir(exist_ok=True)
+        for name, raw in current.items():
+            if raw:
+                (previous / name).write_bytes(raw)
+        for name, raw in fresh.items():
+            (directory / (name + ".part")).write_bytes(raw)
+        (directory / ".update-pending").write_text("0")
+        for name in fresh:
+            (directory / (name + ".part")).replace(directory / name)
+    except OSError as error:
+        log(f"player update failed ({error})")
+        return False
+    log(f"player updated {old} → {player_version(directory)}; restarting")
+    return True
+
+
+def confirm_update(config: dict, directory: Path | None = None) -> None:
+    marker = Path(directory or INSTALL_DIR) / ".update-pending"
+    if (marker.exists() and time.monotonic() - STARTED >= CONFIRM_AFTER_SECONDS
+            and config.get("_contact", 0) > STARTED):
+        marker.unlink(missing_ok=True)
+        log(f"player {player_version(directory)} confirmed")
+
+
+def restart_player() -> None:
+    """systemd restarts the service whenever it exits."""
+    log("restarting player")
+    os._exit(0)
+
+
+def reboot_device() -> None:
+    log("rebooting")
+    try:
+        subprocess.run(["systemctl", "reboot"], check=True, timeout=30, capture_output=True)
+    except (OSError, subprocess.SubprocessError) as error:
+        log(f"reboot failed ({error})")
+
+
+# --- Check-in and commands ---------------------------------------------------
+
+def _text(path: str) -> str:
+    try:
+        return Path(path).read_text().strip("\0\n ")
+    except OSError:
+        return ""
+
+
+def local_address(config: dict) -> str:
+    """The address this device uses to reach the host (no packet is sent)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect((urlsplit(config.get("server_url", "")).hostname or "192.0.2.1", 9))
+            return probe.getsockname()[0]
+    except (OSError, ValueError):
+        return ""
+
+
+def device_status(config: dict) -> dict:
+    root = Path(config["show_dir"])
+    release = deployed_directory(root)
+    try:
+        free = shutil.disk_usage(root if root.exists() else "/").free // (1024 * 1024)
+    except OSError:
+        free = None
+    try:
+        temperature = round(int(_text("/sys/class/thermal/thermal_zone0/temp")) / 1000, 1)
+    except ValueError:
+        temperature = None
+    try:
+        system_uptime = int(float(_text("/proc/uptime").split()[0]))
+    except (ValueError, IndexError):
+        system_uptime = None
+    os_name = next((line.split("=", 1)[1].strip('"') for line in _text("/etc/os-release").splitlines()
+                    if line.startswith("PRETTY_NAME=")), "")
+    problems = ("failed", "refused", "invalid")
+    return {
+        "player_version": player_version(),
+        "app_release": release.name if release != root else "",
+        "show": {"id": config.get("document"), "revision": config.get("revision")},
+        "uptime_s": int(time.monotonic() - STARTED),
+        "system_uptime_s": system_uptime,
+        "disk_free_mb": free,
+        "temperature_c": temperature,
+        "model": _text("/proc/device-tree/model"),
+        "os": os_name,
+        "hostname": socket.gethostname(),
+        "address": local_address(config),
+        "permissions": config.get("permissions") or {},
+        "last_error": next((line for line in reversed(RECENT_LOG) if any(word in line for word in problems)), ""),
+        "update_pending": (INSTALL_DIR / ".update-pending").exists(),
+    }
+
+
+def player_flags(config: dict) -> dict:
+    """What remote commands ask of the screen, read by the start page."""
+    return {"identify": time.time() < config.get("_identify_until", 0),
+            "reload": config.get("_reload", 0), "name": config.get("name", "")}
+
+
+def reachable(url: str) -> bool:
+    try:
+        with urllib.request.urlopen(url + "/api/map/ping", timeout=10) as reply:
+            return reply.status == 200
+    except (urllib.error.URLError, OSError, ValueError):
+        return False
+
+
+def run_command(config: dict, kind: str, args: dict) -> tuple[bool, str, object]:
+    """Carry out one command. Returns (ok, detail, what to do after reporting)."""
+    if kind == "sync":
+        config.pop("revision", None)
+        WAKE.set()
+        return True, "syncing now", None
+    if kind == "update":
+        if update_player(config, force=True):
+            return True, f"updated to {player_version()}; restarting", restart_player
+        return True, f"already running the host's player ({player_version()})", None
+    if kind == "restart":
+        return True, "restarting player", restart_player
+    if kind == "reboot":
+        return True, "rebooting", reboot_device
+    if kind == "reload":
+        config["_reload"] = config.get("_reload", 0) + 1
+        return True, "reloading the display", None
+    if kind == "identify":
+        seconds = max(1, min(120, int(args.get("seconds", 20)) if str(args.get("seconds", 20)).isdigit() else 20))
+        config["_identify_until"] = time.time() + seconds
+        return True, f"identifying for {seconds} s", None
+    if kind == "logs":
+        lines = max(1, min(200, int(args.get("lines", 100)) if str(args.get("lines", 100)).isdigit() else 100))
+        return True, "\n".join(list(RECENT_LOG)[-lines:])[-8000:], None
+    if kind == "set_server":
+        url = aether_setup.valid_server_url(str(args.get("url", ""))) if aether_setup else None
+        if not url:
+            return False, "not a valid host address", None
+        if not reachable(url):
+            return False, f"could not reach {url}; keeping {config.get('server_url')}", None
+        config["server_url"] = url
+        save_config(config)
+        return True, f"now using {url}", None
+    if kind == "set_permissions":
+        known = aether_setup.PERMISSIONS if aether_setup else {}
+        merged = {**known, **(config.get("permissions") or {})}
+        merged.update({key: value for key, value in args.items() if key in known and isinstance(value, bool)})
+        config["permissions"] = merged
+        config["_reload"] = config.get("_reload", 0) + 1
+        save_config(config)
+        return True, "permissions saved; display awake applies after the next reboot", None
+    if kind == "add_wifi":
+        ssid, password = str(args.get("ssid", "")), str(args.get("password", ""))
+        if not 0 < len(ssid.encode()) <= 32 or (password and not 8 <= len(password) <= 63):
+            return False, "a network name and an 8 to 63 character password are required", None
+        # Saved, not joined: switching networks remotely would cut this device off
+        # if the details were wrong. It connects whenever this network is in range
+        # and the current one is not.
+        command = ["nmcli", "connection", "add", "type", "wifi", "con-name", "aether-" + ssid[:24],
+                   "ssid", ssid, "connection.autoconnect", "yes"]
+        if password:
+            command += ["wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.psk", password]
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+        except (OSError, subprocess.SubprocessError) as error:
+            return False, f"could not save the network ({error})", None
+        if result.returncode != 0:
+            return False, (result.stderr or result.stdout or "nmcli failed").strip()[:500], None
+        return True, f"saved {ssid}; used when it is in range", None
+    return False, f"unknown command {kind}", None
+
+
+def check_in(config: dict) -> None:
+    """Report status, collect commands, and report their results.
+
+    Hosts without remote management answer nothing here, which is harmless.
+    A command's id is saved as done before it runs, so a reboot whose report
+    was lost is acknowledged again rather than repeated.
+    """
+    if not config.get("token"):
+        return
+    raw = _post_status(config)
+    if raw is None:
+        return
+    try:
+        commands = json.loads(raw).get("commands") or []
+    except (ValueError, AttributeError):
+        return
+    after = []
+    done = config.setdefault("done_commands", [])
+    for command in commands if isinstance(commands, list) else []:
+        if not isinstance(command, dict) or not isinstance(command.get("id"), str):
+            continue
+        ident = command["id"]
+        if ident in done:
+            if not any(result["id"] == ident for result in config.setdefault("_results", [])):
+                config["_results"].append({"id": ident, "ok": True, "detail": "already done"})
+            continue
+        done.append(ident)
+        del done[:-50]
+        save_config(config)
+        args = command.get("args") if isinstance(command.get("args"), dict) else {}
+        try:
+            ok, detail, then = run_command(config, str(command.get("type", "")), args)
+        except Exception as error:  # A bad command must never stop playback.
+            ok, detail, then = False, f"failed ({error})", None
+        log(f"command {command.get('type')}: {detail.splitlines()[0] if detail else ''}")
+        config.setdefault("_results", []).append({"id": ident, "ok": ok, "detail": detail})
+        if then:
+            after.append(then)
+    if after or config.get("_results"):
+        _post_status(config)
+    for then in after:
+        then()
+
+
+def _post_status(config: dict) -> bytes | None:
+    results = list(config.get("_results", []))
+    body = json.dumps({"status": device_status(config), "results": results}).encode()
+    raw = request(config, "/api/map/device/status", data=body, timeout=10, quiet=True)
+    if raw is not None:
+        config["_results"] = [result for result in config.get("_results", []) if result not in results]
+    return raw
 
 
 def offer_setup_network(config: dict, network=None) -> bool:
@@ -402,8 +707,17 @@ const SAY={wifi:['Set up this projector','Join the Wi-Fi network below, then ope
 server:['Continue setup on your phone','Open the address below to point this projector at your host.'],
 name:['Continue setup on your phone','Open the address below to name this projector.'],
 permissions:['Continue setup on your phone','Open the address below to finish setup.']};
+let reloadMark;
 async function poll(){try{const r=await fetch('/player-status',{cache:'no-store'});
-const s=await r.json();window.dispatchEvent(new CustomEvent('player-permissions',{detail:(s.setup||{}).permissions||{}}));const step=(s.setup||{}).step||'done';
+const s=await r.json();
+// Remote commands from Aether Map: reload the display, or flash this
+// projector's name so the right one is obvious from across the venue.
+if(reloadMark===undefined)reloadMark=s.reload;else if(s.reload!==reloadMark){location.reload();return;}
+let mark=document.getElementById('identify');
+if(s.identify){if(!mark){mark=document.createElement('div');mark.id='identify';
+  mark.style.cssText='position:fixed;inset:0;z-index:10;display:grid;place-content:center;text-align:center;background:#1f6feb;color:#fff;font:bold 14vh system-ui;border:3vh solid #fff;box-sizing:border-box';
+  document.body.append(mark);}mark.textContent=s.name||'Aether Map';}
+else if(mark)mark.remove();window.dispatchEvent(new CustomEvent('player-permissions',{detail:(s.setup||{}).permissions||{}}));const step=(s.setup||{}).step||'done';
 const code=document.getElementById('code');
 const status=document.getElementById('status');
 const detail=document.getElementById('detail');
@@ -602,6 +916,7 @@ class ShowHandler(SimpleHTTPRequestHandler):
                 # A device still in setup must not drop into the renderer
                 # behind the operator's back, even if a show is already there.
                 "setup": self._progress() if aether_setup else {"step": "done"},
+                **player_flags(self.config),
             }).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

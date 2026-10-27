@@ -105,6 +105,31 @@ install_module() {
 install_module aether_player.py "${AETHER_PLAYER_B64:-}"
 install_module aether_setup.py "${AETHER_SETUP_B64:-}"
 install_module aether_receiver.py "${AETHER_RECEIVER_B64:-}"
+# A reinstall is a known-good player; forget any update in flight.
+rm -rf "${INSTALL_DIR}/.update-pending" "${INSTALL_DIR}/.rejected"
+
+# The player updates itself from the host. This runs before every start and
+# is never updated remotely, so a new player that keeps failing to start is
+# rolled back even if it cannot run at all.
+cat > "${INSTALL_DIR}/guard.sh" <<'GUARD'
+#!/usr/bin/env bash
+cd "$(dirname "$0")" || exit 0
+[[ -f .update-pending ]] || exit 0
+starts="$(cat .update-pending 2>/dev/null)"
+[[ "${starts}" =~ ^[0-9]+$ ]] || starts=0
+starts=$((starts + 1))
+if (( starts > 3 )) && [[ -d .previous ]]; then
+  mkdir -p .rejected
+  cp -f aether_player.py aether_setup.py aether_receiver.py .rejected/ 2>/dev/null
+  cp -f .previous/*.py .
+  rm -f .update-pending
+  echo "[aether-player] the updated player failed to start; restored the previous one" >&2
+else
+  echo "${starts}" > .update-pending
+fi
+exit 0
+GUARD
+chmod +x "${INSTALL_DIR}/guard.sh"
 
 # A stable identity that survives reinstalls, so re-running does not orphan the
 # device in the host's list.
@@ -161,10 +186,13 @@ sudo tee /etc/systemd/system/aether-player.service >/dev/null <<UNIT
 Description=Aether Map player — show sync and local media server
 After=NetworkManager.service
 Wants=NetworkManager.service
+# Out of reach means never give up restarting.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 User=${TARGET_USER}
+ExecStartPre=${INSTALL_DIR}/guard.sh
 ExecStart=/usr/bin/python3 ${INSTALL_DIR}/aether_player.py --config ${CONFIG_DIR}/config.json
 Restart=always
 RestartSec=3
@@ -244,7 +272,8 @@ polkit.addRule(function(action, subject) {
     "org.freedesktop.NetworkManager.wifi.scan",
     "org.freedesktop.NetworkManager.settings.modify.system",
     "org.freedesktop.NetworkManager.wifi.share.protected",
-    "org.freedesktop.NetworkManager.enable-disable-wifi"];
+    "org.freedesktop.NetworkManager.enable-disable-wifi",
+    "org.freedesktop.login1.reboot", "org.freedesktop.login1.reboot-multiple-sessions"];
   if (subject.user == "${TARGET_USER}" && allowed.indexOf(action.id) >= 0)
     return polkit.Result.YES;
 });
@@ -272,6 +301,22 @@ Name=Aether Map Player
 Exec=${INSTALL_DIR}/start-kiosk.sh
 X-GNOME-Autostart-enabled=true
 DESKTOP
+# Findable on the network: browse _aether-player._tcp (for example
+# `avahi-browse -rt _aether-player._tcp`) to list players and their addresses.
+sudo mkdir -p /etc/avahi/services
+sudo tee /etc/avahi/services/aether-player.service >/dev/null <<AVAHI
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">Aether Map Player on %h</name>
+  <service>
+    <type>_aether-player._tcp</type>
+    <port>${LOCAL_PORT}</port>
+    <txt-record>device_id=${DEVICE_ID}</txt-record>
+  </service>
+</service-group>
+AVAHI
+
 say "Enabling desktop autologin for unattended playback"
 sudo raspi-config nonint do_boot_behaviour B4
 sudo systemctl enable --now NetworkManager avahi-daemon

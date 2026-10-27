@@ -235,3 +235,8 @@ def test_finishing_setup_is_not_the_same_as_being_claimed(config):
 def test_an_unknown_step_is_refused(config):
     ok, error = setup.apply_step("reboot", {}, config, FakeNetwork())
     assert ok is False and "reboot" in error
+
+
+def test_the_host_field_starts_with_aether_studios_address():
+    # Studio's own network name, so setup is usually just "Next".
+    assert 'value="${esc(state.server_url||"aetherstudio.local:8780")}"' in setup.load_page()
