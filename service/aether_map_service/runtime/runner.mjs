@@ -19021,38 +19021,35 @@ function renderTimeline(input, scene, timeS, timelineID, placeholders = false, o
 			if (occupied.has(visual.legacyTrack)) return [];
 			occupied.add(visual.legacyTrack);
 		}
-		const targets = board ? [{
+		const whole = (width, height, id) => ({
 			...newSurface({
-				width: board.widthPx,
-				height: board.heightPx
+				width,
+				height
 			}, 0),
-			id: "board",
+			id,
 			corners: quadCorners([
 				0,
 				0,
-				board.widthPx,
-				board.heightPx
+				width,
+				height
 			]),
+			source: {
+				mediaId: null,
+				rect: [
+					0,
+					0,
+					width,
+					height
+				]
+			},
 			mediaTimeS: timeS
-		}] : visual.targets.filter((t) => t.sceneID === scene.id).flatMap((t) => {
+		});
+		const targets = board ? [whole(board.widthPx, board.heightPx, "board")] : visual.targets.filter((t) => t.sceneID === scene.id).flatMap((t) => {
 			if (t.surfaceID) {
 				const surface = geometry.surfaces.find((s) => s.id === t.surfaceID);
 				return surface ? [evaluateSurface(surface, calibration ? 0 : timeS, show.media, context)] : [];
 			}
-			return [{
-				...newSurface({
-					width: w,
-					height: h
-				}, 0),
-				id: scene.id,
-				corners: [
-					[0, 0],
-					[w, 0],
-					[w, h],
-					[0, h]
-				],
-				mediaTimeS: timeS
-			}];
+			return [whole(w, h, scene.id)];
 		});
 		if (!targets.length) return [];
 		const points = targets.flatMap((t) => t.corners);
