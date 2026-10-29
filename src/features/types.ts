@@ -1,5 +1,5 @@
 /** Product-owned generated sources and animation. No browser handles enter a show. */
-export type FeatureKind = "surface" | "mask" | "text" | "shader" | "webcam" | "tracker";
+export type FeatureKind = "surface" | "mask" | "text" | "shader" | "webcam" | "tracker" | "cast";
 /**
  * How a shader reads the show clock. An effect is a pure function of show time,
  * so shaping the time it sees is the whole of its motion control: two surfaces

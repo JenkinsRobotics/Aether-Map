@@ -1,5 +1,6 @@
 import { devices } from './api';
 import { castStatistics, type CastCounters, type CastDiagnostics } from './live-cast-stats';
+import { setCastStream } from './live/casts';
 
 export type CastStatus = 'Choosing output' | 'Connecting' | 'Mirroring' | 'Reconnecting';
 export type { CastDiagnostics } from './live-cast-stats';
@@ -41,9 +42,11 @@ function chooseCapture(signal: AbortSignal): Promise<MediaStream | null> {
   });
 }
 
-/** Capture is requested only from an operator's click, never by a render or poll. */
+/** Capture is requested only from an operator's click, never by a render or poll.
+ * `intoShow` casts into the player's Cast surfaces instead of replacing its show;
+ * the offer's data channel is the mark, so older players simply mirror it. */
 export async function mirrorDevice(deviceID: string, signal: AbortSignal,
-  status: (value: CastStatus) => void, diagnostics?: (value: CastDiagnostics) => void): Promise<void> {
+  status: (value: CastStatus) => void, diagnostics?: (value: CastDiagnostics) => void, intoShow = false): Promise<void> {
   if (signal.aborted) return;
   if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('Live mirroring needs a supported browser on HTTPS or localhost.');
   status('Choosing output');
@@ -57,6 +60,7 @@ export async function mirrorDevice(deviceID: string, signal: AbortSignal,
     life.abort();
     capture.getTracks().forEach(track => track.stop());
     peer?.close();
+    if (intoShow) setCastStream(null);
   };
   signal.addEventListener('abort', stop, { once: true });
   const video = capture.getVideoTracks();
@@ -69,6 +73,7 @@ export async function mirrorDevice(deviceID: string, signal: AbortSignal,
     const audio = capture.getAudioTracks().some(track => track.readyState !== 'ended');
     diagnostics?.({ audio });
     capture.getTracks().forEach(track => peer!.addTrack(track, capture));
+    if (intoShow) { peer.createDataChannel('aether-cast'); setCastStream(capture); }
     await peer.setLocalDescription(await peer.createOffer());
     await gatherCandidates(peer, life.signal);
     if (life.signal.aborted) return;

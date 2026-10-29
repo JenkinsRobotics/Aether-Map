@@ -8,6 +8,7 @@ import { useVideoSync } from "./video-sync";
 import type { MediaKind, Surface, SurfaceAppearance, TextContent } from "./document";
 import { ShaderMedia } from "./features/ShaderMedia";
 import { CameraMedia } from "./live/CameraMedia";
+import { CastMedia } from "./live/CastMedia";
 import { TrackerMedia } from "./live/TrackerMedia";
 import { TestPattern } from "./features/TestPattern";
 import { DrawnMedia } from "./features/DrawnMedia";
@@ -93,6 +94,7 @@ function SurfaceMediaContent({
   }, [text?.fontData, text?.fontFamily, text?.fontName]);
 
   if (source?.tracker) return <TrackerMedia source={source.tracker} style={style} timeS={timeS} placeholder={Boolean(placeholder)} />;
+  if (source?.cast) return <CastMedia style={style} placeholder={Boolean(placeholder)} />;
   if (source?.webcam) return <CameraMedia source={source.webcam} style={style} placeholder={Boolean(placeholder)} />;
   if (source?.shader) return <ShaderMedia shader={source.shader} url={url} style={style} timeS={timeS} placeholder={Boolean(placeholder)} />;
   if (source?.drawing) return <DrawnMedia timeS={timeS} drawing={source.drawing} rect={source.rect} style={style} />;

@@ -48,13 +48,13 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
   const authority = useAuthorityFingerprint();
   const castController = useRef<AbortController | null>(null);
   const [diagnostics, setDiagnostics] = useState<CastDiagnostics | null>(null);
-  const [cast, setCast] = useState<{ id: string; status: CastStatus } | null>(null);
+  const [cast, setCast] = useState<{ id: string; status: CastStatus; intoShow: boolean } | null>(null);
   useEffect(() => () => { castController.current?.abort(); }, []);
-  const mirror = async (id: string) => {
+  const mirror = async (id: string, intoShow = false) => {
     if (castController.current) return;
     const controller = new AbortController(); castController.current = controller;
-    setCast({ id, status: 'Choosing output' }); setDiagnostics(null); setError('');
-    try { await mirrorDevice(id, controller.signal, status => { if (!controller.signal.aborted) setCast({ id, status }); }, value => { if (!controller.signal.aborted) setDiagnostics(value); }); }
+    setCast({ id, status: 'Choosing output', intoShow }); setDiagnostics(null); setError('');
+    try { await mirrorDevice(id, controller.signal, status => { if (!controller.signal.aborted) setCast({ id, status, intoShow }); }, value => { if (!controller.signal.aborted) setDiagnostics(value); }, intoShow); }
     catch (problem) { if (!controller.signal.aborted && (problem as Error).name !== 'NotAllowedError') setError((problem as Error).message); }
     finally { if (castController.current === controller) { castController.current = null; setCast(null); setDiagnostics(null); } }
   };
@@ -118,8 +118,11 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
                 {running && <p className="map-hint">Assignment saved. The player pulls updates when connected; transfer completion is not reported here.</p>}
                 <div className="map-device-actions">
                   {cast?.id === device.id
-                    ? <Button onClick={() => castController.current?.abort()}>Stop mirroring</Button>
-                    : <Button disabled={!online(device) || cast !== null} onClick={() => void mirror(device.id)}>Mirror live</Button>}
+                    ? <Button onClick={() => castController.current?.abort()}>{cast.intoShow ? "Stop casting" : "Stop mirroring"}</Button>
+                    : <>
+                      <Button disabled={!online(device) || cast !== null} onClick={() => void mirror(device.id)}>Mirror live</Button>
+                      {standalone && <Button disabled={!online(device) || cast !== null} onClick={() => void mirror(device.id, true)}>Cast into show</Button>}
+                    </>}
 
                   {standalone && <Button disabled={!documentID || dirty || running || !!readiness?.blockers.length}
                     onClick={() => void act(() => devices.assign(device.id, documentID))}>
@@ -129,7 +132,7 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
                 </div>
                 {device.status && <DeviceRemote device={{ ...device, status: device.status }}
                   send={(type, args = {}) => act(() => devices.command(device.id, type, args))} />}
-                {cast?.id === device.id && <p role="status" className="map-hint">{cast.status} · {standalone ? "Ending mirroring returns this player to its assigned show." : "Keep the receiver app open on the TV."}</p>}
+                {cast?.id === device.id && <p role="status" className="map-hint">{cast.status} · {cast.intoShow ? "Plays in the show's Cast surfaces; the rest of the show keeps running." : standalone ? "Ending mirroring returns this player to its assigned show." : "Keep the receiver app open on the TV."}</p>}
                 {cast?.id === device.id && diagnostics && <CastConnectionDetails value={diagnostics} />}
                 {!online(device) && device.document && <p className="map-hint">Offline: Stop takes effect on the next successful connection. The player may still be running its cached show.</p>}
               </li>

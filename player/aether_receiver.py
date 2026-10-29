@@ -107,8 +107,10 @@ function restoreShow() {
   liveVideo.onplaying=null;liveVideo.onresize=null;
   if(liveVideo.srcObject)liveVideo.srcObject.getTracks().forEach(track=>track.stop());
   liveVideo.srcObject=null;liveVideo.style.display='none';
+  const casting=document.body.dataset.liveCast==='cast';
   delete document.body.dataset.liveCast;notice('');
   const show=document.getElementById('saved-show');
+  if(casting && show){try{show.contentWindow.aetherCast?.(null);}catch{}}
   if(show && show.dataset.resume){show.src=show.dataset.resume;delete show.dataset.resume;}
 }
 async function signal(data) {
@@ -139,6 +141,9 @@ async function playLive(pc){
 playButton.onclick=()=>{if(peer)void playLive(peer);};
 async function receive(session){
   restoreShow();sessionID=session.id;
+  // A cast offers a data channel; a mirror does not. A cast plays in the show's
+  // Cast surfaces, and the hidden video still carries its sound.
+  const intoShow=/\nm=application /.test(session.offer&&session.offer.sdp||'');
   let pc;
   try{
     pc=new RTCPeerConnection({iceServers:[]});peer=pc;
@@ -154,10 +159,15 @@ async function receive(session){
     };
     liveVideo.onplaying=liveVideo.onresize=()=>{
       if(peer!==pc || liveVideo.paused || !stream.getVideoTracks().some(track=>track.readyState!=='ended') || liveVideo.videoWidth===0)return;
-      clearTimeout(connectTimer);notice('');document.body.dataset.liveCast='playing';
-      liveVideo.style.display='block';
+      clearTimeout(connectTimer);notice('');
       const show=document.getElementById('saved-show');
-      if(show && !show.dataset.resume){show.dataset.resume=show.src;show.src='about:blank';}
+      let shown=false;
+      if(intoShow && show && !show.dataset.resume){try{shown=show.contentWindow.aetherCast?.(stream)===true;}catch{}}
+      if(shown){document.body.dataset.liveCast='cast';
+        // A new release reloads the show frame; hand the cast to the new page.
+        show.onload=()=>{if(peer===pc && document.body.dataset.liveCast==='cast'){try{show.contentWindow.aetherCast?.(stream);}catch{}}};
+      }else{document.body.dataset.liveCast='playing';liveVideo.style.display='block';
+        if(show && !show.dataset.resume){show.dataset.resume=show.src;show.src='about:blank';}}
       void signal({session_id:session.id,state:'connected'}).catch(()=>{});
     };
     pc.onconnectionstatechange=()=>{
@@ -170,7 +180,7 @@ async function receive(session){
       }
       if(state==='connected'){
         clearTimeout(disconnectTimer);disconnectTimer=null;
-        const playing=document.body.dataset.liveCast==='playing';
+        const playing=!!document.body.dataset.liveCast;
         if(playing)notice('');
         void signal({session_id:session.id,state:playing?'connected':'connecting'}).catch(()=>{});
       }
@@ -180,7 +190,7 @@ async function receive(session){
     await pc.setLocalDescription(await pc.createAnswer());
     await gathered(pc,gatheringAbort.signal);
     if(peer===pc)await signal({session_id:session.id,sdp:pc.localDescription.sdp,
-      state:document.body.dataset.liveCast==='playing'?'connected':'connecting'});
+      state:document.body.dataset.liveCast?'connected':'connecting'});
   }catch{
     if(peer===pc && pc)fail(pc);
     else if(!pc){failedSessionID=session.id;restoreShow();void signal({session_id:session.id,state:'failed'}).catch(()=>{});}

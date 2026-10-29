@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { devices } from './api';
 import { gatherCandidates, mirrorDevice } from './live-cast';
 import { castStatistics } from './live-cast-stats';
+import { setCastStream } from './live/casts';
+vi.mock('./live/casts', () => ({ setCastStream: vi.fn() }));
 
 vi.mock('./api', () => ({ devices: { castStart: vi.fn(), castPoll: vi.fn(), castStop: vi.fn() } }));
 class Track extends EventTarget {
@@ -13,7 +15,7 @@ class Peer extends EventTarget {
   static instances: Peer[] = [];
   iceGatheringState = 'complete'; connectionState = 'connected';
   localDescription = { sdp: 'v=0\r\noffer' }; remoteDescription: unknown = null;
-  addTrack = vi.fn(); createOffer = vi.fn(async () => this.localDescription);
+  addTrack = vi.fn(); createDataChannel = vi.fn(); createOffer = vi.fn(async () => this.localDescription);
   setLocalDescription = vi.fn(async () => {});
   setRemoteDescription = vi.fn(async (value: unknown) => { this.remoteDescription = value; });
   getStats = vi.fn(async () => new Map());
@@ -74,6 +76,20 @@ describe('live capture lifecycle', () => {
     expect(video.stop).toHaveBeenCalledOnce(); expect(audio.stop).toHaveBeenCalledOnce();
     const calls = vi.mocked(devices.castPoll).mock.calls.length; await vi.advanceTimersByTimeAsync(10000);
     expect(devices.castPoll).toHaveBeenCalledTimes(calls);
+  });
+  it('marks a cast for a show surface and previews it here, but leaves a mirror unmarked', async () => {
+    const cast = mirrorDevice('pi', new AbortController().signal, vi.fn(), undefined, true);
+    await flush(); const peer = Peer.instances[0];
+    expect(peer.createDataChannel).toHaveBeenCalledWith('aether-cast');
+    expect(peer.createDataChannel.mock.invocationCallOrder[0]).toBeLessThan(peer.createOffer.mock.invocationCallOrder[0]);
+    expect(setCastStream).toHaveBeenLastCalledWith(capture);
+    video.dispatchEvent(new Event('ended')); await cast;
+    expect(setCastStream).toHaveBeenLastCalledWith(null);
+    vi.mocked(setCastStream).mockClear(); video.readyState = 'live'; audio.readyState = 'live';
+    const mirror = mirrorDevice('pi', new AbortController().signal, vi.fn());
+    await flush(); expect(Peer.instances[1].createDataChannel).not.toHaveBeenCalled();
+    video.dispatchEvent(new Event('ended')); await mirror;
+    expect(setCastStream).not.toHaveBeenCalled();
   });
   it('allows transient disconnection but stops one that lasts eight seconds', async () => {
     const control = new AbortController(), status = vi.fn();

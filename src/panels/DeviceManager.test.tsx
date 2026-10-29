@@ -54,6 +54,18 @@ it('cancels sharing when the Players panel unmounts', async () => {
   expect(signal.aborted).toBe(true);
 });
 
+it('casts into the show on a standalone player, but only mirrors to a TV receiver', async () => {
+  vi.mocked(mirrorDevice).mockImplementation((_id, stop, status) => {
+    status('Mirroring'); return new Promise(resolve => stop.addEventListener('abort', () => resolve(), { once: true }));
+  });
+  const view = mount(); fireEvent.click(screen.getByRole('button', { name: 'Cast into show' }));
+  expect(vi.mocked(mirrorDevice).mock.calls[0][4]).toBe(true);
+  expect(screen.getByRole('status').textContent).toContain('Cast surfaces');
+  fireEvent.click(screen.getByRole('button', { name: 'Stop casting' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Cast into show' })).toBeTruthy());
+  view.unmount(); store.list[0].kind = 'live_receiver'; mount();
+  expect(screen.queryByRole('button', { name: 'Cast into show' })).toBeNull();
+});
 it('offers live mirroring without offline deployment on a TV receiver', () => {
   store.list[0].kind = 'live_receiver';
   render(<DeviceManager documentID="saved" dirty={false} installerURL="https://studio.test/api/map/install.sh" />);

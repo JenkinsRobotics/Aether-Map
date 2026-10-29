@@ -10,5 +10,6 @@ export function newFeature(kind: FeatureKind, output: MapShow["output"], index: 
   if (kind === "shader") surface.source.shader = newShader();
   if (kind === "webcam") surface.source.webcam = { ...DEFAULT_CAMERA };
   if (kind === "tracker") surface.source.tracker = { ...DEFAULT_TRACKER };
+  if (kind === "cast") surface.source.cast = true;
   return surface;
 }

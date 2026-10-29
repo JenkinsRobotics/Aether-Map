@@ -186,3 +186,60 @@ def test_vendored_qr_encoder_matches_licensed_upstream():
     restored = vendor.replace("import collections, itertools, re", "from __future__ import annotations\nimport collections, itertools, re", 1)
     assert hashlib.sha256(restored.encode()).hexdigest() == "b089855caf16185c61421ea4927c1b213cf9468940d71fa8ab11ef83662dcc84"
     assert "Copyright (c) Project Nayuki. (MIT License)" in vendor
+
+
+CAST_HARNESS = r'''
+const vm = require('node:vm'), assert = require('node:assert/strict');
+const script = require('node:fs').readFileSync(0, 'utf8');
+const [sdp, accepts] = JSON.parse(process.argv[1]);
+const element = () => ({style:{}, dataset:{}, append() {}, setAttribute() {}, addEventListener() {},
+  play: async () => {}, getTracks: () => []});
+const handed = [];
+const show = {src:'/index.html?output=1', dataset:{}, getAttribute() {return this.src;},
+  contentWindow:{aetherCast: stream => { handed.push(stream); return accepts; }}};
+const peers = [];
+class Peer { constructor() { peers.push(this); this.iceGatheringState = 'complete'; this.connectionState = 'new'; }
+  async setRemoteDescription() {} async createAnswer() { return {}; } async setLocalDescription() { this.localDescription = {sdp:'answer'}; }
+  addEventListener() {} close() {} }
+class Stream { constructor() { this.tracks = []; } addTrack(t) { this.tracks.push(t); } getTracks() { return this.tracks; }
+  getVideoTracks() { return this.tracks; } }
+const body = {dataset:{}, append() {}};
+const context = {
+  playerPermissions:{play_audio:true, keep_display_awake:false}, navigator:{}, console,
+  document:{createElement: element, getElementById: id => id === 'saved-show' ? show : null, body,
+    addEventListener() {}, removeEventListener() {}, visibilityState:'visible'},
+  window:{addEventListener() {}, removeEventListener() {}},
+  fetch: async (_url, options) => ({ok:true, json: async () => options && options.method === 'POST' ? {} :
+    {session:{id:'s1', offer:{type:'offer', sdp}}}}),
+  AbortSignal:{timeout: () => undefined}, AbortController, RTCPeerConnection: Peer, MediaStream: Stream,
+  setTimeout, clearTimeout, setInterval: () => 0, clearInterval() {}, Date,
+};
+vm.runInNewContext(script, context);
+setTimeout(() => {
+  const pc = peers[0], track = {id:'v', kind:'video', readyState:'live', addEventListener() {}};
+  pc.ontrack({track});
+  const video = context.__video;
+  video.paused = false; video.videoWidth = 1280; video.onplaying();
+  console.log(JSON.stringify({handed: handed.length, live: body.dataset.liveCast, display: video.style.display,
+    show: show.src, sameStream: handed[0] === video.srcObject}));
+}, 50);
+'''
+
+
+@pytest.mark.parametrize("sdp,accepts,expected", [
+    ("v=0\r\nm=video 9 UDP\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n", True,
+     {"handed": 1, "live": "cast", "display": "none", "show": "/index.html?output=1", "sameStream": True}),
+    ("v=0\r\nm=video 9 UDP\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n", False,
+     {"handed": 1, "live": "playing", "display": "block", "show": "about:blank", "sameStream": True}),
+    ("v=0\r\nm=video 9 UDP\r\n", True,
+     {"handed": 0, "live": "playing", "display": "block", "show": "about:blank", "sameStream": False}),
+])
+def test_cast_plays_inside_the_show_and_a_mirror_or_castless_show_goes_full_screen(sdp, accepts, expected):
+    """A cast (offer with a data channel) goes to the show's Cast surfaces while the show keeps running."""
+    import subprocess
+    script = player.aether_receiver.SCRIPT.replace("const liveVideo = document.createElement('video');",
+                                                   "const liveVideo = document.createElement('video');globalThis.__video=liveVideo;")
+    result = subprocess.run(['node', '-e', CAST_HARNESS, json.dumps([sdp, accepts])], input=script, text=True,
+                            capture_output=True, check=False, timeout=10)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert json.loads(result.stdout.strip().splitlines()[-1]) == expected

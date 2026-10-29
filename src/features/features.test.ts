@@ -61,6 +61,12 @@ describe("saved feature contracts", () => {
     show.output.crop = { xPx: 300, yPx: 90, widthPx: 800, heightPx: 600, fit: "contain" };
     expect(parseShow(serializeShow(show))).toEqual(show);
   });
+  it("round trips a cast surface", () => {
+    const show = emptyShow();
+    show.scenes[0].surfaces = [newFeature("cast", show.output, 0)];
+    expect(show.scenes[0].surfaces[0].source.cast).toBe(true);
+    expect(parseShow(serializeShow(show))).toEqual(show);
+  });
   it("ships the 27 observed upstream shaders plus Aether's own, with valid defaults and mode options", () => {
     // The upstream catalog is pinned: losing one silently would break every show
     // that used it. Ours are additions and are named, so the count alone can no
