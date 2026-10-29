@@ -28,7 +28,7 @@ verify the installer against it:
 ```bash
 curl -fsSk https://<server>:8780/api/network/ca.pem -o aether-ca.pem
 openssl x509 -in aether-ca.pem -noout -fingerprint -sha256
-curl -fsSL --cacert aether-ca.pem https://<server>:8780/api/map/install.sh | sudo bash
+curl -fsSL --cacert aether-ca.pem https://<server>:8780/api/map/install.sh | bash
 ```
 
 Either way, re-running is how a device picks up a new player version or a
