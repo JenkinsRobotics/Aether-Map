@@ -20,10 +20,15 @@ for **Raspberry Pi OS Desktop (Bookworm or newer)**, not an SD-card image.
 
 **If the Pi is already on your network**, the older one-liner still works and
 skips the wizard, taking the host address from wherever it was fetched and the
-device name from the hostname:
+device name from the hostname. A fresh Pi does not trust Studio's local
+certificate authority yet (the installer is what adds it), so fetch the authority
+first, compare its fingerprint with the one Studio's network settings show, and
+verify the installer against it:
 
 ```bash
-curl -sSL https://<server>:8780/api/map/install.sh | bash
+curl -fsSk https://<server>:8780/api/network/ca.pem -o aether-ca.pem
+openssl x509 -in aether-ca.pem -noout -fingerprint -sha256
+curl -fsSL --cacert aether-ca.pem https://<server>:8780/api/map/install.sh | sudo bash
 ```
 
 Either way, re-running is how a device picks up a new player version or a
