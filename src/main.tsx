@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import { OutputView } from './output.tsx'
 import { PairingView } from './PairingView.tsx'
+import { DevicesView } from './DevicesView.tsx'
 import { PortalView } from './portal.tsx'
 import { AppErrorBoundary } from './AppErrorBoundary.tsx'
 import '@aether/ui/tokens.css'
@@ -14,6 +15,6 @@ const query = new URLSearchParams(location.search)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {query.has('pair') ? <AppErrorBoundary><PairingView /></AppErrorBoundary> : query.has('portal') ? <PortalView /> : query.has('output') ? <OutputView /> : <AppErrorBoundary><App /></AppErrorBoundary>}
+    {query.has('pair') ? <AppErrorBoundary><PairingView /></AppErrorBoundary> : query.has('devices') ? <AppErrorBoundary><DevicesView /></AppErrorBoundary> : query.has('portal') ? <PortalView /> : query.has('output') ? <OutputView /> : <AppErrorBoundary><App /></AppErrorBoundary>}
   </StrictMode>,
 )

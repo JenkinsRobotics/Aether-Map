@@ -17,7 +17,7 @@ export function PairingView() {
       <p className="map-pairing-host">{location.host}</p>
       {!hosted ? <p>Open the pairing link from your Aether Studio server.</p> : paired ? <>
         <p role="status">The player is now in your account. Open Players to deploy a saved show or mirror a live output.</p>
-        <Button primary onClick={() => location.assign('/map/index.html?players=1')}>Open Players</Button>
+        <Button primary onClick={() => location.assign('/map/index.html?devices')}>Open Players</Button>
       </> : <PairDeviceForm initialCode={request.code} invalidLink={request.invalid} onPaired={() => {
         setPaired(true);
         // The consumed short-lived code should not remain in the address bar.

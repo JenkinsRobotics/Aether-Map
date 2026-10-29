@@ -9,4 +9,6 @@
 .map-pairing-card input { font-size: 24px; letter-spacing: .2em; }
 .map-pairing-card .map-error { color: var(--aether-color-error); }
 .map-pairing-card a { color: var(--aether-color-accent); }
+.map-devices-page { align-items: stretch; }
+.map-devices-page > * { width: min(100%, 960px); margin-inline: auto; }
 @media (max-width: 420px) { .map-pairing-page { padding: 12px; } .map-pairing-card { padding: 20px; } }
