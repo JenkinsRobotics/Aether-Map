@@ -1,6 +1,8 @@
 """Kiosk boundary: LAN setup is temporary; signalling stays on loopback."""
 import importlib.util
 import json
+import re
+import types
 import sys
 import threading
 from functools import partial
@@ -243,3 +245,102 @@ def test_cast_plays_inside_the_show_and_a_mirror_or_castless_show_goes_full_scre
                             capture_output=True, check=False, timeout=10)
     assert result.returncode == 0, result.stdout + result.stderr
     assert json.loads(result.stdout.strip().splitlines()[-1]) == expected
+
+
+def _web_calls(monkeypatch, active=True):
+    calls = []
+
+    def run(argv, **kwargs):
+        calls.append(argv)
+        return types.SimpleNamespace(returncode=0 if active or argv[1:3] != ["--user", "is-active"] else 3)
+
+    monkeypatch.setattr(player.subprocess, "run", run)
+    monkeypatch.setattr(player, "WEB_WINDOW", {"wanted": None})
+    return calls
+
+
+WANTED = {"url": "https://www.disneyplus.com/", "x": 200, "y": 100, "width": 960, "height": 540}
+
+
+def test_web_window_opens_over_its_surface_and_is_replaced_only_when_it_changes(monkeypatch):
+    calls = _web_calls(monkeypatch)
+    player.web_window({"permissions": {"play_audio": True}}, dict(WANTED))
+    assert calls[0] == ["systemctl", "--user", "stop", "aether-web"]
+    launch = calls[1]
+    assert launch[:6] == ["systemd-run", "--user", "--unit=aether-web", "--collect", "--quiet", "--"]
+    assert "--app=https://www.disneyplus.com/" in launch and "--window-position=200,100" in launch
+    assert "--window-size=960,540" in launch and "--ozone-platform=x11" in launch and "--mute-audio" not in launch
+    calls.clear()
+    player.web_window({}, dict(WANTED))
+    assert calls == [["systemctl", "--user", "is-active", "--quiet", "aether-web"]]
+    calls.clear()
+    player.web_window({"permissions": {"play_audio": False}}, {**WANTED, "x": 300})
+    assert calls[0][2] == "stop" and "--window-position=300,100" in calls[1] and "--mute-audio" in calls[1]
+    calls.clear()
+    player.web_window({}, None)
+    assert calls == [["systemctl", "--user", "stop", "aether-web"]]
+
+
+def test_a_closed_web_window_reopens(monkeypatch):
+    calls = _web_calls(monkeypatch, active=False)
+    player.web_window({}, dict(WANTED))
+    calls.clear()
+    player.web_window({}, dict(WANTED))
+    assert calls[0][2] == "is-active" and calls[-1][0] == "systemd-run"
+
+
+@pytest.mark.parametrize("bad", [
+    {**WANTED, "url": "http://example.com/"}, {**WANTED, "url": "https://example.com/ --flag"},
+    {**WANTED, "url": "javascript:alert(1)"}, {**WANTED, "url": "https://" + "a" * 2050},
+    {**WANTED, "width": 10}, {**WANTED, "x": -5}, {**WANTED, "y": 1.5}, {**WANTED, "height": True}, ["https://x"],
+])
+def test_web_window_accepts_only_https_and_sane_rectangles(monkeypatch, bad):
+    calls = _web_calls(monkeypatch)
+    with pytest.raises(ValueError):
+        player.web_window({}, bad)
+    assert calls == []
+
+
+def test_only_the_kiosk_on_this_pi_can_open_a_web_window(kiosk, monkeypatch):
+    url, _config, _requests = kiosk
+    calls = _web_calls(monkeypatch)
+    post = lambda body, **headers: urlopen(Request(url + "/web-window", data=json.dumps(body).encode(), method="POST",
+                                                   headers={"Content-Type": "application/json", **headers}))
+    assert json.load(post({"window": WANTED})) == {"ok": True}
+    assert calls[-1][0] == "systemd-run"
+    with pytest.raises(HTTPError) as refused:
+        post({"window": WANTED}, Origin="https://evil.test")
+    assert refused.value.code == 403
+    with pytest.raises(HTTPError) as invalid:
+        post({"window": {**WANTED, "url": "http://plain.test/"}})
+    assert invalid.value.code == 400
+
+
+def test_kiosk_forwards_the_shows_web_window_to_the_player():
+    import subprocess
+    script = re.search(r'<script>(.*?)</script>', player.PLAYER_START_PAGE, re.S)[1]
+    harness = r'''
+const vm = require('node:vm'), assert = require('node:assert/strict');
+const script = require('node:fs').readFileSync(0, 'utf8');
+const listeners = {}, posts = [];
+const context = {
+  fetch: async (url, options) => { if (options) posts.push([url, JSON.parse(options.body)]); return {json: async () => ({})}; },
+  setTimeout: () => {}, encodeURIComponent, location: {origin: 'http://127.0.0.1:8777'}, devicePixelRatio: 2,
+  window: {dispatchEvent() {}, addEventListener(name, fn) { listeners[name] = fn; }}, CustomEvent: class {},
+  document: {getElementById: () => ({removeAttribute() {}}), querySelector: () => ({}), body: {dataset: {}}},
+};
+vm.runInNewContext(script, context);
+const show = {url: 'https://www.disneyplus.com/', x: 100, y: 50, width: 480, height: 270};
+listeners.message({origin: 'https://evil.test', data: {aetherWebWindow: show}});
+listeners.message({origin: 'http://127.0.0.1:8777', data: {other: 1}});
+listeners.message({origin: 'http://127.0.0.1:8777', data: {aetherWebWindow: show}});
+listeners.message({origin: 'http://127.0.0.1:8777', data: {aetherWebWindow: null}});
+setImmediate(() => {
+  assert.deepEqual(posts, [
+    ['/web-window', {window: {url: show.url, x: 200, y: 100, width: 960, height: 540}}],
+    ['/web-window', {window: null}],
+  ]);
+});
+'''
+    result = subprocess.run(['node', '-e', harness], input=script, text=True, capture_output=True, check=False, timeout=10)
+    assert result.returncode == 0, result.stdout + result.stderr

@@ -16,6 +16,7 @@ export function readGeneratedSources(source: Record<string, unknown>): Partial<S
   const result: Partial<Surface["source"]> = {};
   if (source.webcam) result.webcam = readCamera(source.webcam);
   if (source.cast === true) result.cast = true;
+  if (source.web) { const url = text(record(source.web).url, ""); result.web = { url: /^https:\/\/\S{1,2040}$/.test(url) ? url : "" }; }
   if (source.drawing) result.drawing = readDrawing(source.drawing);
   if (source.testPattern === "grid" || source.testPattern === "bars") result.testPattern = source.testPattern;
   if (source.shader) {
@@ -66,7 +67,7 @@ export function readGeneratedSources(source: Record<string, unknown>): Partial<S
 }
 export function readFeatureFields(raw: Record<string, unknown>): Partial<Surface> {
   const fields: Partial<Surface> = {};
-  if (["surface", "mask", "text", "shader", "webcam", "tracker", "cast"].includes(String(raw.kind))) fields.kind = raw.kind as FeatureKind;
+  if (["surface", "mask", "text", "shader", "webcam", "tracker", "stream", "web"].includes(String(raw.kind))) fields.kind = raw.kind as FeatureKind;
   if (typeof raw.locked === "boolean") fields.locked = raw.locked;
   if (raw.shape === "ellipse" || raw.shape === "rectangle") fields.shape = raw.shape;
   if (raw.radiusPx !== undefined) fields.radiusPx = Math.max(0, number(raw.radiusPx, 0));

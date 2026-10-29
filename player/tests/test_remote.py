@@ -288,7 +288,7 @@ let state = {ready:false, claimed:true, code:'', reload:0, identify:false, name:
 const elements = {code:{},status:{},detail:{},'pairing-qr':{removeAttribute(){}},'pairing-guidance':{}};
 const context = {
   fetch: async () => ({json: async () => state}), setTimeout: () => {}, location: {reload() {reloads++;}},
-  window: {dispatchEvent() {}}, CustomEvent: class {}, encodeURIComponent,
+  window: {dispatchEvent() {}, addEventListener() {}}, CustomEvent: class {}, encodeURIComponent,
   document: {
     getElementById: id => elements[id], querySelector: () => ({}),
     createElement: () => ({style:{}, remove() {delete elements[this.id];}}),

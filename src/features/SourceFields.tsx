@@ -14,7 +14,7 @@ import { SourceCropFields } from "./SourceCropFields";
 export function SourceFields({ surface, show, onPatch, onPickMedia, allowTypeChange = true, showFit = true, showPresets = true }: { showPresets?:boolean; allowTypeChange?: boolean; showFit?: boolean; surface: Surface; show: MapShow; onPatch: (id: string, patch: Partial<Surface>) => void; onPickMedia: () => void }) {
   const s = surface.source, media = show.media.find((m) => m.id === s.mediaId);
   const fontInput = useRef<HTMLInputElement>(null), [fontError, setFontError] = useState("");
-  const content = s.drawing ? "drawing" : s.tracker ? "tracker" : s.webcam ? "webcam" : s.shader ? "shader" : s.text ? "text" : (s.fill || s.fillGradient) ? "fill" : s.testPattern ? "test" : "media";
+  const content = s.web ? "web" : s.cast ? "cast" : s.drawing ? "drawing" : s.tracker ? "tracker" : s.webcam ? "webcam" : s.shader ? "shader" : s.text ? "text" : (s.fill || s.fillGradient) ? "fill" : s.testPattern ? "test" : "media";
   const source = (patch: Partial<Surface["source"]>) => onPatch(surface.id, { source: manualSourceEdit(s, { ...s, ...patch }) });
   const patchText = (patch: Partial<typeof DEFAULT_TEXT>) => source({ text: { ...DEFAULT_TEXT, ...s.text, ...patch } });
   const fileField = <>
@@ -30,12 +30,15 @@ export function SourceFields({ surface, show, onPatch, onPickMedia, allowTypeCha
     {surface.clips.length > 0 && <div className="map-hint">Timeline clips replace this input during their span. Remove those clips to use this input throughout.</div>}
     {allowTypeChange && <FieldRow label="Fill with"><SelectField aria-label="Surface content" value={content} options={[
       { value: "media", label: "Media" }, { value: "drawing", label: "Drawing" }, { value: "fill", label: "Colour" }, { value: "text", label: "Text" },
-      { value: "shader", label: "Shader" }, { value: "webcam", label: "Webcam" }, { value: "tracker", label: "Tracker" }, { value: "test", label: "Test pattern" },
+      { value: "shader", label: "Shader" }, { value: "webcam", label: "Webcam" }, { value: "tracker", label: "Tracker" }, { value: "cast", label: "Cast" }, { value: "web", label: "Web window" }, { value: "test", label: "Test pattern" },
     ]} onChange={(e) => {
       const kind = e.target.value;
       onPatch(surface.id, { source: { mediaId: s.mediaId, rect: s.rect, fit: s.fit,
-        ...(kind === "drawing" ? { drawing: { strokes: [] } } : kind === "fill" ? { fill: "#ffffff" } : kind === "text" ? { text: { ...DEFAULT_TEXT } } : kind === "shader" ? { shader: newShader() } : kind === "webcam" ? { webcam: { ...DEFAULT_CAMERA } } : kind === "tracker" ? { tracker: { ...DEFAULT_TRACKER } } : kind === "test" ? { testPattern: "grid" as const } : {}) } });
+        ...(kind === "drawing" ? { drawing: { strokes: [] } } : kind === "fill" ? { fill: "#ffffff" } : kind === "text" ? { text: { ...DEFAULT_TEXT } } : kind === "shader" ? { shader: newShader() } : kind === "webcam" ? { webcam: { ...DEFAULT_CAMERA } } : kind === "tracker" ? { tracker: { ...DEFAULT_TRACKER } } : kind === "test" ? { testPattern: "grid" as const } : kind === "cast" ? { cast: true as const } : kind === "web" ? { web: { url: "" } } : {}) } });
     }} /></FieldRow>}
+    {s.web && <FieldRow label="Web address" help="Opens on the player in its own window over this surface. Sign in on the player once with a keyboard and mouse.">
+      <TextField aria-label="Web address" placeholder="https://www.example.com" value={s.web.url} onChange={(e) => source({ web: { url: e.target.value.trim() } })} /></FieldRow>}
+    {s.cast && <div className="map-hint">Shows what you cast to the player with Cast into show in Players. The rest of the show keeps running.</div>}
     {s.drawing && <DrawingFields drawing={s.drawing} onChange={drawing => source({ drawing })} />}
     {content === "fill" && <VectorFillFields source={s} onChange={source} />}
     {s.shader && <><ShaderFields showPresets={showPresets} shader={s.shader} onChange={(shader) => source({ shader })} />{SHADERS.find((p) => p.id === s.shader?.preset)?.image && fileField}</>}

@@ -9,6 +9,7 @@ import type { MediaKind, Surface, SurfaceAppearance, TextContent } from "./docum
 import { ShaderMedia } from "./features/ShaderMedia";
 import { CameraMedia } from "./live/CameraMedia";
 import { CastMedia } from "./live/CastMedia";
+import { WebWindowMedia } from "./live/WebWindowMedia";
 import { TrackerMedia } from "./live/TrackerMedia";
 import { TestPattern } from "./features/TestPattern";
 import { DrawnMedia } from "./features/DrawnMedia";
@@ -94,6 +95,7 @@ function SurfaceMediaContent({
   }, [text?.fontData, text?.fontFamily, text?.fontName]);
 
   if (source?.tracker) return <TrackerMedia source={source.tracker} style={style} timeS={timeS} placeholder={Boolean(placeholder)} />;
+  if (source?.web) return <WebWindowMedia url={source.web.url} style={style} placeholder={Boolean(placeholder)} />;
   if (source?.cast) return <CastMedia style={style} placeholder={Boolean(placeholder)} />;
   if (source?.webcam) return <CameraMedia source={source.webcam} style={style} placeholder={Boolean(placeholder)} />;
   if (source?.shader) return <ShaderMedia shader={source.shader} url={url} style={style} timeS={timeS} placeholder={Boolean(placeholder)} />;

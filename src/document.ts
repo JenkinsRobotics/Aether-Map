@@ -221,7 +221,7 @@ export interface Surface {
    * assets keep their input on Clip.source. Rect is in source pixels; the surface
    * owns the destination geometry regardless of which content is active.
    */
-  source: { motion?: import('./source-motion').SourceMotion; chromaKey?: import('./media/chroma-key').ChromaKey; effects?: import('./visual-model').VisualEffect[]; mediaId: string | null; rect: Rect; fit?: "contain" | "cover" | "stretch"; text?: TextContent; fill?: string; fillGradient?: VectorGradient; fillOpacity?: number; shader?: ShaderSource; webcam?: CameraSource; tracker?: TrackerSource; /** Shows whatever is cast to this player now. */ cast?: true; testPattern?: "grid" | "bars"; drawing?: DrawnSource };
+  source: { motion?: import('./source-motion').SourceMotion; chromaKey?: import('./media/chroma-key').ChromaKey; effects?: import('./visual-model').VisualEffect[]; mediaId: string | null; rect: Rect; fit?: "contain" | "cover" | "stretch"; text?: TextContent; fill?: string; fillGradient?: VectorGradient; fillOpacity?: number; shader?: ShaderSource; webcam?: CameraSource; tracker?: TrackerSource; /** Shows whatever is cast to this player now. */ cast?: true; /** A site the player opens in its own window over this surface. */ web?: { url: string }; testPattern?: "grid" | "bars"; drawing?: DrawnSource };
   /**
    * The surface's outline, in output space: the sketch profile it was drawn
    * as. Empty means the quad itself. A rectangle needs no outline; any other

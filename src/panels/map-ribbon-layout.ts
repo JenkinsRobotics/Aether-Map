@@ -67,7 +67,7 @@ export const MAP_TOOL_ENTRYPOINTS = {
   ellipse: "ellipse", circle: "circle", polygon: "polygon",
   freehand: "freehand", paint: "generators",
   surface: "rect", mask: "mask", text: "generators", shader: "generators",
-  webcam: "generators", tracker: "generators", cube: "cube", box: "box",
+  webcam: "generators", tracker: "generators", stream: "generators", web: "generators", cube: "cube", box: "box",
   cutout: "cutout", "transparent-png": "transparent-png",
   "mapping-background": "setup-image",
   "smart-shape-detection": "smart-shape-detection",

@@ -302,7 +302,7 @@ let state = {ready:true, claimed:true, generation:'first', outputID:'wall'}, fra
 const elements = {code:{},status:{},detail:{},'pairing-qr':{removeAttribute(){}},'pairing-guidance':{}};
 const context = {
   fetch: async () => ({json: async () => state}), setTimeout: () => {},
-  window: {dispatchEvent() {}}, CustomEvent: class {}, encodeURIComponent,
+  window: {dispatchEvent() {}, addEventListener() {}}, CustomEvent: class {}, encodeURIComponent,
   document: {
     getElementById: id => elements[id], querySelector: () => ({}),
     createElement: () => ({style:{}, getAttribute() {return this.url;},

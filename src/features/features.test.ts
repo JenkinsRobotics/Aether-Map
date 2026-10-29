@@ -61,9 +61,17 @@ describe("saved feature contracts", () => {
     show.output.crop = { xPx: 300, yPx: 90, widthPx: 800, heightPx: 600, fit: "contain" };
     expect(parseShow(serializeShow(show))).toEqual(show);
   });
+  it("round trips a web window and drops anything but an https address", () => {
+    const show = emptyShow();
+    show.scenes[0].surfaces = [newFeature("web", show.output, 0)];
+    show.scenes[0].surfaces[0].source.web = { url: "https://www.disneyplus.com/" };
+    expect(parseShow(serializeShow(show))).toEqual(show);
+    show.scenes[0].surfaces[0].source.web = { url: "javascript:alert(1)" };
+    expect(parseShow(serializeShow(show)).scenes[0].surfaces[0].source.web).toEqual({ url: "" });
+  });
   it("round trips a cast surface", () => {
     const show = emptyShow();
-    show.scenes[0].surfaces = [newFeature("cast", show.output, 0)];
+    show.scenes[0].surfaces = [newFeature("stream", show.output, 0)];
     expect(show.scenes[0].surfaces[0].source.cast).toBe(true);
     expect(parseShow(serializeShow(show))).toEqual(show);
   });

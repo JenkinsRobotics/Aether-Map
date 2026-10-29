@@ -10,10 +10,12 @@ export const POOL_SOURCES = [
   { id:'webcam', label:'Webcam', icon:'camera', group:'Live inputs', description:'Live camera feed' },
   { id:'tracker', label:'Tracker', icon:'tracker', group:'Live inputs', description:'Camera-driven hand visuals' },
   { id:'cast', label:'Cast', icon:'connector', group:'Live inputs', description:'Whatever is cast to the player' },
+  { id:'web', label:'Web window', icon:'link', group:'Live inputs', description:'A website the player opens over this surface' },
 ] as const;
 export type PoolSourceKind = typeof POOL_SOURCES[number]['id'];
 export function poolSource(kind: PoolSourceKind, size: { width:number; height:number }): Surface['source'] {
-  if (kind === 'text' || kind === 'shader' || kind === 'webcam' || kind === 'tracker' || kind === 'cast') return newFeature(kind, size, 0).source;
+  if (kind === 'cast') return newFeature('stream', size, 0).source;
+  if (kind === 'text' || kind === 'shader' || kind === 'webcam' || kind === 'tracker' || kind === 'web') return newFeature(kind, size, 0).source;
   return { mediaId:null, rect:[0,0,size.width,size.height],
     ...(kind === 'paint' ? { drawing:{strokes:[]} } : kind === 'colour' ? { fill:'#ffffff' } : { testPattern:'grid' as const }) };
 }

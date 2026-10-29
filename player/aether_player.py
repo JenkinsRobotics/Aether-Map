@@ -441,6 +441,59 @@ def restart_player() -> None:
     os._exit(0)
 
 
+# The show asks for at most one web window: a site such as a streaming service,
+# opened by Chromium itself in its own profile and placed over its surface.
+WEB_WINDOW: dict = {"wanted": None}
+
+
+def _valid_web_window(wanted) -> dict | None:
+    if wanted is None:
+        return None
+    if not isinstance(wanted, dict):
+        raise ValueError("web window must be an object")
+    url = wanted.get("url")
+    if not isinstance(url, str) or not url.startswith("https://") or len(url) > 2048 or any(ord(c) <= 32 or c == "\x7f" for c in url):
+        raise ValueError("web window needs an https address")
+    rect = {}
+    for key, low in (("x", 0), ("y", 0), ("width", 32), ("height", 32)):
+        value = wanted.get(key)
+        if type(value) is not int or not low <= value <= 16384:
+            raise ValueError(f"web window {key} is out of range")
+        rect[key] = value
+    return {"url": url, **rect}
+
+
+def _user_systemctl(*argv: str) -> subprocess.CompletedProcess:
+    env = {**os.environ}
+    env.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+    return subprocess.run(list(argv), env=env, capture_output=True, timeout=15, check=False)
+
+
+def web_window(config: dict, wanted) -> None:
+    """Open, move or close the web window. The kiosk's user manager carries the
+    desktop environment, so the window runs there, beside the kiosk."""
+    wanted = _valid_web_window(wanted)
+    if wanted is not None and wanted == WEB_WINDOW["wanted"]:
+        if _user_systemctl("systemctl", "--user", "is-active", "--quiet", "aether-web").returncode == 0:
+            return
+    else:
+        _user_systemctl("systemctl", "--user", "stop", "aether-web")
+    WEB_WINDOW["wanted"] = wanted
+    if wanted is None:
+        return
+    browser = shutil.which("chromium") or shutil.which("chromium-browser") or "chromium"
+    argv = ["systemd-run", "--user", "--unit=aether-web", "--collect", "--quiet", "--", browser,
+            f"--app={wanted['url']}", f"--user-data-dir={INSTALL_DIR / 'web-profile'}", "--class=aether-web",
+            # X11 is the protocol that lets a window choose its own position.
+            "--ozone-platform=x11", f"--window-position={wanted['x']},{wanted['y']}",
+            f"--window-size={wanted['width']},{wanted['height']}",
+            "--no-first-run", "--noerrdialogs", "--autoplay-policy=no-user-gesture-required"]
+    if config.get("permissions", {}).get("play_audio") is False:
+        argv.append("--mute-audio")
+    log(f"web window {urlsplit(wanted['url']).hostname} at {wanted['x']},{wanted['y']} {wanted['width']}x{wanted['height']}")
+    _user_systemctl(*argv)
+
+
 def reboot_device() -> None:
     log("rebooting")
     try:
@@ -707,7 +760,13 @@ const SAY={wifi:['Set up this projector','Join the Wi-Fi network below, then ope
 server:['Continue setup on your phone','Open the address below to point this projector at your host.'],
 name:['Continue setup on your phone','Open the address below to name this projector.'],
 permissions:['Continue setup on your phone','Open the address below to finish setup.']};
-let reloadMark;
+let reloadMark,webWindow='null';
+// The show reports its web window; the player opens it over that rectangle.
+window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||!('aetherWebWindow' in e.data))return;
+const w=e.data.aetherWebWindow,r=devicePixelRatio||1;
+const body=JSON.stringify({window:w&&{url:w.url,x:Math.round(w.x*r),y:Math.round(w.y*r),width:Math.round(w.width*r),height:Math.round(w.height*r)}});
+if(body===webWindow&&!w)return;webWindow=body;
+fetch('/web-window',{method:'POST',headers:{'Content-Type':'application/json'},body}).catch(()=>{});});
 async function poll(){try{const r=await fetch('/player-status',{cache:'no-store'});
 const s=await r.json();
 // Remote commands from Aether Map: reload the display, or flash this
@@ -833,6 +892,23 @@ class ShowHandler(SimpleHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/cast":
             self._cast(write=True)
+            return
+        if path == "/web-window":
+            if not self._local() or not self._same_origin():
+                self.send_error(403)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 4096:
+                    raise ValueError()
+                body = json.loads(self.rfile.read(length))
+                if not isinstance(body, dict):
+                    raise ValueError()
+                web_window(self.config, body.get("window"))
+            except (ValueError, UnicodeDecodeError):
+                self.send_error(400)
+                return
+            self._json({"ok": True})
             return
         if self.config.get("setup_complete") or not self._same_origin():
             self.send_error(403)
