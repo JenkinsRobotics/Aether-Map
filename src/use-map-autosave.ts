@@ -1,7 +1,8 @@
+import {documentURL} from '@aether/session/home/runtime';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AutosaveSession, readRecovery, recoveryKey, sessionOwner, SaveError, type SaveState } from '@aether/session/autosave';
 import { listRecoveryBackups, removeRecoveryBackup, type RecoveryBackup } from '@aether/session/autosave-recovery';
-import { fromBase64, hosted, library, type StoredFile } from './api';
+import { fromBase64, managedDocument as hosted, library, type StoredFile } from './api';
 import { parseShow, serializeShow } from './show-file';
 import type { MapShow } from './document';
 import { replaceLocationQuery } from './location-history';
@@ -187,7 +188,7 @@ export function useMapAutosave({ text, reset, paused, setDirty, onError }: {
     await session.flush();
     // Also drain an edit that arrived during the previous request.
     if (session.dirty) await session.flush();
-    if(copy&&session.base.file){session.dispose();location.assign(`${location.pathname}?document=${encodeURIComponent(session.base.file.id)}`);return;}
+    if(copy&&session.base.file){session.dispose();location.assign(documentURL(session.base.file.id));return;}
     if (!copy && name && session.base.file && filename(name) !== session.base.file.name) {
       const renamed = await library.rename(session.base.file.id, session.base.file.revision, filename(name));
       session.updateBase({ file: identity(renamed), name: renamed.name }); setFile(renamed);

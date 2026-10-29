@@ -1,10 +1,12 @@
+import {isLocalDocument} from '@aether/session/home/runtime';
 import { withRequestTimeout } from "./request-timeout";
 import { documentRequest } from "@aether/session/documents";
 import type { MediaRef } from "./document";
 import { SaveError } from '@aether/session/autosave';
 
 /** True when served by the Aether Studio host rather than `vite dev`. */
-export const hosted = location.pathname.startsWith("/map/");
+export const hosted = !isLocalDocument() && location.pathname.startsWith("/map/");
+export const managedDocument = hosted || isLocalDocument();
 
 async function post<T>(path: string, body: object, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {

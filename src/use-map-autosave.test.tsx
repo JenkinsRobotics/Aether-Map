@@ -8,7 +8,7 @@ import {recoveryKey, SaveError} from '@aether/session/autosave';
 import {listRecoveryBackups, storeRecoveryBackup} from '@aether/session/autosave-recovery';
 import {useMapAutosave} from './use-map-autosave';
 const api = vi.hoisted(()=>({read:vi.fn(),save:vi.fn(),create:vi.fn(),rename:vi.fn(),owner:vi.fn()}));
-vi.mock('./api',()=>({hosted:true,library:api,fromBase64:(value:string)=>Uint8Array.from(atob(value),c=>c.charCodeAt(0))}));
+vi.mock('./api',()=>({hosted:true,managedDocument:true,library:api,fromBase64:(value:string)=>Uint8Array.from(atob(value),c=>c.charCodeAt(0))}));
 vi.mock('@aether/session/autosave',async importOriginal=>({...await importOriginal<object>(),sessionOwner:api.owner}));
 beforeEach(()=>api.owner.mockResolvedValue('review-user'));
 afterEach(()=>{cleanup();sessionStorage.clear();localStorage.clear();vi.resetAllMocks();});

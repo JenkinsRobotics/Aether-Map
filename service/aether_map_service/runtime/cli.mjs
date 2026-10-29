@@ -9915,6 +9915,11 @@ function readCamera(value) {
 function readGeneratedSources(source) {
 	const result = {};
 	if (source.webcam) result.webcam = readCamera(source.webcam);
+	if (source.cast === true) result.cast = true;
+	if (source.web) {
+		const url = text(record$2(source.web).url, "");
+		result.web = { url: /^https:\/\/\S{1,2040}$/.test(url) ? url : "" };
+	}
 	if (source.drawing) result.drawing = readDrawing(source.drawing);
 	if (source.testPattern === "grid" || source.testPattern === "bars") result.testPattern = source.testPattern;
 	if (source.shader) {
@@ -10009,7 +10014,9 @@ function readFeatureFields(raw) {
 		"text",
 		"shader",
 		"webcam",
-		"tracker"
+		"tracker",
+		"stream",
+		"web"
 	].includes(String(raw.kind))) fields.kind = raw.kind;
 	if (typeof raw.locked === "boolean") fields.locked = raw.locked;
 	if (raw.shape === "ellipse" || raw.shape === "rectangle") fields.shape = raw.shape;
@@ -17250,6 +17257,24 @@ function readAlphaMask(value) {
 	};
 }
 //#endregion
+//#region src/scene-hotkeys.ts
+/** Function keys only, so typing into a web window cannot change scenes. */
+var HOTKEYS = [
+	"F1",
+	"F2",
+	"F3",
+	"F4",
+	"F5",
+	"F6",
+	"F7",
+	"F8",
+	"F9",
+	"F10",
+	"F11",
+	"F12"
+];
+var isHotkey = (value) => HOTKEYS.includes(value);
+//#endregion
 //#region src/features/shape-groups.ts
 var at = (x, y) => [x, y];
 var quad = (a, b, c, d) => [
@@ -17507,6 +17532,7 @@ function readScene(raw) {
 		name: String(raw.name ?? "Scene"),
 		...raw.hidden === true ? { hidden: true } : {},
 		...raw.suppressed === true ? { suppressed: true } : {},
+		...isHotkey(raw.hotkey) ? { hotkey: raw.hotkey } : {},
 		...isRecord(raw.artboard) ? { artboard: {
 			widthPx: Math.max(1, Math.min(32768, Math.round(positive(raw.artboard.widthPx, DEFAULT_OUTPUT.width)))),
 			heightPx: Math.max(1, Math.min(32768, Math.round(positive(raw.artboard.heightPx, DEFAULT_OUTPUT.height))))
@@ -18764,6 +18790,11 @@ function newFeature(kind, output, index) {
 	if (kind === "shader") surface.source.shader = newShader();
 	if (kind === "webcam") surface.source.webcam = { ...DEFAULT_CAMERA };
 	if (kind === "tracker") surface.source.tracker = { ...DEFAULT_TRACKER };
+	if (kind === "stream") {
+		surface.source.cast = true;
+		surface.name = `Cast ${index + 1}`;
+	}
+	if (kind === "web") surface.source.web = { url: "" };
 	return surface;
 }
 //#endregion

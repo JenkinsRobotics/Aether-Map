@@ -54,3 +54,12 @@ Read `SOURCE_HISTORY.json` for preserved ancestry. The GitHub origin is configur
 Original architecture contracts are preserved in the original Aether Studio
 checkout. Web frontends remain React/TypeScript. Native desktop packaging is
 planned; this extraction does not add Tauri or replace engines with Rust.
+
+## Product-owned home — 2026-10-28
+
+The app owns its home-page content, actions and destinations. Use the shared
+`@aether/session/home` controller and Aether UI components for consistency; do not
+add product actions to Studio. Studio supplies server files, identity and PDM.
+Hosted pages never request local folders or install app-drawer clients. Standalone
+homes use the local-file adapter; engine availability is a separate capability.
+See `../AetherStudio/dev/rebuild/app-owned-homes/README.md` for runtime boundaries.

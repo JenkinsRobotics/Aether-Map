@@ -1,3 +1,4 @@
+import {isLocalDocument} from '@aether/session/home/runtime';
 import { setVisualMotionBase } from "./visual-motion";
 import { useMidiAssignments } from './live/midi-assignments';
 import { CubePosePanel } from './panels/CubePosePanel';
@@ -554,7 +555,7 @@ export default function App() {
 
   const save = useCallback(() => {
 
-    if (!hosted) {
+    if (!hosted && !isLocalDocument()) {
       setError("Saving needs the Aether Studio host. Open Aether Map from /map/.");
       return;
     }

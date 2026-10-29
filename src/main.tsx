@@ -1,3 +1,5 @@
+import {Home} from './home/Home';
+import {shouldShowHome} from '@aether/session/home/runtime';
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
@@ -15,6 +17,6 @@ const query = new URLSearchParams(location.search)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {query.has('pair') ? <AppErrorBoundary><PairingView /></AppErrorBoundary> : query.has('devices') ? <AppErrorBoundary><DevicesView /></AppErrorBoundary> : query.has('portal') ? <PortalView /> : query.has('output') ? <OutputView /> : <AppErrorBoundary><App /></AppErrorBoundary>}
+    {shouldShowHome(['pair','devices','portal','output','players']) ? <Home /> : query.has('pair') ? <AppErrorBoundary><PairingView /></AppErrorBoundary> : query.has('devices') ? <AppErrorBoundary><DevicesView /></AppErrorBoundary> : query.has('portal') ? <PortalView /> : query.has('output') ? <OutputView /> : <AppErrorBoundary><App /></AppErrorBoundary>}
   </StrictMode>,
 )

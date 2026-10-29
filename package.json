@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@aether/assets": "file:vendor/aether-assets-0.2.0-alpha.32.tgz",
-    "@aether/session": "file:vendor/aether-session-0.2.0-alpha.191.tgz",
+    "@aether/session": "file:vendor/aether-session-0.2.0-alpha.191.home.6.tgz",
     "@aether/sketch": "file:vendor/aether-sketch-0.2.0-alpha.5.tgz",
     "@aether/ui": "file:vendor/aether-ui-0.2.0-alpha.240.tgz",
     "@mediapipe/tasks-vision": "1.0.1",
@@ -24,7 +24,9 @@
     "@paper-design/shaders-react": "0.0.80",
     "onnxruntime-web": "1.30.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "@aether/files": "file:vendor/aether-files-0.1.0-alpha.2.tgz",
+    "@aether/protocol": "file:vendor/aether-protocol-0.1.0-alpha.12.tgz"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
