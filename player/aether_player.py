@@ -21,6 +21,7 @@ import os
 import secrets
 import shutil
 import socket
+import struct
 import subprocess
 import sys
 import tempfile
@@ -494,6 +495,71 @@ def web_window(config: dict, wanted) -> None:
     _user_systemctl(*argv)
 
 
+# Scene hotkeys: the player reads keyboards itself, so F1-F12 switch scenes
+# whichever window has focus, a web window included.
+KEY_EVENT = struct.Struct("llHHi")  # struct input_event: timeval, type, code, value
+KEY_NAMES = {**{59 + i: f"F{i + 1}" for i in range(10)}, 87: "F11", 88: "F12"}
+
+
+def hotkeys_in(data: bytes) -> list[str]:
+    keys = []
+    for offset in range(0, len(data) - KEY_EVENT.size + 1, KEY_EVENT.size):
+        _sec, _usec, kind, code, value = KEY_EVENT.unpack_from(data, offset)
+        if kind == 1 and value == 1 and code in KEY_NAMES:  # EV_KEY press, not release or repeat
+            keys.append(KEY_NAMES[code])
+    return keys
+
+
+class Hotkeys:
+    """The latest press, numbered, for kiosks that wait on it."""
+
+    def __init__(self):
+        self.changed = threading.Condition()
+        self.id, self.key = 0, None
+
+    def press(self, key: str) -> None:
+        with self.changed:
+            self.id, self.key = self.id + 1, key
+            self.changed.notify_all()
+
+    def wait(self, after: int, timeout: float) -> dict:
+        with self.changed:
+            if after >= 0:
+                self.changed.wait_for(lambda: self.id > after, timeout)
+            if after >= 0 and self.id > after:
+                return {"id": self.id, "key": self.key}
+            return {"id": self.id, "key": None}
+
+
+HOTKEYS = Hotkeys()
+
+
+def watch_keyboards(stop: threading.Event) -> None:
+    """Follow keyboards as they come and go, Bluetooth ones included."""
+    watching: set[str] = set()
+
+    def read(path: str) -> None:
+        try:
+            with open(path, "rb", buffering=0) as device:
+                while not stop.is_set():
+                    data = device.read(KEY_EVENT.size * 64)
+                    if not data:
+                        break
+                    for key in hotkeys_in(data):
+                        log(f"hotkey {key}")
+                        HOTKEYS.press(key)
+        except OSError:
+            pass
+        watching.discard(path)
+
+    while not stop.is_set():
+        for path in sorted(str(p) for p in Path("/dev/input").glob("event*")):
+            if path not in watching and os.access(path, os.R_OK):
+                watching.add(path)
+                threading.Thread(target=read, args=(path,), daemon=True).start()
+        stop.wait(5)
+
+
 def reboot_device() -> None:
     log("rebooting")
     try:
@@ -762,6 +828,10 @@ name:['Continue setup on your phone','Open the address below to name this projec
 permissions:['Continue setup on your phone','Open the address below to finish setup.']};
 let reloadMark,webWindow='null';
 // The show reports its web window; the player opens it over that rectangle.
+// Hotkeys arrive the moment they are pressed; the show picks the scene.
+(async function hotkeys(after){for(;;){try{const h=await(await fetch('/hotkey?after='+after,{cache:'no-store'})).json();if(typeof h.id!=='number')throw 0;
+if(h.key)document.getElementById('saved-show')?.contentWindow?.postMessage({aetherHotkey:h.key},location.origin);after=h.id;}
+catch{await new Promise(r=>setTimeout(r,2000));}}})(-1);
 window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||!('aetherWebWindow' in e.data))return;
 const w=e.data.aetherWebWindow,r=devicePixelRatio||1;
 const body=JSON.stringify({window:w&&{url:w.url,x:Math.round(w.x*r),y:Math.round(w.y*r),width:Math.round(w.width*r),height:Math.round(w.height*r)}});
@@ -943,6 +1013,16 @@ class ShowHandler(SimpleHTTPRequestHandler):
         if path == "/cast":
             self._cast()
             return
+        if path == "/hotkey":
+            if not self._local() or not self._same_origin():
+                self.send_error(403)
+                return
+            try:
+                after = int(dict(part.split("=", 1) for part in urlsplit(self.path).query.split("&") if "=" in part).get("after", "-1"))
+            except ValueError:
+                after = -1
+            self._json(HOTKEYS.wait(after, 20))
+            return
         if not self._local() and (self.config.get("setup_complete") or not path.startswith("/setup")):
             self.send_error(403)
             return
@@ -1056,6 +1136,7 @@ def main(argv: list[str] | None = None) -> int:
 
     stop = threading.Event()
     threading.Thread(target=sync_forever, args=(config, stop), daemon=True).start()
+    threading.Thread(target=watch_keyboards, args=(stop,), daemon=True).start()
     try:
         serve(config)
     except KeyboardInterrupt:

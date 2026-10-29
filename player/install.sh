@@ -192,6 +192,8 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 User=${TARGET_USER}
+# Reads keyboards for scene hotkeys.
+SupplementaryGroups=input
 ExecStartPre=${INSTALL_DIR}/guard.sh
 ExecStart=/usr/bin/python3 ${INSTALL_DIR}/aether_player.py --config ${CONFIG_DIR}/config.json
 Restart=always

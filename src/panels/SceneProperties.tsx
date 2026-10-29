@@ -1,4 +1,5 @@
-import { Button, Checkbox, FieldRow, InspectorSection, NumberField } from "@aether/ui";
+import { Button, Checkbox, FieldRow, InspectorSection, NumberField, SelectField } from "@aether/ui";
+import { HOTKEYS, isHotkey } from "../scene-hotkeys";
 import { artboardOf, sceneSize } from "../scene-size";
 import { SceneSizeFields, useSceneDraft } from "./SceneSizeFields";
 import type { MapShow, Scene } from "../document";
@@ -46,6 +47,12 @@ export function SceneProperties({ show, scene, onPatch, onDelete }: ScenePropert
       <FieldRow label="Length" help="How much timeline this scene shows, and where a sequence loops. Not a limit on playback.">
         <NumberField aria-label="Scene length" value={scene.durationS} min={1} max={86400} unit="s" precision={0}
           onValueChange={(value) => value !== null && onPatch(scene.id, { durationS: value })} />
+      </FieldRow>
+
+      <FieldRow label="Hotkey" help="Press this key on the player's keyboard to switch its projector to this scene.">
+        <SelectField aria-label="Scene hotkey" value={scene.hotkey ?? ""} placeholder="None"
+          options={[{ value: "", label: "None" }, ...HOTKEYS.map(key => ({ value: key, label: key }))]}
+          onChange={(event) => onPatch(scene.id, { hotkey: isHotkey(event.target.value) ? event.target.value : undefined })} />
       </FieldRow>
 
       </InspectorSection><InspectorSection title="Visibility">

@@ -259,6 +259,8 @@ export interface Surface {
 export interface Scene {
   id: string;
   name: string;
+  /** A function key on the player's keyboard that switches its output here. */
+  hotkey?: import("./scene-hotkeys").Hotkey;
   artboard?: { widthPx: number; heightPx: number };
   /**
    * Off the editor canvas, and nothing more. A hidden scene still plays, still

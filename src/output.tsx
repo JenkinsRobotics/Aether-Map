@@ -7,6 +7,7 @@ import { ModulationContext } from "./features/ModulationContext";
 import { DEFAULT_LFOS } from "./features/types";
 import { sceneSize } from "./scene-size";
 import { useEffect, useId, useRef, useState } from "react";
+import { outputForHotkey, sceneForHotkey } from "./scene-hotkeys";
 import { sourcePictureStyle, alphaProjectionStyle, placementProjectionStyle } from "./source-picture";
 import { clipStyle } from "./mask/clip";
 import { OutlineEdge, outlineEdged } from "./features/SurfaceGrid";
@@ -104,7 +105,19 @@ export function OutputView() {
   // This window renders its own output's scene. Binding it as the active scene
   // means evaluation, sizing and surface lookup need no notion of "which output
   // is asking" — one window's scene is simply the active scene, from its view.
-  const output = findOutput(show, outputID);
+  // A function key pressed on the player takes this output to that scene.
+  const [hotScene, setHotScene] = useState<string | null>(null);
+  const hotShow = useRef(show); hotShow.current = show;
+  useEffect(() => {
+    const pressed = (event: MessageEvent) => {
+      if (event.origin !== location.origin || typeof event.data?.aetherHotkey !== "string") return;
+      const scene = sceneForHotkey(hotShow.current, event.data.aetherHotkey);
+      if (scene) setHotScene(scene);
+    };
+    addEventListener("message", pressed);
+    return () => removeEventListener("message", pressed);
+  }, []);
+  const output = outputForHotkey(findOutput(show, outputID), hotScene);
   const bound = showForOutput(show, output, minute);
   const { width, height } = sceneSize(bound);
 
@@ -235,11 +248,11 @@ export function OutputView() {
   // on the show timeline, rendering whichever scene clip is under the playhead.
   const program = playerShow(show), showLength = program?.durationS ?? 0;
   const showS = showRun.showS;
-  const showClip = source === 'deployed' && output?.sceneId && showLength ? clipAt(show, output.sceneId, showS, program) : null;
+  const showClip = !hotScene && source === 'deployed' && output?.sceneId && showLength ? clipAt(show, output.sceneId, showS, program) : null;
   const resolved = showClip ? showForClip(bound, output!.sceneId!, showClip.clip) : bound;
   const frameS = showClip ? showClip.localS : timeS;
   // Between clips the show is dark on this canvas.
-  const idle = source === 'deployed' && !!output?.sceneId && !!showLength && !showClip;
+  const idle = !hotScene && source === 'deployed' && !!output?.sceneId && !!showLength && !showClip;
   // Cue-driven blackout and pause on a player running the show itself.
   const dark = show.output.blackout || (source === 'deployed' && showRun.blackout), held = source === 'deployed' && showRun.paused;
   // sceneCrop already shows an unconfigured output the whole scene, for every

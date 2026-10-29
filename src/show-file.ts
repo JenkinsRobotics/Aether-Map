@@ -37,6 +37,7 @@ import {
   type Rect,
   type Surface,
 } from "./document";
+import { isHotkey } from "./scene-hotkeys";
 import { readLfos, readFeatureFields, readGeneratedSources, readOutputCrop } from "./features/read-features";
 import { restoreLegacyCompoundShapes } from "./features/shape-groups";
 import { isLegacyRegularHexagon } from "./mask/geometry";
@@ -168,6 +169,7 @@ function readScene(raw: Record<string, unknown>): Scene {
     // every scene on the canvas and in the show, exactly as it was left.
     ...(raw.hidden === true ? { hidden: true } : {}),
     ...(raw.suppressed === true ? { suppressed: true } : {}),
+    ...(isHotkey(raw.hotkey) ? { hotkey: raw.hotkey } : {}),
     ...(isRecord(raw.artboard) ? { artboard: { widthPx: Math.max(1, Math.min(32768, Math.round(positive(raw.artboard.widthPx, DEFAULT_OUTPUT.width)))), heightPx: Math.max(1, Math.min(32768, Math.round(positive(raw.artboard.heightPx, DEFAULT_OUTPUT.height)))) } } : {}),
     durationS: positive(raw.durationS, DEFAULT_DURATION_S),
     ...(Array.isArray(raw.folders) ? { folders: readFolders(raw.folders) } : {}),

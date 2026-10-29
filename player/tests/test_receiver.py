@@ -344,3 +344,36 @@ setImmediate(() => {
 '''
     result = subprocess.run(['node', '-e', harness], input=script, text=True, capture_output=True, check=False, timeout=10)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def _key(code, value, kind=1):
+    return player.KEY_EVENT.pack(0, 0, kind, code, value)
+
+
+def test_function_key_presses_are_read_from_raw_keyboard_events():
+    data = _key(59, 1) + _key(59, 0) + _key(4, 0, kind=4) + _key(30, 1) + _key(88, 1) + _key(60, 2)
+    assert player.hotkeys_in(data) == ["F1", "F12"]
+
+
+def test_a_pressed_hotkey_reaches_a_waiting_kiosk_at_once_and_is_not_replayed():
+    hub = player.Hotkeys()
+    assert hub.wait(-1, 0) == {"id": 0, "key": None}
+    got = []
+    waiter = threading.Thread(target=lambda: got.append(hub.wait(0, 5)))
+    waiter.start()
+    hub.press("F2")
+    waiter.join(timeout=2)
+    assert got == [{"id": 1, "key": "F2"}]
+    assert hub.wait(1, 0) == {"id": 1, "key": None}
+
+
+def test_kiosk_hands_hotkeys_to_the_show_and_the_player_may_read_keyboards(kiosk, monkeypatch):
+    url, _config, _requests = kiosk
+    monkeypatch.setattr(player, "HOTKEYS", player.Hotkeys())
+    player.HOTKEYS.press("F5")
+    assert json.load(urlopen(url + "/hotkey?after=0")) == {"id": 1, "key": "F5"}
+    with pytest.raises(HTTPError) as refused:
+        urlopen(Request(url + "/hotkey?after=0", headers={"Host": "evil.test"}))
+    assert refused.value.code == 403
+    assert "postMessage({aetherHotkey:" in player.PLAYER_START_PAGE
+    assert "SupplementaryGroups=input" in (ROOT / "install.sh").read_text()
