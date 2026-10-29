@@ -22,7 +22,7 @@ for **Raspberry Pi OS Desktop (Bookworm or newer)**, not an SD-card image.
 skips the wizard, taking the host address from wherever it was fetched and the
 device name from the hostname. A fresh Pi does not trust Studio's local
 certificate authority yet (the installer is what adds it), so fetch the authority
-first, compare its fingerprint with the one Studio's network settings show, and
+first, compare its fingerprint with the same command run on the Studio machine, and
 verify the installer against it:
 
 ```bash
