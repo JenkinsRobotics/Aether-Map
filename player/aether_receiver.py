@@ -107,10 +107,11 @@ function restoreShow() {
   liveVideo.onplaying=null;liveVideo.onresize=null;
   if(liveVideo.srcObject)liveVideo.srcObject.getTracks().forEach(track=>track.stop());
   liveVideo.srcObject=null;liveVideo.style.display='none';
-  const casting=document.body.dataset.liveCast==='cast';
+  const casting=document.body.dataset.liveCast==='cast', editing=document.body.dataset.liveCast==='live';
   delete document.body.dataset.liveCast;notice('');
   const show=document.getElementById('saved-show');
   if(casting && show){try{show.contentWindow.aetherCast?.(null);}catch{}}
+  if(editing && show){show.onload=null;show.contentWindow.postMessage({aetherLiveShow:null},location.origin);}
   if(show && show.dataset.resume){show.src=show.dataset.resume;delete show.dataset.resume;}
 }
 async function signal(data) {
@@ -144,12 +145,33 @@ async function receive(session){
   // A cast offers a data channel; a mirror does not. A cast plays in the show's
   // Cast surfaces, and the hidden video still carries its sound.
   const intoShow=/\nm=application /.test(session.offer&&session.offer.sdp||'');
+  // Data alone, no video: an editor sends its show as it changes, to render here.
+  const liveEdit=intoShow && !/\nm=video /.test(session.offer.sdp);
   let pc;
   try{
     pc=new RTCPeerConnection({iceServers:[]});peer=pc;
     gatheringAbort=new AbortController();
     const stream=new MediaStream();liveVideo.srcObject=stream;
-    notice('Connecting to live video…');
+    if(!liveEdit)notice('Connecting to live video…');
+    pc.ondatachannel=event=>{
+      if(peer!==pc || event.channel.label!=='aether-live')return;
+      let expect=0,parts=[],latest='';
+      const post=()=>{const show=document.getElementById('saved-show');
+        if(show)show.contentWindow.postMessage({aetherLiveShow:latest},location.origin);};
+      event.channel.onmessage=message=>{
+        if(peer!==pc || typeof message.data!=='string')return;
+        // A large show arrives as "#count" and then its pieces.
+        if(message.data[0]==='#'){expect=Number(message.data.slice(1))||0;parts=[];return;}
+        if(expect){parts.push(message.data);if(parts.length<expect)return;latest=parts.join('');expect=0;parts=[];}
+        else latest=message.data;
+        post();
+        if(document.body.dataset.liveCast!=='live'){
+          clearTimeout(connectTimer);notice('');document.body.dataset.liveCast='live';
+          const show=document.getElementById('saved-show');if(show)show.onload=post;
+          void signal({session_id:session.id,state:'connected'}).catch(()=>{});
+        }
+      };
+    };
     connectTimer=setTimeout(()=>fail(pc),25000);
     pc.ontrack=event=>{
       if(peer!==pc)return;

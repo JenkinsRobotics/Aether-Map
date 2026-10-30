@@ -91,6 +91,8 @@ import { PropertiesPanel } from "./panels/PropertiesPanel";
 import { ProgramPanel } from "./panels/ProgramPanel";
 import { SceneProperties } from "./panels/SceneProperties";
 import { DeviceManager } from "./panels/DeviceManager";
+import { routeToPlayer } from './deploy-to-player';
+import { publishLiveShow } from './live/live-edit';
 import { ProjectMediaPool } from "./panels/ProjectMediaPool";
 import type { PoolRef } from "./media-bins";
 import { carryLeftSidebar } from "./carry-left-sidebar";
@@ -498,6 +500,8 @@ export default function App() {
 
 
   useEffect(() => { for (const media of show.media) knownFilesRef.current.add(media.file); }, [show.media]);
+  // A player that is live on this show gets every edit, saved or not.
+  useEffect(() => { publishLiveShow(show); }, [show]);
 
   const edit = useCallback(
     (next: MapShow | ((current: MapShow) => MapShow), coalesceKey?: string) => {
@@ -1835,7 +1839,8 @@ export default function App() {
       {createPortal(<div className="map-device-dialog"><Dialog open={managingDevices} title="Devices" onClose={() => setManagingDevices(false)}
         actions={<Button onClick={() => setManagingDevices(false)}>Done</Button>}>
         {/* With the show, so players can be deployed and mirrored from here. */}
-        <DeviceManager show={show} documentID={file?.id ?? null} installerURL={installerURL()} dirty={dirty} />
+        <DeviceManager show={show} documentID={file?.id ?? null} installerURL={installerURL()} dirty={dirty}
+          onRoute={(id, name) => edit(current => routeToPlayer(current, id, name))} />
       </Dialog></div>, document.body)}
       <OutputDialog
         open={choosingOutput}

@@ -8,6 +8,7 @@ import { DEFAULT_LFOS } from "./features/types";
 import { sceneSize } from "./scene-size";
 import { useEffect, useId, useRef, useState } from "react";
 import { outputForHotkey, sceneForHotkey } from "./scene-hotkeys";
+import { liveShowMessage } from "./live/live-edit";
 import { sourcePictureStyle, alphaProjectionStyle, placementProjectionStyle } from "./source-picture";
 import { clipStyle } from "./mask/clip";
 import { OutlineEdge, outlineEdged } from "./features/SurfaceGrid";
@@ -121,13 +122,32 @@ export function OutputView() {
   const bound = showForOutput(show, output, minute);
   const { width, height } = sceneSize(bound);
 
+  // While an editor is live on this player its show replaces the saved one;
+  // the saved show returns when the session ends.
+  const savedShow = useRef<MapShow | null>(null), liveEdit = useRef(false);
   useEffect(() => {
     if (session) return;
     return watchDeployedLayout((next) => {
+      savedShow.current = next;
+      if (liveEdit.current) return;
       setShow(next);
       setTransport({ playing: true, timeS: 0, anchorMs: Date.now() });
       setSource("deployed");
     });
+  }, [session]);
+  useEffect(() => {
+    if (session) return;
+    const heard = (event: MessageEvent) => {
+      if (event.origin !== location.origin) return;
+      const next = liveShowMessage(event.data);
+      if (next === undefined) return;
+      if (next && !liveEdit.current && !savedShow.current) setTransport({ playing: true, timeS: 0, anchorMs: Date.now() });
+      liveEdit.current = next !== null;
+      if (next) { setShow(next); setSource("deployed"); }
+      else if (savedShow.current) setShow(savedShow.current);
+    };
+    addEventListener("message", heard);
+    return () => removeEventListener("message", heard);
   }, [session]);
 
   useEffect(() => {

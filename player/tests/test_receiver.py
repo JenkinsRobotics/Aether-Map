@@ -377,3 +377,51 @@ def test_kiosk_hands_hotkeys_to_the_show_and_the_player_may_read_keyboards(kiosk
     assert refused.value.code == 403
     assert "postMessage({aetherHotkey:" in player.PLAYER_START_PAGE
     assert "SupplementaryGroups=input" in (ROOT / "install.sh").read_text()
+
+
+LIVE_HARNESS = r'''
+const vm = require('node:vm');
+const script = require('node:fs').readFileSync(0, 'utf8');
+const element = () => ({style:{}, dataset:{}, append() {}, setAttribute() {}, addEventListener() {},
+  play: async () => {}, getTracks: () => []});
+const posted = [];
+const show = {src:'/index.html?output=1', dataset:{}, contentWindow:{postMessage: (data, origin) => posted.push([data, origin])}};
+const peers = [];
+class Peer { constructor() { peers.push(this); this.iceGatheringState = 'complete'; this.connectionState = 'new'; }
+  async setRemoteDescription() {} async createAnswer() { return {}; } async setLocalDescription() { this.localDescription = {sdp:'answer'}; }
+  addEventListener() {} close() {} }
+class Stream { getTracks() { return []; } getVideoTracks() { return []; } addTrack() {} }
+const body = {dataset:{}, append() {}};
+const states = [];
+const context = {
+  playerPermissions:{play_audio:true, keep_display_awake:false}, navigator:{}, console, location:{origin:'http://127.0.0.1:8777'},
+  document:{createElement: element, getElementById: id => id === 'saved-show' ? show : null, body,
+    addEventListener() {}, removeEventListener() {}, visibilityState:'visible'},
+  window:{addEventListener() {}, removeEventListener() {}},
+  fetch: async (_url, options) => { if (options && options.method === 'POST') { states.push(JSON.parse(options.body).state); return {ok:true, json: async () => ({})}; }
+    return {ok:true, json: async () => ({session:{id:'s1', offer:{type:'offer', sdp:'v=0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n'}}})}; },
+  AbortSignal:{timeout: () => undefined}, AbortController, RTCPeerConnection: Peer, MediaStream: Stream,
+  setTimeout, clearTimeout, setInterval: () => 0, clearInterval() {}, Date,
+};
+vm.runInNewContext(script, context);
+setTimeout(() => {
+  const pc = peers[0], channel = {label:'aether-live'};
+  pc.ondatachannel({channel});
+  channel.onmessage({data:'#2'}); channel.onmessage({data:'{"half":'}); channel.onmessage({data:'1}'});
+  const live = body.dataset.liveCast;
+  pc.connectionState = 'closed'; pc.onconnectionstatechange();
+  console.log(JSON.stringify({posted: posted.map(p => p[0].aetherLiveShow), origin: posted[0] && posted[0][1], live,
+    after: body.dataset.liveCast || null, connected: states.includes('connected'), notice: context.__notice.style.display}));
+}, 50);
+'''
+
+
+def test_live_edit_relays_the_show_to_the_renderer_and_restores_it_when_the_editor_leaves():
+    import subprocess
+    script = player.aether_receiver.SCRIPT.replace("const liveNotice = document.createElement('div');",
+                                                   "const liveNotice = document.createElement('div');globalThis.__notice=liveNotice;")
+    result = subprocess.run(['node', '-e', LIVE_HARNESS], input=script, text=True, capture_output=True, check=False, timeout=10)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert json.loads(result.stdout.strip().splitlines()[-1]) == {
+        "posted": ['{"half":1}', None], "origin": "http://127.0.0.1:8777", "live": "live",
+        "after": None, "connected": True, "notice": "none"}

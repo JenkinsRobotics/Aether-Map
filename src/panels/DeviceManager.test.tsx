@@ -11,6 +11,7 @@ const store = vi.hoisted(() => ({
 vi.mock('../use-map-devices', () => ({ useMapDevices: () => store, ago: () => '' }));
 vi.mock('../api', () => ({ hosted: true, library: { shows: vi.fn(async () => [{ id: 'cube', name: 'Cube demo.aethermap' }]) }, androidReceiverAvailable: vi.fn(), androidReceiverDownloadURL: () => '/api/map/aether-map-receiver.apk', installerDownloadURL: () => '/installer', devices: { claim: vi.fn(), assign: vi.fn(), forget: vi.fn(), rename: vi.fn(), command: vi.fn() } }));
 vi.mock('../live-cast', () => ({ mirrorDevice: vi.fn() }));
+vi.mock('../live/live-edit', () => ({ startLiveEdit: vi.fn(), stopLiveEdit: vi.fn(), useLiveEdit: () => null }));
 vi.mock('../deploy-to-player', () => ({ deploySavedShow: vi.fn(async () => ['The show plays once and holds its last moment.']) }));
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(androidReceiverAvailable).mockResolvedValue(false); store.list = [{ id: 'pi', name: 'Porch', mine: true, claimed: true, document: null, seen: 0 }]; store.refresh.mockResolvedValue(undefined); });
 afterEach(cleanup);
@@ -166,4 +167,20 @@ it('deploys a saved show from the Players page and names what each player runs',
   cleanup(); mount();
   expect(await screen.findByText(/playing Cube demo/)).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Open show' })).toBeTruthy();
+});
+
+it('adds an output for an unrouted player, then deploys and goes live with the open show', async () => {
+  const { emptyShow } = await import('../document');
+  const { startLiveEdit } = await import('../live/live-edit');
+  const show = emptyShow(), onRoute = vi.fn();
+  const { rerender } = render(<DeviceManager show={show} documentID="doc" dirty={false} onRoute={onRoute} installerURL="https://studio.test/api/map/install.sh" />);
+  expect((screen.getByRole('button', { name: 'Go live' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Add output for this player' }));
+  expect(onRoute).toHaveBeenCalledWith('pi', 'Porch');
+  const routed = { ...show, outputs: [{ ...show.outputs[0], kind: 'edge' as const, deviceId: 'pi' }] };
+  rerender(<DeviceManager show={routed} documentID="doc" dirty={true} onRoute={onRoute} installerURL="https://studio.test/api/map/install.sh" />);
+  expect(screen.queryByRole('button', { name: 'Add output for this player' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Go live' }));
+  await waitFor(() => expect(startLiveEdit).toHaveBeenCalledWith('pi', routed));
+  expect(devices.assign).toHaveBeenCalledWith('pi', 'doc');
 });

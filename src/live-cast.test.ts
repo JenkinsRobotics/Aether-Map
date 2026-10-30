@@ -169,3 +169,13 @@ describe('measured connection statistics', () => {
     expect(result.diagnostics).toEqual({ audio: true });
   });
 });
+
+it('splits a large live show into counted pieces that rejoin exactly', async () => {
+  const { livePieces } = await import('./live-cast');
+  expect(livePieces('small')).toEqual(['small']);
+  const big = 'x'.repeat(130001);
+  const pieces = livePieces(big);
+  expect(pieces[0]).toBe('#3');
+  expect(pieces.slice(1).join('')).toBe(big);
+  expect(Math.max(...pieces.map(p => p.length))).toBeLessThanOrEqual(60000);
+});

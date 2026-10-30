@@ -3,6 +3,17 @@ import { castStatistics, type CastCounters, type CastDiagnostics } from './live-
 import { setCastStream } from './live/casts';
 
 export type CastStatus = 'Choosing output' | 'Connecting' | 'Mirroring' | 'Reconnecting';
+/** The editor's show as saved-file text, and a way to hear about each edit. */
+export interface LiveFeed { current(): string; subscribe(changed: () => void): () => void }
+// Data channel messages are kept well under the browsers' 256 KiB ceiling.
+const LIVE_PIECE = 60000;
+/** A show larger than one message goes as "#count" followed by its pieces. */
+export function livePieces(text: string): string[] {
+  if (text.length <= LIVE_PIECE) return [text];
+  const pieces: string[] = [];
+  for (let at = 0; at < text.length; at += LIVE_PIECE) pieces.push(text.slice(at, at + LIVE_PIECE));
+  return [`#${pieces.length}`, ...pieces];
+}
 export type { CastDiagnostics } from './live-cast-stats';
 
 /** Bounded LAN candidate gathering; cancellation removes the listener immediately. */
@@ -44,14 +55,17 @@ function chooseCapture(signal: AbortSignal): Promise<MediaStream | null> {
 
 /** Capture is requested only from an operator's click, never by a render or poll.
  * `intoShow` casts into the player's Cast surfaces instead of replacing its show;
- * the offer's data channel is the mark, so older players simply mirror it. */
+ * the offer's data channel is the mark, so older players simply mirror it.
+ * `live` sends no video at all: the show itself, on every edit, for the player
+ * to render natively. */
 export async function mirrorDevice(deviceID: string, signal: AbortSignal,
-  status: (value: CastStatus) => void, diagnostics?: (value: CastDiagnostics) => void, intoShow = false): Promise<void> {
+  status: (value: CastStatus) => void, diagnostics?: (value: CastDiagnostics) => void, intoShow = false, live?: LiveFeed): Promise<void> {
   if (signal.aborted) return;
-  if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('Live mirroring needs a supported browser on HTTPS or localhost.');
-  status('Choosing output');
-  const capture = await chooseCapture(signal);
+  if (!live && !navigator.mediaDevices?.getDisplayMedia) throw new Error('Live mirroring needs a supported browser on HTTPS or localhost.');
+  if (!live) status('Choosing output');
+  const capture = live ? new MediaStream() : await chooseCapture(signal);
   if (!capture) return;
+  let unsubscribe: (() => void) | undefined;
   const life = new AbortController();
   let peer: RTCPeerConnection | undefined, sessionID: string | undefined;
   let watchdog: ReturnType<typeof setInterval> | undefined, failure: Error | undefined;
@@ -59,6 +73,7 @@ export async function mirrorDevice(deviceID: string, signal: AbortSignal,
     if (life.signal.aborted) return;
     life.abort();
     capture.getTracks().forEach(track => track.stop());
+    unsubscribe?.();
     peer?.close();
     if (intoShow) setCastStream(null);
   };
@@ -67,13 +82,21 @@ export async function mirrorDevice(deviceID: string, signal: AbortSignal,
   video.forEach(track => track.addEventListener('ended', stop));
   try {
     if (signal.aborted) { stop(); return; }
-    if (!video.some(track => track.readyState !== 'ended')) throw new Error('No live video was selected. Choose the output window and try again.');
+    if (!live && !video.some(track => track.readyState !== 'ended')) throw new Error('No live video was selected. Choose the output window and try again.');
     peer = new RTCPeerConnection({ iceServers: [] });
     status('Connecting');
     const audio = capture.getAudioTracks().some(track => track.readyState !== 'ended');
     diagnostics?.({ audio });
     capture.getTracks().forEach(track => peer!.addTrack(track, capture));
     if (intoShow) { peer.createDataChannel('aether-cast'); setCastStream(capture); }
+    if (live) {
+      const channel = peer.createDataChannel('aether-live');
+      // Edits arrive per keystroke or drag frame; send at most ten shows a second.
+      let queued: ReturnType<typeof setTimeout> | undefined;
+      const send = () => { queued = undefined; if (channel.readyState === 'open') livePieces(live.current()).forEach(piece => channel.send(piece)); };
+      channel.onopen = () => { send(); unsubscribe = live.subscribe(() => { queued ??= setTimeout(send, 100); }); };
+      life.signal.addEventListener('abort', () => clearTimeout(queued), { once: true });
+    }
     await peer.setLocalDescription(await peer.createOffer());
     await gatherCandidates(peer, life.signal);
     if (life.signal.aborted) return;

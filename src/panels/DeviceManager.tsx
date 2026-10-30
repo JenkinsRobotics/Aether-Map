@@ -11,6 +11,7 @@ import { PairDeviceForm } from './PairDeviceForm';
 import { deploymentReadiness } from '../deployment-readiness';
 import { DeviceRemote } from './DeviceRemote';
 import { deploySavedShow } from '../deploy-to-player';
+import { startLiveEdit, stopLiveEdit, useLiveEdit } from '../live/live-edit';
 
 /**
  * The workspace's paired players: pairing, naming, forgetting, and deploying a
@@ -39,8 +40,10 @@ function useAuthorityFingerprint(): string | null {
   return value;
 }
 
-export function DeviceManager({ documentID, installerURL, dirty, show }: {
+export function DeviceManager({ documentID, installerURL, dirty, show, onRoute }: {
   show?: MapShow;
+  /** Adds an output for a player to the open show, so it can deploy and go live. */
+  onRoute?: (deviceID: string, name: string) => void;
   documentID: string | null;
   installerURL: string;
   dirty: boolean;
@@ -82,6 +85,13 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
     catch (problem) { setError((problem as Error).message); }
   };
   const mine = list.filter((device) => device.mine);
+  const live = useLiveEdit();
+  // The player needs this show's renderer before it can draw live edits, so going
+  // live deploys the saved file first; edits then stream without saving.
+  const goLive = (id: string, assigned: boolean) => void act(async () => {
+    if (!assigned) await devices.assign(id, documentID);
+    if (show) startLiveEdit(id, show);
+  });
   if (!hosted) return <div className="map-devices"><EmptyState compact icon={<AetherIcon name="hardware" />}
     title="Edge devices need the host" description="Open Aether Map from Aether Studio to pair a projector." /></div>;
   return (
@@ -131,6 +141,10 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
                       {standalone && <Button disabled={!online(device) || cast !== null} onClick={() => void mirror(device.id, true)}>Cast into show</Button>}
                     </>}
 
+                  {standalone && onRoute && readiness && !readiness.output && <Button primary onClick={() => onRoute(device.id, device.name)}>Add output for this player</Button>}
+                  {standalone && show && (live?.deviceID === device.id
+                    ? <Button onClick={stopLiveEdit}>End live</Button>
+                    : <Button disabled={!documentID || !online(device) || !!readiness?.blockers.length} onClick={() => goLive(device.id, running)}>Go live</Button>)}
                   {standalone && <Button disabled={!documentID || dirty || running || !!readiness?.blockers.length}
                     onClick={() => void act(() => devices.assign(device.id, documentID))}>
                     {running ? "Assigned" : "Deploy this show"}
@@ -140,6 +154,9 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
                   {device.document && device.document !== documentID && <Button onClick={() => location.assign(`/map/index.html?document=${encodeURIComponent(device.document!)}`)}>Open show</Button>}
                   {device.document && <Button onClick={() => void act(() => devices.assign(device.id, null))}>Stop</Button>}
                 </div>
+                {live?.deviceID === device.id && <p role="status" className="map-hint">{live.error
+                  || (live.status === 'Mirroring' ? 'Live · your edits appear on this player as you make them, without saving. End live to return it to the saved show.'
+                    : running ? `${live.status}…` : 'Deploying, then going live. The first time, the player downloads the renderer, which can take a minute.')}</p>}
                 {deployNotes?.id === device.id && deployNotes.notes.map(message => <p className="map-hint" key={message}>{message}</p>)}
                 {device.status && <DeviceRemote device={{ ...device, status: device.status }}
                   send={(type, args = {}) => act(() => devices.command(device.id, type, args))} />}
