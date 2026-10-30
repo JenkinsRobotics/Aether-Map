@@ -1,0 +1,643 @@
+{
+  "timelines": [],
+  "version": 7,
+  "pool": [
+    {
+      "id": "red",
+      "name": "Red",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#ff0000"
+      }
+    },
+    {
+      "id": "pool29-vrmyxv",
+      "name": "Backdrop",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "shader": {
+          "preset": "mesh-gradient",
+          "colors": [
+            "#e0eaff",
+            "#241d9a",
+            "#f75092",
+            "#9f50d3"
+          ],
+          "parameters": {
+            "fit": "contain",
+            "scale": 1,
+            "rotation": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "originX": 0.5,
+            "originY": 0.5,
+            "worldWidth": 0,
+            "worldHeight": 0,
+            "speed": 1,
+            "distortion": 0.8,
+            "swirl": 0.1,
+            "grainMixer": 0,
+            "grainOverlay": 0
+          },
+          "time": {
+            "offsetS": 0,
+            "loopS": 15,
+            "direction": "forward",
+            "frozen": false
+          }
+        }
+      }
+    },
+    {
+      "id": "pool29-8k894f",
+      "name": "Metaballs",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "shader": {
+          "preset": "metaballs",
+          "colors": [
+            "#6e33cc",
+            "#ff5500",
+            "#ffc105",
+            "#ffc800",
+            "#f585ff"
+          ],
+          "parameters": {
+            "fit": "contain",
+            "scale": 1,
+            "rotation": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "originX": 0.5,
+            "originY": 0.5,
+            "worldWidth": 0,
+            "worldHeight": 0,
+            "speed": 1,
+            "colorBack": "#000000",
+            "count": 10,
+            "size": 0.83
+          },
+          "time": {
+            "offsetS": 0,
+            "loopS": 15,
+            "direction": "forward",
+            "frozen": false
+          }
+        }
+      }
+    },
+    {
+      "id": "pool29-n9fd8q",
+      "name": "Voronoi",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "shader": {
+          "preset": "voronoi",
+          "colors": [
+            "#fffffffc",
+            "#bbff00",
+            "#00ffff"
+          ],
+          "parameters": {
+            "fit": "none",
+            "scale": 3.3,
+            "rotation": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "originX": 0.5,
+            "originY": 0.5,
+            "worldWidth": 0,
+            "worldHeight": 0,
+            "speed": 0.5,
+            "colorGlow": "#ff00d0",
+            "colorGap": "#ff00d0",
+            "stepsPerColor": 2,
+            "distortion": 0.38,
+            "gap": 0,
+            "glow": 1
+          },
+          "time": {
+            "offsetS": 0,
+            "loopS": 15,
+            "direction": "forward",
+            "frozen": false
+          }
+        }
+      }
+    },
+    {
+      "id": "pool29-43hpr7",
+      "name": "Swirl",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "shader": {
+          "preset": "swirl",
+          "colors": [
+            "#fefff0",
+            "#ffd8bd",
+            "#ff8b61"
+          ],
+          "parameters": {
+            "fit": "contain",
+            "scale": 1,
+            "rotation": 0,
+            "offsetX": -0.4,
+            "offsetY": 1,
+            "originX": 0.5,
+            "originY": 0.5,
+            "worldWidth": 0,
+            "worldHeight": 0,
+            "speed": 0.5,
+            "colorBack": "#ff8b61",
+            "bandCount": 2,
+            "twist": 0.3,
+            "center": 0.2,
+            "proportion": 0.5,
+            "softness": 0,
+            "noiseFrequency": 0,
+            "noise": 0
+          },
+          "time": {
+            "offsetS": 0,
+            "loopS": 15,
+            "direction": "forward",
+            "frozen": false
+          }
+        }
+      }
+    }
+  ],
+  "tracks": [
+    {
+      "id": "v1",
+      "name": "Visuals",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track-default-scene-audio",
+      "name": "A1",
+      "kind": "audio",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-mobnlh",
+      "name": "Backdrop",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-lr48m6"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s30-axgpra"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s32-e37f63"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s34-r6x7qb"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-jt45sm",
+      "name": "Metaballs",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-lr48m6"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s30-axgpra"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s32-e37f63"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s34-r6x7qb"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-eq006u",
+      "name": "Voronoi",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-lr48m6"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s30-axgpra"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s32-e37f63"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s34-r6x7qb"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-ujlrjv",
+      "name": "Swirl",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-lr48m6"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s30-axgpra"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s32-e37f63"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s34-r6x7qb"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    }
+  ],
+  "visuals": [
+    {
+      "id": "k31-f2cx7r",
+      "name": "Backdrop",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-vrmyxv",
+      "trackID": "track30-mobnlh",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-lr48m6"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#8b87ff",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-irm27c",
+      "name": "Metaballs",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-8k894f",
+      "trackID": "track30-jt45sm",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s30-axgpra"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#32cf84",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-qmq3om",
+      "name": "Voronoi",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-n9fd8q",
+      "trackID": "track30-eq006u",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s32-e37f63"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#e7a843",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-f8uieb",
+      "name": "Swirl",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-43hpr7",
+      "trackID": "track30-ujlrjv",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s34-r6x7qb"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#36d6c3",
+      "opacity": 1,
+      "continuous": true
+    }
+  ],
+  "output": {
+    "width": 1920,
+    "height": 1080
+  },
+  "outputs": [],
+  "shows": [
+    {
+      "id": "show-1",
+      "name": "Show 1",
+      "durationS": 50,
+      "tracks": [
+        {
+          "id": "track-scene",
+          "canvasID": "scene",
+          "clips": [
+            {
+              "id": "clip-scene",
+              "sceneID": "main",
+              "startS": 0,
+              "durationS": 50,
+              "inS": 0,
+              "loop": true
+            }
+          ]
+        }
+      ],
+      "cues": []
+    }
+  ],
+  "surfaceLook": {
+    "device": {
+      "pattern": "checker",
+      "primary": "#5b5bd6",
+      "secondary": "#7b7be6",
+      "border": "#ffffff",
+      "sections": 6,
+      "opacity": 1,
+      "pinSizePx": 9
+    },
+    "external": {
+      "pattern": "checker",
+      "primary": "#000000",
+      "secondary": "#ffffff",
+      "border": "#ffffff",
+      "sections": 6,
+      "opacity": 1,
+      "pinSizePx": 0
+    }
+  },
+  "media": [],
+  "unassignedSurfaces": [],
+  "scenes": [
+    {
+      "id": "scene",
+      "name": "Main scene",
+      "artboard": {
+        "widthPx": 1920,
+        "heightPx": 1080
+      },
+      "durationS": 50,
+      "surfaces": [
+        {
+          "id": "s29-lr48m6",
+          "name": "Backdrop wall",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#4c9dff",
+          "corners": [
+            [
+              0,
+              0
+            ],
+            [
+              1920,
+              0
+            ],
+            [
+              1920,
+              1080
+            ],
+            [
+              0,
+              1080
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s30-axgpra",
+          "name": "Cube top",
+          "enabled": true,
+          "folder": "Cube",
+          "groupShape": "cube",
+          "color": "#ff8a3d",
+          "corners": [
+            [
+              1018.4579724531682,
+              249.81623688089843
+            ],
+            [
+              1351.2541918530258,
+              571.3997722920124
+            ],
+            [
+              956.4012847432832,
+              814.7952818692868
+            ],
+            [
+              623.6050653434254,
+              493.21174645817314
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              1920,
+              1080
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s32-e37f63",
+          "name": "Cube left",
+          "enabled": true,
+          "folder": "Cube",
+          "groupShape": "cube",
+          "color": "#8b87ff",
+          "corners": [
+            [
+              623.6050653434254,
+              493.21174645817314
+            ],
+            [
+              956.4012847432832,
+              814.7952818692868
+            ],
+            [
+              901.5420275468318,
+              1013.7837631191014
+            ],
+            [
+              568.7458081469738,
+              692.2002277079878
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              1920,
+              1080
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s34-r6x7qb",
+          "name": "Cube right",
+          "enabled": true,
+          "folder": "Cube",
+          "groupShape": "cube",
+          "color": "#32cf84",
+          "corners": [
+            [
+              956.4012847432832,
+              814.7952818692868
+            ],
+            [
+              1351.2541918530258,
+              571.3997722920124
+            ],
+            [
+              1296.3949346565748,
+              770.3882535418269
+            ],
+            [
+              901.5420275468318,
+              1013.7837631191014
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              1920,
+              1080
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene",
+  "playback": {
+    "mode": "once"
+  }
+}

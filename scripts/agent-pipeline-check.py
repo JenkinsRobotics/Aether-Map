@@ -30,7 +30,9 @@ gallery = run("map.agent.docs", empty, topic="gallery", query="neon")[1]["items"
 
 # --- Demo show: one backdrop across a wall, a cast screen, and a Disney+ scene.
 show = empty
-show, r = run("map.scene.create", show, name="Backdrop", width_px=1920, height_px=1080); backdrop = created(r)["scene_id"]
+# The show opens on its active scene, so the backdrop goes there; its test clip goes.
+backdrop = json.loads(show)["activeSceneId"]
+show, _ = run("map.clip.edit", show, clip_id="clip", action="delete")
 show, _ = run("map.scene.hotkey", show, scene_id=backdrop, hotkey="F1")
 show, r = run("map.scene.create", show, name="Movie", width_px=1920, height_px=1080); movie = created(r)["scene_id"]
 show, _ = run("map.scene.hotkey", show, scene_id=movie, hotkey="F2")
@@ -60,7 +62,7 @@ for scene in (backdrop, movie):
     _, e = run("map.show.evaluate", show, scene_id=scene, time_s=5)
 _, inspected = run("map.show.inspect", show)
 scenes = {s["name"]: s for s in inspected["scenes"]}
-assert scenes["Backdrop"].get("hotkey") == "F1" and scenes["Movie"].get("hotkey") == "F2", "hotkey missing from inspect"
+assert scenes["Main scene"].get("hotkey") == "F1" and scenes["Movie"].get("hotkey") == "F2", "hotkey missing from inspect"
 Path(sys.argv[1] if len(sys.argv) > 1 else MAP / "demos/projector-cast-and-movie.aethermap").write_text(show)
 
 # --- Scratch copy: every remaining command.
@@ -85,3 +87,19 @@ s, _ = run("map.show.runprogram", s, program_json=json.dumps(recipe))
 missing = ({i["id"] for i in docs["items"]} | set(json.loads(json.dumps([c["id"] for c in json.load(open(MAP / "service/aether_map_service/automation-commands.json"))])))) - seen
 print("\n".join(log[-6:]))
 print(f"{len(seen)}/19 commands ran; missing: {sorted(missing) or 'none'}; {len(log)} calls")
+
+# --- Second demo: a three-face cube with a different generator on each face, over a backdrop.
+cube = empty
+scene = json.loads(cube)["activeSceneId"]
+cube, _ = run("map.clip.edit", cube, clip_id="clip", action="delete")
+cube, r = run("map.surface.create", cube, scene_id=scene, name="Backdrop wall"); wall = created(r)["surface_id"]
+cube, _ = run("map.surface.bounds", cube, scene_id=scene, surface_id=wall, x_px=0, y_px=0, width_px=1920, height_px=1080)
+cube, r = run("map.surface.create", cube, scene_id=scene, name="Cube", shape="cube"); faces = created(r)["surface_ids"]
+cube, _ = run("map.cube.pose", cube, scene_id=scene, surface_id=faces[0], mode="rotate", x_degrees=-15, y_degrees=25)
+cube, _ = visual(cube, scene, "Backdrop", {"kind": "gallery", "id": "mesh-gradient:0"}, [wall])
+for face, generator in zip(faces, ("metaballs:0", "voronoi:1", "swirl:2")):
+    cube, _ = visual(cube, scene, generator.split(":")[0].title(), {"kind": "gallery", "id": generator}, [face])
+_, v = run("map.show.verify", cube, scene_id=scene, time_s=5)
+assert v["valid"] and v["layer_count"] == 4, v
+Path(MAP / "demos/cube-generators.aethermap").write_text(cube)
+print("cube demo: 1 backdrop + 3 cube faces, each its own generator")

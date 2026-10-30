@@ -17,7 +17,7 @@
       }
     },
     {
-      "id": "pool29-qnmt3q",
+      "id": "pool29-cfek8x",
       "name": "Backdrop",
       "source": {
         "mediaId": null,
@@ -73,7 +73,7 @@
       }
     },
     {
-      "id": "pool29-nsi7qw",
+      "id": "pool29-zccisj",
       "name": "Backdrop",
       "source": {
         "mediaId": null,
@@ -129,7 +129,7 @@
       }
     },
     {
-      "id": "pool29-u1tis9",
+      "id": "pool29-gg9s2i",
       "name": "Phone cast",
       "source": {
         "mediaId": null,
@@ -143,7 +143,7 @@
       }
     },
     {
-      "id": "pool29-m7gkot",
+      "id": "pool29-1jziv7",
       "name": "Disney+",
       "source": {
         "mediaId": null,
@@ -189,132 +189,104 @@
       "locked": false
     },
     {
-      "id": "track-default-sc29-1nt8i2-video",
+      "id": "track-default-sc29-jd2u5i-video",
       "name": "V1",
       "kind": "video",
       "volume": 1,
       "solo": false,
       "targets": [
         {
-          "sceneID": "sc29-1nt8i2"
+          "sceneID": "sc29-jd2u5i"
         }
       ],
       "enabled": true,
       "locked": false
     },
     {
-      "id": "track-default-sc29-1nt8i2-audio",
+      "id": "track-default-sc29-jd2u5i-audio",
       "name": "A1",
       "kind": "audio",
       "volume": 1,
       "solo": false,
       "targets": [
         {
-          "sceneID": "sc29-1nt8i2"
+          "sceneID": "sc29-jd2u5i"
         }
       ],
       "enabled": true,
       "locked": false
     },
     {
-      "id": "track-default-sc29-7xd348-video",
-      "name": "V1",
-      "kind": "video",
-      "volume": 1,
-      "solo": false,
-      "targets": [
-        {
-          "sceneID": "sc29-7xd348"
-        }
-      ],
-      "enabled": true,
-      "locked": false
-    },
-    {
-      "id": "track-default-sc29-7xd348-audio",
-      "name": "A1",
-      "kind": "audio",
-      "volume": 1,
-      "solo": false,
-      "targets": [
-        {
-          "sceneID": "sc29-7xd348"
-        }
-      ],
-      "enabled": true,
-      "locked": false
-    },
-    {
-      "id": "track30-h13ku4",
+      "id": "track30-1f7jnt",
       "name": "Backdrop",
       "kind": "video",
       "volume": 1,
       "solo": false,
       "targets": [
         {
-          "sceneID": "sc29-1nt8i2",
-          "surfaceID": "s29-6mywxl"
+          "sceneID": "scene",
+          "surfaceID": "s29-5lnhga"
         },
         {
-          "sceneID": "sc29-1nt8i2",
-          "surfaceID": "s29-0ssf6d"
+          "sceneID": "scene",
+          "surfaceID": "s29-erfs2w"
         }
       ],
       "enabled": true,
       "locked": false
     },
     {
-      "id": "track30-zp0z34",
+      "id": "track30-40vosv",
       "name": "Backdrop",
       "kind": "video",
       "volume": 1,
       "solo": false,
       "targets": [
         {
-          "sceneID": "sc29-7xd348",
-          "surfaceID": "s29-e5we73"
+          "sceneID": "sc29-jd2u5i",
+          "surfaceID": "s29-1st56p"
         },
         {
-          "sceneID": "sc29-7xd348",
-          "surfaceID": "s29-0hswav"
+          "sceneID": "sc29-jd2u5i",
+          "surfaceID": "s29-4qtqem"
         }
       ],
       "enabled": true,
       "locked": false
     },
     {
-      "id": "track30-k2xvaa",
+      "id": "track30-dau7kx",
       "name": "Phone cast",
       "kind": "video",
       "volume": 1,
       "solo": false,
       "targets": [
         {
-          "sceneID": "sc29-1nt8i2",
-          "surfaceID": "s29-6mywxl"
+          "sceneID": "scene",
+          "surfaceID": "s29-5lnhga"
         },
         {
-          "sceneID": "sc29-1nt8i2",
-          "surfaceID": "s29-0ssf6d"
+          "sceneID": "scene",
+          "surfaceID": "s29-erfs2w"
         }
       ],
       "enabled": true,
       "locked": false
     },
     {
-      "id": "track30-f8dg2q",
+      "id": "track30-zpdf02",
       "name": "Disney+",
       "kind": "video",
       "volume": 1,
       "solo": false,
       "targets": [
         {
-          "sceneID": "sc29-7xd348",
-          "surfaceID": "s29-e5we73"
+          "sceneID": "sc29-jd2u5i",
+          "surfaceID": "s29-1st56p"
         },
         {
-          "sceneID": "sc29-7xd348",
-          "surfaceID": "s29-0hswav"
+          "sceneID": "sc29-jd2u5i",
+          "surfaceID": "s29-4qtqem"
         }
       ],
       "enabled": true,
@@ -323,36 +295,58 @@
   ],
   "visuals": [
     {
-      "id": "clip",
-      "name": "Red",
-      "startS": 2,
-      "durationS": 10,
+      "id": "k31-nyeddx",
+      "name": "Backdrop",
+      "startS": 0,
+      "durationS": 50,
       "inS": 0,
-      "loop": false,
-      "assetID": "red",
-      "trackID": "v1",
+      "loop": true,
+      "assetID": "pool29-cfek8x",
+      "trackID": "track30-1f7jnt",
       "targets": [
         {
-          "sceneID": "scene"
+          "sceneID": "scene",
+          "surfaceID": "s29-5lnhga"
         }
       ],
       "mapping": "repeat",
-      "color": "#ff0000",
-      "opacity": 1
+      "color": "#e7a843",
+      "opacity": 1,
+      "continuous": true
     },
     {
-      "id": "k31-3uokho",
+      "id": "k31-k22zkk",
       "name": "Backdrop",
       "startS": 0,
       "durationS": 60,
       "inS": 0,
       "loop": true,
-      "assetID": "pool29-qnmt3q",
-      "trackID": "track30-h13ku4",
+      "assetID": "pool29-zccisj",
+      "trackID": "track30-40vosv",
       "targets": [
         {
-          "sceneID": "sc29-1nt8i2",
-          "surfaceID": "s29-6mywxl"
+          "sceneID": "sc29-jd2u5i",
+          "surfaceID": "s29-1st56p"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#36d6c3",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-d5qpdi",
+      "name": "Phone cast",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-gg9s2i",
+      "trackID": "track30-dau7kx",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-erfs2w"
         }
       ],
       "mapping": "repeat",
@@ -361,62 +355,22 @@
       "continuous": true
     },
     {
-      "id": "k31-ex628r",
-      "name": "Backdrop",
-      "startS": 0,
-      "durationS": 60,
-      "inS": 0,
-      "loop": true,
-      "assetID": "pool29-nsi7qw",
-      "trackID": "track30-zp0z34",
-      "targets": [
-        {
-          "sceneID": "sc29-7xd348",
-          "surfaceID": "s29-e5we73"
-        }
-      ],
-      "mapping": "repeat",
-      "color": "#c7d3de",
-      "opacity": 1,
-      "continuous": true
-    },
-    {
-      "id": "k31-hyob3b",
-      "name": "Phone cast",
-      "startS": 0,
-      "durationS": 60,
-      "inS": 0,
-      "loop": true,
-      "assetID": "pool29-u1tis9",
-      "trackID": "track30-k2xvaa",
-      "targets": [
-        {
-          "sceneID": "sc29-1nt8i2",
-          "surfaceID": "s29-0ssf6d"
-        }
-      ],
-      "mapping": "repeat",
-      "color": "#4c9dff",
-      "opacity": 1,
-      "continuous": true
-    },
-    {
-      "id": "k31-zp99i8",
+      "id": "k31-meszm2",
       "name": "Disney+",
       "startS": 0,
       "durationS": 60,
       "inS": 0,
       "loop": true,
-      "assetID": "pool29-m7gkot",
-      "trackID": "track30-f8dg2q",
+      "assetID": "pool29-1jziv7",
+      "trackID": "track30-zpdf02",
       "targets": [
         {
-          "sceneID": "sc29-7xd348",
-          "surfaceID": "s29-0hswav"
+          "sceneID": "sc29-jd2u5i",
+          "surfaceID": "s29-4qtqem"
         }
       ],
       "mapping": "repeat",
-      "color": "#ff8a3d",
+      "color": "#c7d3de",
       "opacity": 1,
       "continuous": true
     }
@@ -447,25 +401,11 @@
           ]
         },
         {
-          "id": "track-sc29-1nt8i2",
-          "canvasID": "sc29-1nt8i2",
+          "id": "track-sc29-jd2u5i",
+          "canvasID": "sc29-jd2u5i",
           "clips": [
             {
-              "id": "clip-sc29-1nt8i2",
-              "sceneID": "main",
-              "startS": 0,
-              "durationS": 60,
-              "inS": 0,
-              "loop": true
-            }
-          ]
-        },
-        {
-          "id": "track-sc29-7xd348",
-          "canvasID": "sc29-7xd348",
-          "clips": [
-            {
-              "id": "clip-sc29-7xd348",
+              "id": "clip-sc29-jd2u5i",
               "sceneID": "main",
               "startS": 0,
               "durationS": 60,
@@ -504,25 +444,15 @@
     {
       "id": "scene",
       "name": "Main scene",
-      "artboard": {
-        "widthPx": 1920,
-        "heightPx": 1080
-      },
-      "durationS": 50,
-      "surfaces": []
-    },
-    {
-      "id": "sc29-1nt8i2",
-      "name": "Backdrop",
       "hotkey": "F1",
       "artboard": {
         "widthPx": 1920,
         "heightPx": 1080
       },
-      "durationS": 60,
+      "durationS": 50,
       "surfaces": [
         {
-          "id": "s29-6mywxl",
+          "id": "s29-5lnhga",
           "name": "Wall",
           "enabled": true,
           "kind": "surface",
@@ -560,7 +490,7 @@
           "clips": []
         },
         {
-          "id": "s29-0ssf6d",
+          "id": "s29-erfs2w",
           "name": "Screen",
           "enabled": true,
           "kind": "surface",
@@ -600,7 +530,7 @@
       ]
     },
     {
-      "id": "sc29-7xd348",
+      "id": "sc29-jd2u5i",
       "name": "Movie",
       "hotkey": "F2",
       "artboard": {
@@ -610,7 +540,7 @@
       "durationS": 60,
       "surfaces": [
         {
-          "id": "s29-e5we73",
+          "id": "s29-1st56p",
           "name": "Wall",
           "enabled": true,
           "kind": "surface",
@@ -648,7 +578,7 @@
           "clips": []
         },
         {
-          "id": "s29-0hswav",
+          "id": "s29-4qtqem",
           "name": "Screen",
           "enabled": true,
           "kind": "surface",
