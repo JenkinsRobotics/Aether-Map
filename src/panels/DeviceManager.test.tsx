@@ -195,3 +195,13 @@ it('says whether the screen is drawing, from the show page report', async () => 
   expect(displayState({ ...status, render: { fps: 0, webgl: false, error: 'context lost', age_s: 5 } })).toMatch(/WebGL unavailable.*context lost/);
   expect(displayState({ ...status, render: { fps: 24, webgl: true, error: '', age_s: 600 } })).toMatch(/not drawing.*Restart player/);
 });
+
+it('updates every managed player at once', async () => {
+  const status = { player_version: 'abc', app_release: '', show: { id: null, revision: null }, uptime_s: 1, system_uptime_s: 1, disk_free_mb: 1, temperature_c: 1,
+    model: 'Pi', os: '', hostname: '', address: '', permissions: {}, last_error: '', update_pending: false };
+  store.list = [{ ...store.list[0], status }, { id: 'tv', name: 'Lobby', mine: true, claimed: true, document: null, seen: 0, kind: 'live_receiver' }, { id: 'pi2', name: 'Garage', mine: true, claimed: true, document: null, seen: 0, status }];
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Update all players' }));
+  await waitFor(() => expect(devices.command).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(devices.command).mock.calls.map(c => [c[0], c[1]])).toEqual([['pi', 'update'], ['pi2', 'update']]);
+});

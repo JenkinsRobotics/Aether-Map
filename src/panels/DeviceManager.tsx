@@ -100,6 +100,9 @@ export function DeviceManager({ documentID, installerURL, dirty, show, onRoute }
         <Button primary onClick={() => { setPairingBusy(false); setPairing(true); }}>Pair a device</Button>
         <Button onClick={() => setAdding(true)}>Set up a new one</Button>
         <Button onClick={()=>void refresh()}>Refresh devices</Button>
+        {/* Players also fetch new player software once a day on their own. */}
+        {mine.some(d => canDeployToDevice(d) && d.status) && <Button onClick={() => void act(() =>
+          Promise.all(mine.filter(d => canDeployToDevice(d) && d.status).map(d => devices.command(d.id, 'update'))))}>Update all players</Button>}
       </div>
       {error && <div className="map-error">{error}</div>}
       <p className="map-hint">Deploy for independent playback, including offline. For live mirroring, open your output window, then choose it in the browser’s sharing picker. Keep this Players view open while sharing. Both devices need to be on the same network.</p>
