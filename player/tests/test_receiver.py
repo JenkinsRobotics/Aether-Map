@@ -425,3 +425,50 @@ def test_live_edit_relays_the_show_to_the_renderer_and_restores_it_when_the_edit
     assert json.loads(result.stdout.strip().splitlines()[-1]) == {
         "posted": ['{"half":1}', None], "origin": "http://127.0.0.1:8777", "live": "live",
         "after": None, "connected": True, "notice": "none"}
+
+
+ESC_HARNESS = r'''
+const vm = require('node:vm');
+const script = require('node:fs').readFileSync(0, 'utf8');
+const els = {}, posts = [], polls = [];
+const el = id => els[id] ??= {id, style:{}, dataset:{}, textContent:'', hidden:false, removeAttribute() {}, setAttribute() {},
+  getAttribute(name) { return this[name]; }, remove() { delete els[this.id]; },
+  set src(v) { this._src = v; }, get src() { return this._src; }};
+let keys = [];
+const nextKey = () => new Promise(resolve => keys.push(resolve));
+const context = {
+  fetch: async (url, options) => {
+    if (url.startsWith('/hotkey')) return {json: () => nextKey()};
+    if (options && options.method === 'POST') { posts.push([url, JSON.parse(options.body)]); return {json: async () => ({})}; }
+    return {json: async () => ({ready: true, claimed: true, setup: {step: 'done'}, name: 'Porch', generation: 'g1'})};
+  },
+  setTimeout: (fn, ms) => { if (ms === 2000) polls.push(fn); else setTimeout(fn, 0); }, encodeURIComponent,
+  location: {origin: 'http://127.0.0.1:8777', port: '8777'}, devicePixelRatio: 1,
+  window: {dispatchEvent() {}, addEventListener() {}}, CustomEvent: class {},
+  document: {getElementById: id => id === 'saved-show' ? els[id] : el(id), querySelector: () => el('h1'), body: {dataset: {}, append(e) { els[e.id] = e; }},
+    createElement: () => ({style:{}, dataset:{}, getAttribute() { return this.src; }, remove() { delete els[this.id]; }})},
+};
+const tick = () => new Promise(r => setTimeout(r, 5));
+const poll = async () => { const fn = polls.shift(); fn(); await tick(); };
+(async () => {
+  vm.runInNewContext(script, context); await tick();
+  const before = !!els['saved-show'];
+  keys.shift()({id: 1, key: 'Escape'}); await tick(); await poll();
+  const stopped = {frame: !!els['saved-show'], status: els.status.textContent, name: els.detail.textContent, web: posts.at(-1)};
+  keys.shift()({id: 2, key: 'Escape'}); await tick(); await poll();
+  console.log(JSON.stringify({before, stopped, resumed: !!els['saved-show']}));
+})();
+'''
+
+
+def test_escape_on_the_player_keyboard_stops_the_show_for_the_home_screen_and_back():
+    import subprocess
+    assert player.hotkeys_in(_key(1, 1) + _key(1, 0)) == ["Escape"]
+    script = re.search(r'<script>(.*?)</script>', player.PLAYER_START_PAGE, re.S)[1]
+    result = subprocess.run(['node', '-e', ESC_HARNESS], input=script, text=True, capture_output=True, check=False, timeout=10)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert json.loads(result.stdout.strip().splitlines()[-1]) == {
+        "before": True,
+        "stopped": {"frame": False, "status": "Show stopped. Press Esc to start it again.", "name": "Porch",
+                    "web": ["/web-window", {"window": None}]},
+        "resumed": True}

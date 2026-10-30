@@ -1,0 +1,708 @@
+{
+  "timelines": [],
+  "version": 7,
+  "pool": [
+    {
+      "id": "red",
+      "name": "Red",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#ff0000"
+      }
+    },
+    {
+      "id": "pool29-xqcge7",
+      "name": "Blue",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#1f6feb"
+      }
+    },
+    {
+      "id": "pool29-dxc5ol",
+      "name": "Bar 1",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#ff3b30"
+      }
+    },
+    {
+      "id": "pool29-lqdnfo",
+      "name": "Bar 2",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#ffcc00"
+      }
+    },
+    {
+      "id": "pool29-zcah57",
+      "name": "Bar 3",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#34c759"
+      }
+    },
+    {
+      "id": "pool29-8rexp0",
+      "name": "Bar 4",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#ffffff"
+      }
+    },
+    {
+      "id": "pool29-913mkk",
+      "name": "Title",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "text": {
+          "text": "Aether Map test card",
+          "sizePx": 120,
+          "color": "#ffffff",
+          "background": "transparent",
+          "align": "center"
+        }
+      }
+    }
+  ],
+  "tracks": [
+    {
+      "id": "v1",
+      "name": "Visuals",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track-default-scene-audio",
+      "name": "A1",
+      "kind": "audio",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-lw49gp",
+      "name": "Blue",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-kth3ub"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-3hindj",
+      "name": "Bar 1",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-kth3ub"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-hmvfrm"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-05b9fb",
+      "name": "Bar 2",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-kth3ub"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-hmvfrm"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-b09cdb"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-eglwo2",
+      "name": "Bar 3",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-kth3ub"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-hmvfrm"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-b09cdb"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-lho20f"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-rbuory",
+      "name": "Bar 4",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-kth3ub"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-hmvfrm"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-b09cdb"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-lho20f"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-591hin"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-7c3c4w",
+      "name": "Title",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-kth3ub"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-hmvfrm"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-b09cdb"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-lho20f"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-591hin"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-m4twbq"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    }
+  ],
+  "visuals": [
+    {
+      "id": "k31-4asjcj",
+      "name": "Blue",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-xqcge7",
+      "trackID": "track30-lw49gp",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-kth3ub"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#8b87ff",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-vxcncx",
+      "name": "Bar 1",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-dxc5ol",
+      "trackID": "track30-3hindj",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-hmvfrm"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#32cf84",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-wm6rua",
+      "name": "Bar 2",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-lqdnfo",
+      "trackID": "track30-05b9fb",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-b09cdb"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#e7a843",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-fpy491",
+      "name": "Bar 3",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-zcah57",
+      "trackID": "track30-eglwo2",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-lho20f"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#36d6c3",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-c78is0",
+      "name": "Bar 4",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-8rexp0",
+      "trackID": "track30-rbuory",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-591hin"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#ff5c8a",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-q8qzq8",
+      "name": "Title",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-913mkk",
+      "trackID": "track30-7c3c4w",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-m4twbq"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#c7d3de",
+      "opacity": 1,
+      "continuous": true
+    }
+  ],
+  "output": {
+    "width": 1920,
+    "height": 1080
+  },
+  "outputs": [],
+  "shows": [
+    {
+      "id": "show-1",
+      "name": "Show 1",
+      "durationS": 50,
+      "tracks": [
+        {
+          "id": "track-scene",
+          "canvasID": "scene",
+          "clips": [
+            {
+              "id": "clip-scene",
+              "sceneID": "main",
+              "startS": 0,
+              "durationS": 50,
+              "inS": 0,
+              "loop": true
+            }
+          ]
+        }
+      ],
+      "cues": []
+    }
+  ],
+  "surfaceLook": {
+    "device": {
+      "pattern": "checker",
+      "primary": "#5b5bd6",
+      "secondary": "#7b7be6",
+      "border": "#ffffff",
+      "sections": 6,
+      "opacity": 1,
+      "pinSizePx": 9
+    },
+    "external": {
+      "pattern": "checker",
+      "primary": "#000000",
+      "secondary": "#ffffff",
+      "border": "#ffffff",
+      "sections": 6,
+      "opacity": 1,
+      "pinSizePx": 0
+    }
+  },
+  "media": [],
+  "unassignedSurfaces": [],
+  "scenes": [
+    {
+      "id": "scene",
+      "name": "Main scene",
+      "artboard": {
+        "widthPx": 1920,
+        "heightPx": 1080
+      },
+      "durationS": 50,
+      "surfaces": [
+        {
+          "id": "s29-kth3ub",
+          "name": "Background",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#4c9dff",
+          "corners": [
+            [
+              0,
+              0
+            ],
+            [
+              1920,
+              0
+            ],
+            [
+              1920,
+              1080
+            ],
+            [
+              0,
+              1080
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s29-hmvfrm",
+          "name": "Bar 1",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#ff8a3d",
+          "corners": [
+            [
+              160,
+              640
+            ],
+            [
+              520,
+              640
+            ],
+            [
+              520,
+              920
+            ],
+            [
+              160,
+              920
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s29-b09cdb",
+          "name": "Bar 2",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#8b87ff",
+          "corners": [
+            [
+              580,
+              640
+            ],
+            [
+              940,
+              640
+            ],
+            [
+              940,
+              920
+            ],
+            [
+              580,
+              920
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s29-lho20f",
+          "name": "Bar 3",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#32cf84",
+          "corners": [
+            [
+              1000,
+              640
+            ],
+            [
+              1360,
+              640
+            ],
+            [
+              1360,
+              920
+            ],
+            [
+              1000,
+              920
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s29-591hin",
+          "name": "Bar 4",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#e7a843",
+          "corners": [
+            [
+              1420,
+              640
+            ],
+            [
+              1780,
+              640
+            ],
+            [
+              1780,
+              920
+            ],
+            [
+              1420,
+              920
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s29-m4twbq",
+          "name": "Title",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#36d6c3",
+          "corners": [
+            [
+              160,
+              160
+            ],
+            [
+              1760,
+              160
+            ],
+            [
+              1760,
+              520
+            ],
+            [
+              160,
+              520
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene",
+  "playback": {
+    "mode": "loop"
+  }
+}

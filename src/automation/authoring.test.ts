@@ -79,4 +79,14 @@ describe('agent-built playback features', () => {
     expect(sources[1].web).toEqual({ url: 'https://www.disneyplus.com' });
     expect(() => runCommand('map.visual.create', text, { scene_id, name: 'Bad', source_json: '{"kind":"web","url":"http://x.test"}' })).toThrow('https');
   });
+  it('creates a static gradient visual that needs no GPU', () => {
+    const show = normalizeDocument(emptyShow());
+    const scene_id = show.scenes[0].id;
+    const text = runCommand('map.visual.create', encode(show), { scene_id, name: 'Dusk', source_json: '{"kind":"gradient","colors":["#ff5500","#6e33cc"],"angle_degrees":90}' }).content!;
+    const reopened = parseShow(text);
+    const source = reopened.pool!.find(a => a.id === reopened.visuals!.at(-1)!.assetID)!.source;
+    expect(source.fillGradient).toEqual({ kind: 'linear', angleDeg: 90, stops: [{ offset: 0, color: '#ff5500', opacity: 1 }, { offset: 1, color: '#6e33cc', opacity: 1 }] });
+    expect(source.shader).toBeUndefined();
+    expect(() => runCommand('map.visual.create', text, { scene_id, name: 'Bad', source_json: '{"kind":"gradient","colors":["#ff5500"]}' })).toThrow('2');
+  });
 });

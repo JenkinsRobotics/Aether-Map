@@ -19981,6 +19981,17 @@ function mapKnowledge(args) {
 					color: "#RRGGBB"
 				},
 				{
+					kind: "gradient",
+					colors: [
+						"#RRGGBB",
+						"#RRGGBB",
+						"… up to 16"
+					],
+					angle_degrees: "0–360 (optional, default 90)",
+					radial: "true (optional)",
+					note: "Static; drawn without WebGL, so it suits low-power players."
+				},
+				{
 					kind: "text",
 					text: "Message",
 					color: "#RRGGBB (optional)",
@@ -20192,6 +20203,29 @@ function visualSourceSpec(show, value) {
 				]
 			};
 		}
+		case "gradient": {
+			object(spec, [
+				"kind",
+				"colors",
+				"angle_degrees",
+				"radial"
+			]);
+			if (!Array.isArray(spec.colors) || spec.colors.length < 2 || spec.colors.length > 16) throw Error("A gradient needs 2–16 colors.");
+			const colors = spec.colors.map(color), last = colors.length - 1;
+			return {
+				...source,
+				fill: colors[0],
+				fillGradient: {
+					kind: spec.radial === true ? "radial" : "linear",
+					angleDeg: spec.angle_degrees === void 0 ? 90 : number(spec.angle_degrees, "angle_degrees", 0, 360),
+					stops: colors.map((c, i) => ({
+						offset: i / last,
+						color: c,
+						opacity: 1
+					}))
+				}
+			};
+		}
 		case "cast":
 			object(spec, ["kind"]);
 			return {
@@ -20205,7 +20239,7 @@ function visualSourceSpec(show, value) {
 				...source,
 				web: { url: spec.url }
 			};
-		default: throw Error("Source kind must be gallery, color, text, media, cast or web.");
+		default: throw Error("Source kind must be gallery, color, gradient, text, media, cast or web.");
 	}
 }
 function createAgentVisual(show, args) {

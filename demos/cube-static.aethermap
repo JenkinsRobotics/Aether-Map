@@ -1,0 +1,588 @@
+{
+  "timelines": [],
+  "version": 7,
+  "pool": [
+    {
+      "id": "red",
+      "name": "Red",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#ff0000"
+      }
+    },
+    {
+      "id": "pool29-g0m0ep",
+      "name": "Backdrop",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#241d9a",
+        "fillGradient": {
+          "kind": "linear",
+          "angleDeg": 135,
+          "stops": [
+            {
+              "offset": 0,
+              "color": "#241d9a",
+              "opacity": 1
+            },
+            {
+              "offset": 0.5,
+              "color": "#9f50d3",
+              "opacity": 1
+            },
+            {
+              "offset": 1,
+              "color": "#f75092",
+              "opacity": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool29-3gdztw",
+      "name": "Face",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#ffc105",
+        "fillGradient": {
+          "kind": "linear",
+          "angleDeg": 90,
+          "stops": [
+            {
+              "offset": 0,
+              "color": "#ffc105",
+              "opacity": 1
+            },
+            {
+              "offset": 1,
+              "color": "#ff5500",
+              "opacity": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool29-cnbtts",
+      "name": "Face",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#00ffff",
+        "fillGradient": {
+          "kind": "linear",
+          "angleDeg": 90,
+          "stops": [
+            {
+              "offset": 0,
+              "color": "#00ffff",
+              "opacity": 1
+            },
+            {
+              "offset": 1,
+              "color": "#1f6feb",
+              "opacity": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool29-ivs42m",
+      "name": "Face",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#fefff0",
+        "fillGradient": {
+          "kind": "linear",
+          "angleDeg": 90,
+          "stops": [
+            {
+              "offset": 0,
+              "color": "#fefff0",
+              "opacity": 1
+            },
+            {
+              "offset": 1,
+              "color": "#ff8b61",
+              "opacity": 1
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "tracks": [
+    {
+      "id": "v1",
+      "name": "Visuals",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track-default-scene-audio",
+      "name": "A1",
+      "kind": "audio",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-wo7d2o",
+      "name": "Backdrop",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-pqulth"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s30-otope4"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s32-ycqx5j"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s34-xba60e"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-q5ct0q",
+      "name": "Face",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-pqulth"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s30-otope4"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s32-ycqx5j"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s34-xba60e"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-9b7njr",
+      "name": "Face",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-pqulth"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s30-otope4"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s32-ycqx5j"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s34-xba60e"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-falitv",
+      "name": "Face",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-pqulth"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s30-otope4"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s32-ycqx5j"
+        },
+        {
+          "sceneID": "scene",
+          "surfaceID": "s34-xba60e"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    }
+  ],
+  "visuals": [
+    {
+      "id": "k31-jp4myx",
+      "name": "Backdrop",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-g0m0ep",
+      "trackID": "track30-wo7d2o",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s29-pqulth"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#8b87ff",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-ric6ol",
+      "name": "Face",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-3gdztw",
+      "trackID": "track30-q5ct0q",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s30-otope4"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#32cf84",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-41bmmm",
+      "name": "Face",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-cnbtts",
+      "trackID": "track30-9b7njr",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s32-ycqx5j"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#e7a843",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-gzjh7y",
+      "name": "Face",
+      "startS": 0,
+      "durationS": 50,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-ivs42m",
+      "trackID": "track30-falitv",
+      "targets": [
+        {
+          "sceneID": "scene",
+          "surfaceID": "s34-xba60e"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#36d6c3",
+      "opacity": 1,
+      "continuous": true
+    }
+  ],
+  "output": {
+    "width": 1920,
+    "height": 1080
+  },
+  "outputs": [],
+  "shows": [
+    {
+      "id": "show-1",
+      "name": "Show 1",
+      "durationS": 50,
+      "tracks": [
+        {
+          "id": "track-scene",
+          "canvasID": "scene",
+          "clips": [
+            {
+              "id": "clip-scene",
+              "sceneID": "main",
+              "startS": 0,
+              "durationS": 50,
+              "inS": 0,
+              "loop": true
+            }
+          ]
+        }
+      ],
+      "cues": []
+    }
+  ],
+  "surfaceLook": {
+    "device": {
+      "pattern": "checker",
+      "primary": "#5b5bd6",
+      "secondary": "#7b7be6",
+      "border": "#ffffff",
+      "sections": 6,
+      "opacity": 1,
+      "pinSizePx": 9
+    },
+    "external": {
+      "pattern": "checker",
+      "primary": "#000000",
+      "secondary": "#ffffff",
+      "border": "#ffffff",
+      "sections": 6,
+      "opacity": 1,
+      "pinSizePx": 0
+    }
+  },
+  "media": [],
+  "unassignedSurfaces": [],
+  "scenes": [
+    {
+      "id": "scene",
+      "name": "Main scene",
+      "artboard": {
+        "widthPx": 1920,
+        "heightPx": 1080
+      },
+      "durationS": 50,
+      "surfaces": [
+        {
+          "id": "s29-pqulth",
+          "name": "Backdrop wall",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#4c9dff",
+          "corners": [
+            [
+              0,
+              0
+            ],
+            [
+              1920,
+              0
+            ],
+            [
+              1920,
+              1080
+            ],
+            [
+              0,
+              1080
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s30-otope4",
+          "name": "Cube top",
+          "enabled": true,
+          "folder": "Cube",
+          "groupShape": "cube",
+          "color": "#ff8a3d",
+          "corners": [
+            [
+              1018.4579724531682,
+              249.81623688089843
+            ],
+            [
+              1351.2541918530258,
+              571.3997722920124
+            ],
+            [
+              956.4012847432832,
+              814.7952818692868
+            ],
+            [
+              623.6050653434254,
+              493.21174645817314
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              1920,
+              1080
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s32-ycqx5j",
+          "name": "Cube left",
+          "enabled": true,
+          "folder": "Cube",
+          "groupShape": "cube",
+          "color": "#8b87ff",
+          "corners": [
+            [
+              623.6050653434254,
+              493.21174645817314
+            ],
+            [
+              956.4012847432832,
+              814.7952818692868
+            ],
+            [
+              901.5420275468318,
+              1013.7837631191014
+            ],
+            [
+              568.7458081469738,
+              692.2002277079878
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              1920,
+              1080
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s34-xba60e",
+          "name": "Cube right",
+          "enabled": true,
+          "folder": "Cube",
+          "groupShape": "cube",
+          "color": "#32cf84",
+          "corners": [
+            [
+              956.4012847432832,
+              814.7952818692868
+            ],
+            [
+              1351.2541918530258,
+              571.3997722920124
+            ],
+            [
+              1296.3949346565748,
+              770.3882535418269
+            ],
+            [
+              901.5420275468318,
+              1013.7837631191014
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              1920,
+              1080
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene",
+  "playback": {
+    "mode": "loop"
+  }
+}

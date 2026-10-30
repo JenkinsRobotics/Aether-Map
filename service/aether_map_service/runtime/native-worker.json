@@ -2,7 +2,7 @@
   "schema": 1,
   "app": "map",
   "entry": "runner.mjs",
-  "sha256": "79a7465c62e3ec31178afeae2afc4463a462b4bcd77305c934079e9abd4972a3",
+  "sha256": "98d1d15d25744267ad07e39c7898670c94e9dce4f9bb54db2ecddd10f7ffcbe8",
   "commands": [
     {
       "id": "map.show.inspect",

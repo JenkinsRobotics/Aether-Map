@@ -259,7 +259,8 @@ export function ShowExportPanel({ show, name, urls, documentID, dirty, onOpenOut
 export function PlayersTree({ show, onManage }: { show: MapShow; onManage: () => void }) {
   const { list, online } = useMapDevices();
   const controls: TreeControl[] = [{ id: 'manage', label: 'Manage players', icon: <AetherIcon name="hardware" />, onClick: onManage }];
-  return <TreePanel ariaLabel="Players" controls={controls} controlsLabel="Player controls" selectedIDs={new Set()} onSelect={() => {}}
+  // One click opens the player's controls: deploy, go live, identify, status.
+  return <TreePanel ariaLabel="Players" controls={controls} controlsLabel="Player controls" selectedIDs={new Set()} onSelect={onManage}
     headerControls={controls}
     nodes={list.map(device => {
       const outputs = show.outputs.filter(o => o.kind === 'edge' && o.deviceId === device.id).map(o => o.name);

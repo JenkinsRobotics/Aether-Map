@@ -41,13 +41,22 @@ export function visualSourceSpec(show: MapShow, value: unknown): Surface['source
       if (!media || media.kind === 'audio') throw Error('Choose an existing image or video media ID. Import the file first.');
       return { ...source, mediaId: media.id, rect: [0, 0, media.width, media.height] };
     }
+    case 'gradient': {
+      // Drawn as SVG, so it plays on players without usable WebGL.
+      object(spec, ['kind', 'colors', 'angle_degrees', 'radial']);
+      if (!Array.isArray(spec.colors) || spec.colors.length < 2 || spec.colors.length > 16) throw Error('A gradient needs 2–16 colors.');
+      const colors = spec.colors.map(color), last = colors.length - 1;
+      return { ...source, fill: colors[0], fillGradient: { kind: spec.radial === true ? 'radial' : 'linear',
+        angleDeg: spec.angle_degrees === undefined ? 90 : number(spec.angle_degrees, 'angle_degrees', 0, 360),
+        stops: colors.map((c, i) => ({ offset: i / last, color: c, opacity: 1 })) } };
+    }
     case 'cast': object(spec, ['kind']); return { ...source, cast: true };
     case 'web': {
       object(spec, ['kind', 'url']);
       if (typeof spec.url !== 'string' || !/^https:\/\/\S{1,2040}$/.test(spec.url)) throw Error('Web address must be an https:// URL without spaces.');
       return { ...source, web: { url: spec.url } };
     }
-    default: throw Error('Source kind must be gallery, color, text, media, cast or web.');
+    default: throw Error('Source kind must be gallery, color, gradient, text, media, cast or web.');
   }
 }
 

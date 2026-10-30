@@ -103,3 +103,20 @@ _, v = run("map.show.verify", cube, scene_id=scene, time_s=5)
 assert v["valid"] and v["layer_count"] == 4, v
 Path(MAP / "demos/cube-generators.aethermap").write_text(cube)
 print("cube demo: 1 backdrop + 3 cube faces, each its own generator")
+
+# --- Third demo: the same cube in static gradients, for players without usable WebGL (a Pi 2).
+flat = empty
+scene = json.loads(flat)["activeSceneId"]
+flat, _ = run("map.clip.edit", flat, clip_id="clip", action="delete")
+flat, r = run("map.surface.create", flat, scene_id=scene, name="Backdrop wall"); wall = created(r)["surface_id"]
+flat, _ = run("map.surface.bounds", flat, scene_id=scene, surface_id=wall, x_px=0, y_px=0, width_px=1920, height_px=1080)
+flat, r = run("map.surface.create", flat, scene_id=scene, name="Cube", shape="cube"); faces = created(r)["surface_ids"]
+flat, _ = run("map.cube.pose", flat, scene_id=scene, surface_id=faces[0], mode="rotate", x_degrees=-15, y_degrees=25)
+flat, _ = visual(flat, scene, "Backdrop", {"kind": "gradient", "colors": ["#241d9a", "#9f50d3", "#f75092"], "angle_degrees": 135}, [wall])
+for face, colors in zip(faces, (["#ffc105", "#ff5500"], ["#00ffff", "#1f6feb"], ["#fefff0", "#ff8b61"])):
+    flat, _ = visual(flat, scene, "Face", {"kind": "gradient", "colors": colors}, [face])
+_, v = run("map.show.verify", flat, scene_id=scene, time_s=5)
+assert v["valid"] and v["layer_count"] == 4, v
+d = json.loads(flat); d["playback"] = {"mode": "loop"}  # ponytail: no agent command sets playback yet
+Path(MAP / "demos/cube-static.aethermap").write_text(json.dumps(d, indent=2) + "\n")
+print("static cube demo: gradients only, no WebGL")

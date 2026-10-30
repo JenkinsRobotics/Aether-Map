@@ -498,7 +498,8 @@ def web_window(config: dict, wanted) -> None:
 # Scene hotkeys: the player reads keyboards itself, so F1-F12 switch scenes
 # whichever window has focus, a web window included.
 KEY_EVENT = struct.Struct("llHHi")  # struct input_event: timeval, type, code, value
-KEY_NAMES = {**{59 + i: f"F{i + 1}" for i in range(10)}, 87: "F11", 88: "F12"}
+# Esc is the operator's way out: it stops the show for the home screen, and back.
+KEY_NAMES = {**{59 + i: f"F{i + 1}" for i in range(10)}, 87: "F11", 88: "F12", 1: "Escape"}
 
 
 def hotkeys_in(data: bytes) -> list[str]:
@@ -826,11 +827,13 @@ const SAY={wifi:['Set up this projector','Join the Wi-Fi network below, then ope
 server:['Continue setup on your phone','Open the address below to point this projector at your host.'],
 name:['Continue setup on your phone','Open the address below to name this projector.'],
 permissions:['Continue setup on your phone','Open the address below to finish setup.']};
-let reloadMark,webWindow='null';
+let reloadMark,webWindow='null',home=false;
 // The show reports its web window; the player opens it over that rectangle.
 // Hotkeys arrive the moment they are pressed; the show picks the scene.
 (async function hotkeys(after){for(;;){try{const h=await(await fetch('/hotkey?after='+after,{cache:'no-store'})).json();if(typeof h.id!=='number')throw 0;
-if(h.key)document.getElementById('saved-show')?.contentWindow?.postMessage({aetherHotkey:h.key},location.origin);after=h.id;}
+if(h.key==='Escape'){home=!home;if(home){webWindow=JSON.stringify({window:null});
+fetch('/web-window',{method:'POST',headers:{'Content-Type':'application/json'},body:webWindow}).catch(()=>{});}}
+else if(h.key&&!home)document.getElementById('saved-show')?.contentWindow?.postMessage({aetherHotkey:h.key},location.origin);after=h.id;}
 catch{await new Promise(r=>setTimeout(r,2000));}}})(-1);
 window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||!('aetherWebWindow' in e.data))return;
 const w=e.data.aetherWebWindow,r=devicePixelRatio||1;
@@ -867,6 +870,10 @@ if(step!=='done'){
   detail.textContent=step==='wifi'&&s.setup.hotspot
     ?'Password: '+s.setup.setup_password+' · Open http://192.168.4.1:'+location.port+'/setup'
     :s.setup.setup_url;
+}else if(s.ready && s.claimed && home){
+  document.getElementById('saved-show')?.remove();
+  document.querySelector('h1').textContent='Aether Map';code.textContent='';
+  status.textContent='Show stopped. Press Esc to start it again.';detail.textContent=s.name||'';
 }else if(s.ready && s.claimed){
   let frame=document.getElementById('saved-show');
   const url='/index.html?output=1'+(s.outputID?'&outputID='+encodeURIComponent(s.outputID):'')+'&release='+encodeURIComponent(s.generation||'');
