@@ -247,7 +247,8 @@ export function OutputView() {
   // A deployed player plays the show: this output's canvas follows its track
   // on the show timeline, rendering whichever scene clip is under the playhead.
   const program = playerShow(show), showLength = program?.durationS ?? 0;
-  const showS = showRun.showS;
+  // Clips end exclusively, so "hold at end" looks up the frame just before it.
+  const showS = show.playback.mode === 'once' && showLength ? Math.min(showRun.showS, showLength - 1e-3) : showRun.showS;
   const showClip = !hotScene && source === 'deployed' && output?.sceneId && showLength ? clipAt(show, output.sceneId, showS, program) : null;
   const resolved = showClip ? showForClip(bound, output!.sceneId!, showClip.clip) : bound;
   const frameS = showClip ? showClip.localS : timeS;

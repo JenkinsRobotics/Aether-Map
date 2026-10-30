@@ -16,3 +16,11 @@ it('rejects suppressed scenes and closed schedules, while reporting a deliberate
   expect(deploymentReadiness(show,'pi').blockers).toHaveLength(2);
   expect(deploymentReadiness(show,'pi').notes[0]).toMatch(/Blackout/);
 });
+it('warns when a deployed show will not repeat on its own',()=>{
+  const show=emptyShow();show.outputs[0]={...show.outputs[0],kind:'edge',deviceId:'pi'};
+  expect(deploymentReadiness(show,'pi').notes.join()).not.toMatch(/Loop/);
+  show.playback={mode:'once'};
+  expect(deploymentReadiness(show,'pi').notes.join()).toMatch(/plays once.*Loop/i);
+  show.playback={mode:'continuous'};
+  expect(deploymentReadiness(show,'pi').notes.join()).toMatch(/goes dark.*Loop/i);
+});

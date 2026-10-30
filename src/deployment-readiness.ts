@@ -13,6 +13,9 @@ export function deploymentReadiness(show: MapShow, deviceID: string) {
   if (output?.schedule?.fromMinutes === output?.schedule?.toMinutes && output?.schedule) blockers.push('Start and end times must be different.');
   if (show.output.blackout) notes.push('Blackout is on. The deployed picture will be dark.');
   if (show.output.testPattern) notes.push('The output test grid is on. Turn it off for the finished show.');
+  // A player runs unattended, so a show that does not repeat ends on its own.
+  if (show.playback.mode === 'once') notes.push('The show plays once and holds its last moment. Set Show playback to Loop to repeat it indefinitely.');
+  if (show.playback.mode === 'continuous') notes.push('Continuous playback runs past the end of the show timeline and goes dark there. Set Show playback to Loop to repeat it indefinitely.');
   const visuals = (show.visuals ?? []).filter(v => v.enabled && v.targets.some(t => t.sceneID === scene?.id));
   const sources = visuals.filter(v => !v.timelineRefID).map(v => visualSource(show, v));
   if (sources.some(s => s.mediaId && !show.media.some(m => m.id === s.mediaId))) blockers.push('A clip references missing media. Relink it before deployment.');
