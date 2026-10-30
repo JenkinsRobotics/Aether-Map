@@ -241,7 +241,7 @@ or re-image any installed Pi.
 A projector is often bolted where nobody can reach it, so nothing routine
 needs hands on the device.
 
-**Player updates.** Every 10 minutes (and on an *Update* command) the player
+**Player updates.** Once a day (and at once on an *Update* command) the player
 downloads `/api/map/{aether_player,aether_setup,aether_receiver}.py` — the
 same public files `install.sh` uses, over the same TLS trust — and installs
 them if they differ and every file compiles. The previous files are kept in

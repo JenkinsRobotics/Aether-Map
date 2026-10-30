@@ -44,7 +44,9 @@ CONFIG_LOCK = threading.RLock()
 # restart, reboot, resync, change Wi-Fi or the host — arrives over the network.
 PLAYER_FILES = ("aether_player.py", "aether_setup.py", "aether_receiver.py")
 INSTALL_DIR = Path(__file__).resolve().parent
-UPDATE_INTERVAL_SECONDS = 600
+# Player software checks once a day; shows still arrive within seconds of a deploy,
+# and Update player on the Players page fetches a new player at once.
+UPDATE_INTERVAL_SECONDS = 24 * 60 * 60
 # A new player is trusted once it has run this long and reached the host;
 # until then install.sh's guard rolls it back if it keeps failing to start.
 CONFIRM_AFTER_SECONDS = 60
