@@ -17,7 +17,7 @@
       }
     },
     {
-      "id": "pool29-g0m0ep",
+      "id": "pool29-gi0pwi",
       "name": "Backdrop",
       "source": {
         "mediaId": null,
@@ -52,7 +52,7 @@
       }
     },
     {
-      "id": "pool29-3gdztw",
+      "id": "pool29-cmgv5h",
       "name": "Face",
       "source": {
         "mediaId": null,
@@ -82,7 +82,7 @@
       }
     },
     {
-      "id": "pool29-cnbtts",
+      "id": "pool29-0rzmoo",
       "name": "Face",
       "source": {
         "mediaId": null,
@@ -112,7 +112,7 @@
       }
     },
     {
-      "id": "pool29-ivs42m",
+      "id": "pool29-7edt1j",
       "name": "Face",
       "source": {
         "mediaId": null,
@@ -172,7 +172,7 @@
       "locked": false
     },
     {
-      "id": "track30-wo7d2o",
+      "id": "track30-e8xyrv",
       "name": "Backdrop",
       "kind": "video",
       "volume": 1,
@@ -180,26 +180,26 @@
       "targets": [
         {
           "sceneID": "scene",
-          "surfaceID": "s29-pqulth"
+          "surfaceID": "s29-df8zb9"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s30-otope4"
+          "surfaceID": "s30-melysd"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s32-ycqx5j"
+          "surfaceID": "s32-p4zun0"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s34-xba60e"
+          "surfaceID": "s34-64l0ri"
         }
       ],
       "enabled": true,
       "locked": false
     },
     {
-      "id": "track30-q5ct0q",
+      "id": "track30-6ztqxp",
       "name": "Face",
       "kind": "video",
       "volume": 1,
@@ -207,26 +207,26 @@
       "targets": [
         {
           "sceneID": "scene",
-          "surfaceID": "s29-pqulth"
+          "surfaceID": "s29-df8zb9"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s30-otope4"
+          "surfaceID": "s30-melysd"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s32-ycqx5j"
+          "surfaceID": "s32-p4zun0"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s34-xba60e"
+          "surfaceID": "s34-64l0ri"
         }
       ],
       "enabled": true,
       "locked": false
     },
     {
-      "id": "track30-9b7njr",
+      "id": "track30-utbdfn",
       "name": "Face",
       "kind": "video",
       "volume": 1,
@@ -234,26 +234,26 @@
       "targets": [
         {
           "sceneID": "scene",
-          "surfaceID": "s29-pqulth"
+          "surfaceID": "s29-df8zb9"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s30-otope4"
+          "surfaceID": "s30-melysd"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s32-ycqx5j"
+          "surfaceID": "s32-p4zun0"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s34-xba60e"
+          "surfaceID": "s34-64l0ri"
         }
       ],
       "enabled": true,
       "locked": false
     },
     {
-      "id": "track30-falitv",
+      "id": "track30-5q98hm",
       "name": "Face",
       "kind": "video",
       "volume": 1,
@@ -261,19 +261,19 @@
       "targets": [
         {
           "sceneID": "scene",
-          "surfaceID": "s29-pqulth"
+          "surfaceID": "s29-df8zb9"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s30-otope4"
+          "surfaceID": "s30-melysd"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s32-ycqx5j"
+          "surfaceID": "s32-p4zun0"
         },
         {
           "sceneID": "scene",
-          "surfaceID": "s34-xba60e"
+          "surfaceID": "s34-64l0ri"
         }
       ],
       "enabled": true,
@@ -282,18 +282,18 @@
   ],
   "visuals": [
     {
-      "id": "k31-jp4myx",
+      "id": "k31-1c1jug",
       "name": "Backdrop",
       "startS": 0,
       "durationS": 50,
       "inS": 0,
       "loop": true,
-      "assetID": "pool29-g0m0ep",
-      "trackID": "track30-wo7d2o",
+      "assetID": "pool29-gi0pwi",
+      "trackID": "track30-e8xyrv",
       "targets": [
         {
           "sceneID": "scene",
-          "surfaceID": "s29-pqulth"
+          "surfaceID": "s29-df8zb9"
         }
       ],
       "mapping": "repeat",
@@ -302,18 +302,18 @@
       "continuous": true
     },
     {
-      "id": "k31-ric6ol",
+      "id": "k31-0dvj5z",
       "name": "Face",
       "startS": 0,
       "durationS": 50,
       "inS": 0,
       "loop": true,
-      "assetID": "pool29-3gdztw",
-      "trackID": "track30-q5ct0q",
+      "assetID": "pool29-cmgv5h",
+      "trackID": "track30-6ztqxp",
       "targets": [
         {
           "sceneID": "scene",
-          "surfaceID": "s30-otope4"
+          "surfaceID": "s30-melysd"
         }
       ],
       "mapping": "repeat",
@@ -322,18 +322,18 @@
       "continuous": true
     },
     {
-      "id": "k31-41bmmm",
+      "id": "k31-22tpqj",
       "name": "Face",
       "startS": 0,
       "durationS": 50,
       "inS": 0,
       "loop": true,
-      "assetID": "pool29-cnbtts",
-      "trackID": "track30-9b7njr",
+      "assetID": "pool29-0rzmoo",
+      "trackID": "track30-utbdfn",
       "targets": [
         {
           "sceneID": "scene",
-          "surfaceID": "s32-ycqx5j"
+          "surfaceID": "s32-p4zun0"
         }
       ],
       "mapping": "repeat",
@@ -342,18 +342,18 @@
       "continuous": true
     },
     {
-      "id": "k31-gzjh7y",
+      "id": "k31-o5g3u7",
       "name": "Face",
       "startS": 0,
       "durationS": 50,
       "inS": 0,
       "loop": true,
-      "assetID": "pool29-ivs42m",
-      "trackID": "track30-falitv",
+      "assetID": "pool29-7edt1j",
+      "trackID": "track30-5q98hm",
       "targets": [
         {
           "sceneID": "scene",
-          "surfaceID": "s34-xba60e"
+          "surfaceID": "s34-64l0ri"
         }
       ],
       "mapping": "repeat",
@@ -366,7 +366,15 @@
     "width": 1920,
     "height": 1080
   },
-  "outputs": [],
+  "outputs": [
+    {
+      "id": "out29-kxet02",
+      "name": "raspberrypi2",
+      "kind": "edge",
+      "sceneId": "scene",
+      "deviceId": "46c2d7cb76bb42d5"
+    }
+  ],
   "shows": [
     {
       "id": "show-1",
@@ -424,7 +432,7 @@
       "durationS": 50,
       "surfaces": [
         {
-          "id": "s29-pqulth",
+          "id": "s29-df8zb9",
           "name": "Backdrop wall",
           "enabled": true,
           "kind": "surface",
@@ -462,7 +470,7 @@
           "clips": []
         },
         {
-          "id": "s30-otope4",
+          "id": "s30-melysd",
           "name": "Cube top",
           "enabled": true,
           "folder": "Cube",
@@ -501,7 +509,7 @@
           "clips": []
         },
         {
-          "id": "s32-ycqx5j",
+          "id": "s32-p4zun0",
           "name": "Cube left",
           "enabled": true,
           "folder": "Cube",
@@ -540,7 +548,7 @@
           "clips": []
         },
         {
-          "id": "s34-xba60e",
+          "id": "s34-64l0ri",
           "name": "Cube right",
           "enabled": true,
           "folder": "Cube",

@@ -1,3 +1,4 @@
+import { newOutput } from '../document';
 import { isHotkey, type Hotkey } from '../scene-hotkeys';
 import { editSurfaceAutomation } from '../features/surface-automation';
 import { SURFACE_PARAMETERS, surfaceParameterBase } from '../features/surface-parameters';
@@ -31,7 +32,7 @@ export interface Arguments extends CreationArguments, GeometryArguments, Placeme
   [key: string]: unknown;
   scene_id?: string; time_s?: number; clip_id?: string; track_id?: string;
   start_s?: number; action?: ClipAction;
-  mode?: 'rotate' | 'inside-out'; x_degrees?: number; y_degrees?: number; z_degrees?: number;
+  mode?: 'rotate' | 'inside-out' | 'loop' | 'once' | 'continuous' | string; x_degrees?: number; y_degrees?: number; z_degrees?: number;
 }
 export function sourceSummary(source: Surface['source'],media?:MediaRef) {
   return { kind: source.text ? 'text' : source.shader ? 'shader' : source.webcam ? 'webcam'
@@ -99,6 +100,25 @@ export function runDocumentCommand(command: string, show: MapShow, args: Argumen
     return { document:next, result:{surface_id:surface.id,...surfaceAutomationSummary(edited)} };
   }
   if (command === 'map.show.inspect') return { result: describe(show) };
+  if (command === 'map.output.player') {
+    if (!show.scenes.some(s => s.id === args.scene_id)) throw Error('Scene not found. Inspect the show first.');
+    const deviceID = String(args.device_id ?? ''), name = String(args.name ?? '').trim();
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(deviceID)) throw Error('device_id must be a paired player ID.');
+    if (!name || name.length > 80) throw Error('Name the output in 1–80 characters.');
+    // One output per player: a second routing moves it rather than adding another.
+    const existing = show.outputs.find(o => o.kind === 'edge' && o.deviceId === deviceID);
+    const outputs = existing
+      ? show.outputs.map(o => o === existing ? { ...o, name, sceneId: args.scene_id as string } : o)
+      : [...show.outputs, { ...newOutput(name, args.scene_id as string, 'edge'), deviceId: deviceID }];
+    const next = normalize({ ...show, outputs });
+    parseShow(serializeShow(next));
+    return { result: describe(next), document: next };
+  }
+  if (command === 'map.show.playback') {
+    if (!['loop', 'once', 'continuous'].includes(args.mode as string)) throw Error('Playback must be loop, once or continuous.');
+    const next = normalize({ ...show, playback: { mode: args.mode as MapShow['playback']['mode'] } });
+    return { result: describe(next), document: next };
+  }
   if (command === 'map.show.clip.add' || command === 'map.show.cue.add') {
     const next = normalize(command === 'map.show.clip.add' ? addShowClip(show, args) : addShowCue(show, args));
     parseShow(serializeShow(next));

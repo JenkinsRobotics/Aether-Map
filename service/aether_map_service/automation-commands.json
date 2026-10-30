@@ -1157,5 +1157,114 @@
       "openWorldHint": false
     },
     "action": "create"
+  },
+  {
+    "id": "map.output.player",
+    "title": "Route a scene to a player",
+    "description": "Make a paired player show this scene when the show is deployed to it. Adds that player's output, or moves its existing one to this scene. device_id is the player ID from Map Players. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy; assign the show to the player from Map Players.",
+    "action": "edit",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scene_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "device_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "scene_id",
+        "device_id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "id": "map.show.playback",
+    "title": "Set show playback",
+    "description": "loop repeats the show timeline indefinitely (what an unattended player wants); once holds its last moment; continuous runs past the end and goes dark there. Requires latest revision and records recoverable file history; open editors must reload.",
+    "action": "edit",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "loop",
+            "once",
+            "continuous"
+          ]
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "mode"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
   }
 ]

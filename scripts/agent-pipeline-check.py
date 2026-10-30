@@ -23,7 +23,7 @@ def created(result): return result.get("created", result)
 
 empty = (MAP / "service/tests/fixtures/automation-show.aethermap").read_text()
 docs = run("map.agent.docs", empty)[1]
-assert docs["total"] == 19, docs["total"]
+assert docs["total"] == 21, docs["total"]
 src = {s["kind"] for s in run("map.agent.docs", empty, topic="sources")[1]["sources"]}
 assert {"cast", "web"} <= src, src
 gallery = run("map.agent.docs", empty, topic="gallery", query="neon")[1]["items"][0]["id"]
@@ -84,9 +84,6 @@ s, _ = run("map.show.cue.add", s, name="Go to movie", trigger="go", cue_action="
 recipe = run("map.agent.docs", empty, topic="recipes")[1]["recipe"]
 s, _ = run("map.show.runprogram", s, program_json=json.dumps(recipe))
 
-missing = ({i["id"] for i in docs["items"]} | set(json.loads(json.dumps([c["id"] for c in json.load(open(MAP / "service/aether_map_service/automation-commands.json"))])))) - seen
-print("\n".join(log[-6:]))
-print(f"{len(seen)}/19 commands ran; missing: {sorted(missing) or 'none'}; {len(log)} calls")
 
 # --- Second demo: a three-face cube with a different generator on each face, over a backdrop.
 cube = empty
@@ -117,6 +114,12 @@ for face, colors in zip(faces, (["#ffc105", "#ff5500"], ["#00ffff", "#1f6feb"], 
     flat, _ = visual(flat, scene, "Face", {"kind": "gradient", "colors": colors}, [face])
 _, v = run("map.show.verify", flat, scene_id=scene, time_s=5)
 assert v["valid"] and v["layer_count"] == 4, v
-d = json.loads(flat); d["playback"] = {"mode": "loop"}  # ponytail: no agent command sets playback yet
+flat, _ = run("map.show.playback", flat, mode="loop")
+flat, _ = run("map.output.player", flat, scene_id=scene, device_id="46c2d7cb76bb42d5", name="raspberrypi2")
+d = json.loads(flat)
 Path(MAP / "demos/cube-static.aethermap").write_text(json.dumps(d, indent=2) + "\n")
 print("static cube demo: gradients only, no WebGL")
+
+missing = ({i["id"] for i in docs["items"]} | set(json.loads(json.dumps([c["id"] for c in json.load(open(MAP / "service/aether_map_service/automation-commands.json"))])))) - seen
+print("\n".join(log[-6:]))
+print(f"{len(seen)}/21 commands ran; missing: {sorted(missing) or 'none'}; {len(log)} calls")

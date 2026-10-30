@@ -89,4 +89,20 @@ describe('agent-built playback features', () => {
     expect(source.shader).toBeUndefined();
     expect(() => runCommand('map.visual.create', text, { scene_id, name: 'Bad', source_json: '{"kind":"gradient","colors":["#ff5500"]}' })).toThrow('2');
   });
+  it('routes a scene to a player and makes the show loop, ready to deploy', async () => {
+    const { deploymentReadiness } = await import('../deployment-readiness');
+    const show = normalizeDocument(emptyShow());
+    const scene_id = show.scenes[0].id;
+    let text = runCommand('map.output.player', encode(show), { scene_id, device_id: 'pi', name: 'Porch' }).content!;
+    text = runCommand('map.show.playback', text, { mode: 'loop' }).content!;
+    let next = parseShow(text);
+    expect(next.outputs.filter(o => o.deviceId === 'pi')).toMatchObject([{ kind: 'edge', name: 'Porch', sceneId: scene_id }]);
+    expect(next.playback.mode).toBe('loop');
+    expect(deploymentReadiness(next, 'pi').blockers).toEqual([]);
+    text = runCommand('map.scene.create', text, { name: 'B', width_px: 10, height_px: 10 }).content!;
+    const b = parseShow(text).scenes[1].id;
+    next = parseShow(runCommand('map.output.player', text, { scene_id: b, device_id: 'pi', name: 'Porch' }).content!);
+    expect(next.outputs.filter(o => o.deviceId === 'pi')).toMatchObject([{ sceneId: b }]);
+    expect(() => runCommand('map.show.playback', text, { mode: 'forever' })).toThrow();
+  });
 });

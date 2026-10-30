@@ -22,6 +22,221 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 	enumerable: true
 }) : target, mod));
 //#endregion
+//#region src/document.ts
+var DEFAULT_SURFACE_LOOK = {
+	/**
+	* On screen: a violet checkerboard with a white edge and white pins. Two near
+	* shades rather than one flat colour, because a checker reads as a *surface*
+	* against a photographed wall where a flat fill reads as a hole, and the
+	* squares show a warp the moment you drag a corner.
+	*/
+	device: {
+		pattern: "checker",
+		primary: "#5b5bd6",
+		secondary: "#7b7be6",
+		border: "#ffffff",
+		sections: 6,
+		opacity: 1,
+		pinSizePx: 9
+	},
+	/**
+	* On the wall: black and white. Maximum contrast is the whole job in a dark
+	* room, and a checker's corners are easier to line up against a physical edge
+	* than a grid's lines are.
+	*/
+	external: {
+		pattern: "checker",
+		primary: "#000000",
+		secondary: "#ffffff",
+		border: "#ffffff",
+		sections: 6,
+		opacity: 1,
+		pinSizePx: 0
+	}
+};
+var DEFAULT_TEXT = {
+	text: "Text",
+	sizePx: 96,
+	color: "#ffffff",
+	background: "transparent",
+	align: "center"
+};
+/** Identity colours for layers, assigned in turn as layers are created. */
+var LAYER_COLORS = [
+	"#4c9dff",
+	"#ff8a3d",
+	"#8b87ff",
+	"#32cf84",
+	"#e7a843",
+	"#36d6c3",
+	"#ff5c8a",
+	"#c7d3de"
+];
+function layerColor(index) {
+	return LAYER_COLORS[(index % LAYER_COLORS.length + LAYER_COLORS.length) % LAYER_COLORS.length];
+}
+function activeScene(show) {
+	return show.scenes.find((s) => s.id === show.activeSceneId) ?? show.scenes[0];
+}
+/** Outputs are born bound: an output nobody connected is a dark projector. */
+function newOutput(name, sceneId, kind = "monitor") {
+	return {
+		id: nextId("out"),
+		name,
+		kind,
+		sceneId
+	};
+}
+function newScene(name, artboard = {
+	widthPx: 1920,
+	heightPx: 1080
+}) {
+	return {
+		id: nextId("sc"),
+		name,
+		artboard,
+		durationS: 60,
+		surfaces: []
+	};
+}
+var DEFAULT_OUTPUT = {
+	width: 1920,
+	height: 1080
+};
+var counter = 0;
+function nextId(prefix) {
+	counter += 1;
+	return `${prefix}${counter}-${Math.random().toString(36).slice(2, 8)}`;
+}
+/**
+* A new surface covers the middle half of the scene artboard, so it is visible
+* and draggable the moment it is created.
+*/
+function newSurface(output, index) {
+	const w = output.width;
+	const h = output.height;
+	const side = Math.round(Math.min(w, h) * .6);
+	const nudge = index % 6 * 24;
+	const left = Math.round((w - side) / 2) + nudge;
+	const top = Math.round((h - side) / 2) + nudge;
+	return {
+		id: nextId("s"),
+		name: `Surface ${index + 1}`,
+		enabled: true,
+		color: layerColor(index),
+		corners: [
+			[left, top],
+			[left + side, top],
+			[left + side, top + side],
+			[left, top + side]
+		],
+		source: {
+			mediaId: null,
+			rect: [
+				0,
+				0,
+				side,
+				side
+			]
+		},
+		masks: [],
+		opacity: 1,
+		cues: [],
+		clips: []
+	};
+}
+function quadCorners(rect) {
+	const [x, y, w, h] = rect;
+	return [
+		[x, y],
+		[x + w, y],
+		[x + w, y + h],
+		[x, y + h]
+	];
+}
+/** Every authored surface, including objects parked outside all artboards. */
+function allSurfaces(show) {
+	return [...show.unassignedSurfaces, ...show.scenes.flatMap((scene) => scene.surfaces)];
+}
+/** The collection that currently owns a surface. `scene` absent means workspace root. */
+function surfaceCollection(show, surfaceID) {
+	if (show.unassignedSurfaces.some((surface) => surface.id === surfaceID)) return {
+		scene: null,
+		surfaces: show.unassignedSurfaces
+	};
+	const scene = show.scenes.find((entry) => entry.surfaces.some((surface) => surface.id === surfaceID));
+	return scene ? {
+		scene,
+		surfaces: scene.surfaces
+	} : void 0;
+}
+/** Change whichever collection owns `surfaceID`, without depending on the active scene. */
+function withSurfaceCollection(show, surfaceID, change) {
+	if (show.unassignedSurfaces.some((surface) => surface.id === surfaceID)) return {
+		...show,
+		unassignedSurfaces: change(show.unassignedSurfaces)
+	};
+	const owner = show.scenes.find((scene) => scene.surfaces.some((surface) => surface.id === surfaceID));
+	if (!owner) return show;
+	return {
+		...show,
+		scenes: show.scenes.map((scene) => scene.id === owner.id ? {
+			...scene,
+			surfaces: change(scene.surfaces)
+		} : scene)
+	};
+}
+/**
+* The scenes on screen right now, back to front, with the opacity each is
+* mixed at. One entry normally; two while a crossfade is engaged. A layer at
+* zero is dropped rather than drawn invisibly — at either end of the fader the
+* show costs exactly what it did before the crossfade existed.
+*/
+function sceneLayers(show, { editor = false } = {}) {
+	const a = activeScene(show);
+	const b = show.mix?.sceneId ? show.scenes.find((scene) => scene.id === show.mix.sceneId) : void 0;
+	if (!a || a.suppressed && !editor) return [];
+	if (!b || b.id === a.id || b.suppressed) return [{
+		scene: a,
+		opacity: 1,
+		active: true
+	}];
+	const blend = Math.min(1, Math.max(0, show.mix?.blend ?? 0));
+	return [{
+		scene: a,
+		opacity: 1 - blend,
+		active: true
+	}, {
+		scene: b,
+		opacity: blend,
+		active: false
+	}].filter((layer) => layer.opacity > 0);
+}
+/**
+* Layer order is paint order, so a folder has to be one contiguous run or the
+* tree would claim a z-order the renderer does not have. Each folder's run sits
+* where its first member sat and members keep their relative order; loose
+* layers keep their own positions, so folders and loose layers still interleave.
+* Idempotent: a correctly grouped list comes back unchanged.
+*/
+function groupSurfaces(list) {
+	const out = [];
+	const placed = /* @__PURE__ */ new Set();
+	for (const surface of list) {
+		if (placed.has(surface.id)) continue;
+		if (!surface.folder) {
+			out.push(surface);
+			placed.add(surface.id);
+			continue;
+		}
+		for (const member of list) if (member.folder === surface.folder && !placed.has(member.id)) {
+			out.push(member);
+			placed.add(member.id);
+		}
+	}
+	return out;
+}
+//#endregion
 //#region src/scene-hotkeys.ts
 /** Function keys only, so typing into a web window cannot change scenes. */
 var HOTKEYS = [
@@ -41,7 +256,7 @@ var HOTKEYS = [
 var isHotkey = (value) => HOTKEYS.includes(value);
 //#endregion
 //#region service/aether_map_service/automation-commands.json
-var automation_commands_default = /*#__PURE__*/ JSON.parse("[{\"id\":\"map.show.inspect\",\"title\":\"Inspect Map show\",\"description\":\"Read saved scenes, surfaces, timelines, tracks, reusable assets and clip assignments. Does not inspect unsaved editor state.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128}},\"required\":[\"app\",\"id\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"},{\"id\":\"map.show.evaluate\",\"title\":\"Evaluate Map scene\",\"description\":\"Evaluate a saved scene's Main composition at a time in seconds using the player evaluator. Returns geometry and audio state, not a pixel image or live camera data. Does not play or deploy anything.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"scene_id\",\"time_s\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"evaluate\"},{\"id\":\"map.clip.move\",\"title\":\"Move Map clip\",\"description\":\"Move a saved clip to an existing compatible track and start time. Keeps surface assignments and source identity. Respects locks and nesting rules. Requires latest revision and records recoverable file history; open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":256},\"track_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"start_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1}},\"required\":[\"app\",\"id\",\"clip_id\",\"track_id\",\"start_s\",\"expected_revision\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"move\"},{\"id\":\"map.clip.edit\",\"title\":\"Edit Map clip\",\"description\":\"Duplicate, delete, split or trim a saved clip using Map's timeline commands. Split/trim require time_s in timeline seconds. Respects locks; requires latest revision and records recoverable file history. Open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":256},\"action\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200,\"enum\":[\"duplicate\",\"delete\",\"split\",\"trim-start\",\"trim-end\"]},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1}},\"required\":[\"app\",\"id\",\"clip_id\",\"action\",\"expected_revision\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.scene.create\",\"title\":\"Create Map scene\",\"description\":\"Add a named scene with explicit pixel artboard dimensions to an existing saved show. Preserves editor focus and output bindings. Maximum 256 scenes. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"width_px\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":16384},\"height_px\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":16384}},\"required\":[\"app\",\"id\",\"expected_revision\",\"name\",\"width_px\",\"height_px\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.scene.hotkey\",\"title\":\"Set Map scene hotkey\",\"description\":\"Assign F1–F12 so pressing it on a player's keyboard switches that projector to this scene, or none to clear. The key moves from any other scene that had it. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.\",\"action\":\"edit\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"hotkey\":{\"type\":\"string\",\"enum\":[\"F1\",\"F2\",\"F3\",\"F4\",\"F5\",\"F6\",\"F7\",\"F8\",\"F9\",\"F10\",\"F11\",\"F12\",\"none\"]}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"hotkey\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false}},{\"id\":\"map.surface.create\",\"title\":\"Create Map surface\",\"description\":\"Add a named rectangle (default), three-face cube or five-face box to a scene. Compound names must be unique folders. Returns created.surface_id and surface_ids; preserves focus and output bindings. Maximum 1024 surfaces per scene. Requires latest revision and records recoverable history; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"shape\":{\"type\":\"string\",\"enum\":[\"rectangle\",\"cube\",\"box\"]}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"name\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.surface.bounds\",\"title\":\"Set Map surface bounds\",\"description\":\"Set the visible axis-aligned bounding box at mapping time zero in scene pixels. Preserves warped shape, masks, curves and animation keys; respects aspect-ratio locks. Welded corners update atomically; locked neighbours refuse the edit. Returns changed_surface_ids. Requires latest revision/content-edit permission; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"x_px\":{\"type\":\"number\",\"minimum\":-1000000,\"maximum\":1000000},\"y_px\":{\"type\":\"number\",\"minimum\":-1000000,\"maximum\":1000000},\"width_px\":{\"type\":\"number\",\"minimum\":1,\"maximum\":32768},\"height_px\":{\"type\":\"number\",\"minimum\":1,\"maximum\":32768}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"x_px\",\"y_px\",\"width_px\",\"height_px\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.surface.rotate\",\"title\":\"Rotate Map surface\",\"description\":\"Rotate by delta_degrees around the visible bounding-box center at mapping time zero. Preserves masks, curves and animation keys. Welded corners update atomically; locked neighbours refuse the edit. Returns changed_surface_ids. Requires latest revision/content-edit permission; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"delta_degrees\":{\"type\":\"number\",\"minimum\":-360,\"maximum\":360}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"delta_degrees\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.cube.pose\",\"title\":\"Pose Map cube\",\"description\":\"Turn a complete three-face cube in 3D using relative x_degrees/y_degrees/z_degrees, or mode inside-out for the opposite room corner. surface_id identifies any cube face in scene_id. Geometry at time zero remains canonical; preserves face IDs, content, masks and animation keys. Rejects locked, separated, degenerate, folded or hidden faces. Angles are applied X then Y then Z. Inside-out takes no angles. Requires latest revision; open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"mode\":{\"type\":\"string\",\"enum\":[\"rotate\",\"inside-out\"]},\"x_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180},\"y_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180},\"z_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"mode\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.asset.place\",\"title\":\"Place Map asset\",\"description\":\"Place an existing saved media-pool asset on a track at start_s using editor timing and targets. Returns created.clip_id. Refuses locked or incompatible tracks and clips ending beyond seven days. Requires latest revision and content-edit permission. Does not upload media, change live editors or play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"asset_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"track_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"start_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"expected_revision\",\"asset_id\",\"track_id\",\"start_s\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.agent.docs\",\"title\":\"Map agent knowledge\",\"description\":\"Discover executable command schemas, gallery sources and a working program recipe. Use topic tools, gallery, sources or recipes; query filters tools/gallery; name returns an exact command. Read-only.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"topic\":{\"type\":\"string\",\"enum\":[\"tools\",\"gallery\",\"sources\",\"recipes\"]},\"query\":{\"type\":\"string\",\"maxLength\":200},\"name\":{\"type\":\"string\",\"maxLength\":200},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000}},\"required\":[\"app\",\"id\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"},{\"id\":\"map.visual.create\",\"title\":\"Create Map visual\",\"description\":\"Create a reusable source and continuous visual on its own track, using the same simple editor operation. source_json is a JSON object: gallery {kind,id}, color {kind,color}, text {kind,text,color?,size?}, or existing media {kind,media_id}. Defaults to all mapped surfaces of scene_id. Inspect created clip/asset/track IDs. No media upload or device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"source_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"name\",\"source_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.surface.animate\",\"title\":\"Animate Map surface\",\"description\":\"Edit surface bases, animation and modulation with changes_json. Supports opacity, xPx, yPx, scaleX, scaleY, rotationDeg, radiusPx and bendAngleDeg, plus bend_axis horizontal/vertical. Maps merge; null clears a channel or assignment map. Keys use surface timeline seconds; LFO and scene clock use Main scene time. Inspect surface_parameter_specs for bounds. Locked surfaces refuse. No camera, audio, MIDI or output activation.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"changes_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"changes_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.visual.edit\",\"title\":\"Configure Map visual\",\"description\":\"Edit a visual using changes_json. Supports name, opacity, enabled, mapping repeat/span, continuous, loop, start_s, duration_s, source (same specification as create), targets [{scene_id,surface_id?}], placement {xPercent,yPercent,widthPercent,heightPercent,rotationDeg}, effects [{kind,amount,enabled?}], shader {colors?,speed?,scale?,density?,glow?}. Also supports source_parameters, source_motion and motion; discover bounds with inspection. preset {action:store|recall|clear,slot:A|B|C,from_clip_id?} captures full appearance, or {action:random,seed:integer}. Locked clips/tracks refuse; timing and targets remain unchanged unless specified. No device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"changes_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"clip_id\",\"changes_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.show.runprogram\",\"title\":\"Build Map program\",\"description\":\"Run a version 1 JSON program containing 1–32 steps atomically. Each step has id, command, arguments. References {$ref:\\\"earlier.scene_id\\\"} resolve created scene/surface/clip/asset/track IDs. Optional assertions [{scene_id,time_s,layer_count}] must match actual Main composition before one commit. Failure saves nothing. Discover recipes and tools first. No arbitrary code or device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"program_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"program_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.show.verify\",\"title\":\"Verify Map composition\",\"description\":\"Round-trip the show through the canonical parser and evaluate Main at time_s in scene_id. Reports active layer counts, source kinds, opacity, target geometry and missing references. Returns structural/composition evidence, not rendered pixels or media availability. No document changes.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"scene_id\",\"time_s\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"},{\"id\":\"map.show.clip.add\",\"title\":\"Add Map scene clip\",\"description\":\"Place a scene on a canvas track of the show timeline. scene_id is a timeline id from inspect, or 'main' for the canvas's own Main. Scenes reuse across canvases by surface role. Requires latest revision and records recoverable file history; open editors must reload. Does not play or deploy.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"canvas_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"start_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"duration_s\":{\"type\":\"number\",\"minimum\":0.1,\"maximum\":604800},\"loop\":{\"type\":\"string\",\"enum\":[\"yes\",\"no\"]}},\"required\":[\"app\",\"id\",\"expected_revision\",\"canvas_id\",\"scene_id\",\"start_s\",\"duration_s\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.show.cue.add\",\"title\":\"Add Map show cue\",\"description\":\"Add a show-control cue: trigger 'timeline' (fires at at_s), 'go' (operator GO, in order) or 'midi' (fires when MIDI CC control rises above zero); action play, pause, stop, jump (to to_s), blackout-on or blackout-off. Requires latest revision and records recoverable file history; open editors must reload. Optional times makes a jump cue a loop that repeats at most that many times per run; condition_control/condition_above make the cue fire only while that MIDI control is above the value.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"trigger\":{\"type\":\"string\",\"enum\":[\"timeline\",\"go\",\"midi\"]},\"cue_action\":{\"type\":\"string\",\"enum\":[\"play\",\"pause\",\"stop\",\"jump\",\"blackout-on\",\"blackout-off\"]},\"at_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"to_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"control\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":127},\"times\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":10000},\"condition_control\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":127},\"condition_above\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":127}},\"required\":[\"app\",\"id\",\"expected_revision\",\"name\",\"trigger\",\"cue_action\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"}]");
+var automation_commands_default = /*#__PURE__*/ JSON.parse("[{\"id\":\"map.show.inspect\",\"title\":\"Inspect Map show\",\"description\":\"Read saved scenes, surfaces, timelines, tracks, reusable assets and clip assignments. Does not inspect unsaved editor state.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128}},\"required\":[\"app\",\"id\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"},{\"id\":\"map.show.evaluate\",\"title\":\"Evaluate Map scene\",\"description\":\"Evaluate a saved scene's Main composition at a time in seconds using the player evaluator. Returns geometry and audio state, not a pixel image or live camera data. Does not play or deploy anything.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"scene_id\",\"time_s\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"evaluate\"},{\"id\":\"map.clip.move\",\"title\":\"Move Map clip\",\"description\":\"Move a saved clip to an existing compatible track and start time. Keeps surface assignments and source identity. Respects locks and nesting rules. Requires latest revision and records recoverable file history; open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":256},\"track_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"start_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1}},\"required\":[\"app\",\"id\",\"clip_id\",\"track_id\",\"start_s\",\"expected_revision\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"move\"},{\"id\":\"map.clip.edit\",\"title\":\"Edit Map clip\",\"description\":\"Duplicate, delete, split or trim a saved clip using Map's timeline commands. Split/trim require time_s in timeline seconds. Respects locks; requires latest revision and records recoverable file history. Open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":256},\"action\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200,\"enum\":[\"duplicate\",\"delete\",\"split\",\"trim-start\",\"trim-end\"]},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1}},\"required\":[\"app\",\"id\",\"clip_id\",\"action\",\"expected_revision\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.scene.create\",\"title\":\"Create Map scene\",\"description\":\"Add a named scene with explicit pixel artboard dimensions to an existing saved show. Preserves editor focus and output bindings. Maximum 256 scenes. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"width_px\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":16384},\"height_px\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":16384}},\"required\":[\"app\",\"id\",\"expected_revision\",\"name\",\"width_px\",\"height_px\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.scene.hotkey\",\"title\":\"Set Map scene hotkey\",\"description\":\"Assign F1–F12 so pressing it on a player's keyboard switches that projector to this scene, or none to clear. The key moves from any other scene that had it. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.\",\"action\":\"edit\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"hotkey\":{\"type\":\"string\",\"enum\":[\"F1\",\"F2\",\"F3\",\"F4\",\"F5\",\"F6\",\"F7\",\"F8\",\"F9\",\"F10\",\"F11\",\"F12\",\"none\"]}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"hotkey\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false}},{\"id\":\"map.surface.create\",\"title\":\"Create Map surface\",\"description\":\"Add a named rectangle (default), three-face cube or five-face box to a scene. Compound names must be unique folders. Returns created.surface_id and surface_ids; preserves focus and output bindings. Maximum 1024 surfaces per scene. Requires latest revision and records recoverable history; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"shape\":{\"type\":\"string\",\"enum\":[\"rectangle\",\"cube\",\"box\"]}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"name\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.surface.bounds\",\"title\":\"Set Map surface bounds\",\"description\":\"Set the visible axis-aligned bounding box at mapping time zero in scene pixels. Preserves warped shape, masks, curves and animation keys; respects aspect-ratio locks. Welded corners update atomically; locked neighbours refuse the edit. Returns changed_surface_ids. Requires latest revision/content-edit permission; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"x_px\":{\"type\":\"number\",\"minimum\":-1000000,\"maximum\":1000000},\"y_px\":{\"type\":\"number\",\"minimum\":-1000000,\"maximum\":1000000},\"width_px\":{\"type\":\"number\",\"minimum\":1,\"maximum\":32768},\"height_px\":{\"type\":\"number\",\"minimum\":1,\"maximum\":32768}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"x_px\",\"y_px\",\"width_px\",\"height_px\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.surface.rotate\",\"title\":\"Rotate Map surface\",\"description\":\"Rotate by delta_degrees around the visible bounding-box center at mapping time zero. Preserves masks, curves and animation keys. Welded corners update atomically; locked neighbours refuse the edit. Returns changed_surface_ids. Requires latest revision/content-edit permission; open editors must reload. Does not play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"delta_degrees\":{\"type\":\"number\",\"minimum\":-360,\"maximum\":360}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"delta_degrees\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.cube.pose\",\"title\":\"Pose Map cube\",\"description\":\"Turn a complete three-face cube in 3D using relative x_degrees/y_degrees/z_degrees, or mode inside-out for the opposite room corner. surface_id identifies any cube face in scene_id. Geometry at time zero remains canonical; preserves face IDs, content, masks and animation keys. Rejects locked, separated, degenerate, folded or hidden faces. Angles are applied X then Y then Z. Inside-out takes no angles. Requires latest revision; open editors must reload.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"mode\":{\"type\":\"string\",\"enum\":[\"rotate\",\"inside-out\"]},\"x_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180},\"y_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180},\"z_degrees\":{\"type\":\"number\",\"minimum\":-180,\"maximum\":180}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"mode\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.asset.place\",\"title\":\"Place Map asset\",\"description\":\"Place an existing saved media-pool asset on a track at start_s using editor timing and targets. Returns created.clip_id. Refuses locked or incompatible tracks and clips ending beyond seven days. Requires latest revision and content-edit permission. Does not upload media, change live editors or play outputs.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"asset_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"track_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"start_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"expected_revision\",\"asset_id\",\"track_id\",\"start_s\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.agent.docs\",\"title\":\"Map agent knowledge\",\"description\":\"Discover executable command schemas, gallery sources and a working program recipe. Use topic tools, gallery, sources or recipes; query filters tools/gallery; name returns an exact command. Read-only.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"topic\":{\"type\":\"string\",\"enum\":[\"tools\",\"gallery\",\"sources\",\"recipes\"]},\"query\":{\"type\":\"string\",\"maxLength\":200},\"name\":{\"type\":\"string\",\"maxLength\":200},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000}},\"required\":[\"app\",\"id\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"},{\"id\":\"map.visual.create\",\"title\":\"Create Map visual\",\"description\":\"Create a reusable source and continuous visual on its own track, using the same simple editor operation. source_json is a JSON object: gallery {kind,id}, color {kind,color}, text {kind,text,color?,size?}, or existing media {kind,media_id}. Defaults to all mapped surfaces of scene_id. Inspect created clip/asset/track IDs. No media upload or device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"source_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"name\",\"source_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.surface.animate\",\"title\":\"Animate Map surface\",\"description\":\"Edit surface bases, animation and modulation with changes_json. Supports opacity, xPx, yPx, scaleX, scaleY, rotationDeg, radiusPx and bendAngleDeg, plus bend_axis horizontal/vertical. Maps merge; null clears a channel or assignment map. Keys use surface timeline seconds; LFO and scene clock use Main scene time. Inspect surface_parameter_specs for bounds. Locked surfaces refuse. No camera, audio, MIDI or output activation.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"changes_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"surface_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"surface_id\",\"changes_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.visual.edit\",\"title\":\"Configure Map visual\",\"description\":\"Edit a visual using changes_json. Supports name, opacity, enabled, mapping repeat/span, continuous, loop, start_s, duration_s, source (same specification as create), targets [{scene_id,surface_id?}], placement {xPercent,yPercent,widthPercent,heightPercent,rotationDeg}, effects [{kind,amount,enabled?}], shader {colors?,speed?,scale?,density?,glow?}. Also supports source_parameters, source_motion and motion; discover bounds with inspection. preset {action:store|recall|clear,slot:A|B|C,from_clip_id?} captures full appearance, or {action:random,seed:integer}. Locked clips/tracks refuse; timing and targets remain unchanged unless specified. No device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"clip_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"changes_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"clip_id\",\"changes_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.show.runprogram\",\"title\":\"Build Map program\",\"description\":\"Run a version 1 JSON program containing 1–32 steps atomically. Each step has id, command, arguments. References {$ref:\\\"earlier.scene_id\\\"} resolve created scene/surface/clip/asset/track IDs. Optional assertions [{scene_id,time_s,layer_count}] must match actual Main composition before one commit. Failure saves nothing. Discover recipes and tools first. No arbitrary code or device playback.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"program_json\":{\"type\":\"string\",\"minLength\":2,\"maxLength\":65536}},\"required\":[\"app\",\"id\",\"expected_revision\",\"program_json\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"edit\"},{\"id\":\"map.show.verify\",\"title\":\"Verify Map composition\",\"description\":\"Round-trip the show through the canonical parser and evaluate Main at time_s in scene_id. Reports active layer counts, source kinds, opacity, target geometry and missing references. Returns structural/composition evidence, not rendered pixels or media availability. No document changes.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"time_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800}},\"required\":[\"app\",\"id\",\"scene_id\",\"time_s\"],\"additionalProperties\":false},\"writes\":false,\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false},\"action\":\"inspect\"},{\"id\":\"map.show.clip.add\",\"title\":\"Add Map scene clip\",\"description\":\"Place a scene on a canvas track of the show timeline. scene_id is a timeline id from inspect, or 'main' for the canvas's own Main. Scenes reuse across canvases by surface role. Requires latest revision and records recoverable file history; open editors must reload. Does not play or deploy.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"canvas_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"start_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"duration_s\":{\"type\":\"number\",\"minimum\":0.1,\"maximum\":604800},\"loop\":{\"type\":\"string\",\"enum\":[\"yes\",\"no\"]}},\"required\":[\"app\",\"id\",\"expected_revision\",\"canvas_id\",\"scene_id\",\"start_s\",\"duration_s\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.show.cue.add\",\"title\":\"Add Map show cue\",\"description\":\"Add a show-control cue: trigger 'timeline' (fires at at_s), 'go' (operator GO, in order) or 'midi' (fires when MIDI CC control rises above zero); action play, pause, stop, jump (to to_s), blackout-on or blackout-off. Requires latest revision and records recoverable file history; open editors must reload. Optional times makes a jump cue a loop that repeats at most that many times per run; condition_control/condition_above make the cue fire only while that MIDI control is above the value.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"trigger\":{\"type\":\"string\",\"enum\":[\"timeline\",\"go\",\"midi\"]},\"cue_action\":{\"type\":\"string\",\"enum\":[\"play\",\"pause\",\"stop\",\"jump\",\"blackout-on\",\"blackout-off\"]},\"at_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"to_s\":{\"type\":\"number\",\"minimum\":0,\"maximum\":604800},\"control\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":127},\"times\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":10000},\"condition_control\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":127},\"condition_above\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":127}},\"required\":[\"app\",\"id\",\"expected_revision\",\"name\",\"trigger\",\"cue_action\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false},\"action\":\"create\"},{\"id\":\"map.output.player\",\"title\":\"Route a scene to a player\",\"description\":\"Make a paired player show this scene when the show is deployed to it. Adds that player's output, or moves its existing one to this scene. device_id is the player ID from Map Players. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy; assign the show to the player from Map Players.\",\"action\":\"edit\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"scene_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"device_id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":64},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":80}},\"required\":[\"app\",\"id\",\"expected_revision\",\"scene_id\",\"device_id\",\"name\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false}},{\"id\":\"map.show.playback\",\"title\":\"Set show playback\",\"description\":\"loop repeats the show timeline indefinitely (what an unattended player wants); once holds its last moment; continuous runs past the end and goes dark there. Requires latest revision and records recoverable file history; open editors must reload.\",\"action\":\"edit\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"app\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":40,\"enum\":[\"map\"]},\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":128},\"expected_revision\":{\"type\":\"integer\",\"minimum\":1},\"mode\":{\"type\":\"string\",\"enum\":[\"loop\",\"once\",\"continuous\"]}},\"required\":[\"app\",\"id\",\"expected_revision\",\"mode\"],\"additionalProperties\":false},\"writes\":true,\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":true,\"idempotentHint\":false,\"openWorldHint\":false}}]");
 //#endregion
 //#region src/ai/catalog.ts
 var fileArguments = /* @__PURE__ */ new Set([
@@ -10772,212 +10987,6 @@ function visualSourceTime(show, visual, timeS) {
 	return mediaTime(visual, show.media.find((m) => m.id === source.mediaId), timeS);
 }
 //#endregion
-//#region src/document.ts
-var DEFAULT_SURFACE_LOOK = {
-	/**
-	* On screen: a violet checkerboard with a white edge and white pins. Two near
-	* shades rather than one flat colour, because a checker reads as a *surface*
-	* against a photographed wall where a flat fill reads as a hole, and the
-	* squares show a warp the moment you drag a corner.
-	*/
-	device: {
-		pattern: "checker",
-		primary: "#5b5bd6",
-		secondary: "#7b7be6",
-		border: "#ffffff",
-		sections: 6,
-		opacity: 1,
-		pinSizePx: 9
-	},
-	/**
-	* On the wall: black and white. Maximum contrast is the whole job in a dark
-	* room, and a checker's corners are easier to line up against a physical edge
-	* than a grid's lines are.
-	*/
-	external: {
-		pattern: "checker",
-		primary: "#000000",
-		secondary: "#ffffff",
-		border: "#ffffff",
-		sections: 6,
-		opacity: 1,
-		pinSizePx: 0
-	}
-};
-var DEFAULT_TEXT = {
-	text: "Text",
-	sizePx: 96,
-	color: "#ffffff",
-	background: "transparent",
-	align: "center"
-};
-/** Identity colours for layers, assigned in turn as layers are created. */
-var LAYER_COLORS = [
-	"#4c9dff",
-	"#ff8a3d",
-	"#8b87ff",
-	"#32cf84",
-	"#e7a843",
-	"#36d6c3",
-	"#ff5c8a",
-	"#c7d3de"
-];
-function layerColor(index) {
-	return LAYER_COLORS[(index % LAYER_COLORS.length + LAYER_COLORS.length) % LAYER_COLORS.length];
-}
-function activeScene(show) {
-	return show.scenes.find((s) => s.id === show.activeSceneId) ?? show.scenes[0];
-}
-function newScene(name, artboard = {
-	widthPx: 1920,
-	heightPx: 1080
-}) {
-	return {
-		id: nextId("sc"),
-		name,
-		artboard,
-		durationS: 60,
-		surfaces: []
-	};
-}
-var DEFAULT_OUTPUT = {
-	width: 1920,
-	height: 1080
-};
-var counter = 0;
-function nextId(prefix) {
-	counter += 1;
-	return `${prefix}${counter}-${Math.random().toString(36).slice(2, 8)}`;
-}
-/**
-* A new surface covers the middle half of the scene artboard, so it is visible
-* and draggable the moment it is created.
-*/
-function newSurface(output, index) {
-	const w = output.width;
-	const h = output.height;
-	const side = Math.round(Math.min(w, h) * .6);
-	const nudge = index % 6 * 24;
-	const left = Math.round((w - side) / 2) + nudge;
-	const top = Math.round((h - side) / 2) + nudge;
-	return {
-		id: nextId("s"),
-		name: `Surface ${index + 1}`,
-		enabled: true,
-		color: layerColor(index),
-		corners: [
-			[left, top],
-			[left + side, top],
-			[left + side, top + side],
-			[left, top + side]
-		],
-		source: {
-			mediaId: null,
-			rect: [
-				0,
-				0,
-				side,
-				side
-			]
-		},
-		masks: [],
-		opacity: 1,
-		cues: [],
-		clips: []
-	};
-}
-function quadCorners(rect) {
-	const [x, y, w, h] = rect;
-	return [
-		[x, y],
-		[x + w, y],
-		[x + w, y + h],
-		[x, y + h]
-	];
-}
-/** Every authored surface, including objects parked outside all artboards. */
-function allSurfaces(show) {
-	return [...show.unassignedSurfaces, ...show.scenes.flatMap((scene) => scene.surfaces)];
-}
-/** The collection that currently owns a surface. `scene` absent means workspace root. */
-function surfaceCollection(show, surfaceID) {
-	if (show.unassignedSurfaces.some((surface) => surface.id === surfaceID)) return {
-		scene: null,
-		surfaces: show.unassignedSurfaces
-	};
-	const scene = show.scenes.find((entry) => entry.surfaces.some((surface) => surface.id === surfaceID));
-	return scene ? {
-		scene,
-		surfaces: scene.surfaces
-	} : void 0;
-}
-/** Change whichever collection owns `surfaceID`, without depending on the active scene. */
-function withSurfaceCollection(show, surfaceID, change) {
-	if (show.unassignedSurfaces.some((surface) => surface.id === surfaceID)) return {
-		...show,
-		unassignedSurfaces: change(show.unassignedSurfaces)
-	};
-	const owner = show.scenes.find((scene) => scene.surfaces.some((surface) => surface.id === surfaceID));
-	if (!owner) return show;
-	return {
-		...show,
-		scenes: show.scenes.map((scene) => scene.id === owner.id ? {
-			...scene,
-			surfaces: change(scene.surfaces)
-		} : scene)
-	};
-}
-/**
-* The scenes on screen right now, back to front, with the opacity each is
-* mixed at. One entry normally; two while a crossfade is engaged. A layer at
-* zero is dropped rather than drawn invisibly — at either end of the fader the
-* show costs exactly what it did before the crossfade existed.
-*/
-function sceneLayers(show, { editor = false } = {}) {
-	const a = activeScene(show);
-	const b = show.mix?.sceneId ? show.scenes.find((scene) => scene.id === show.mix.sceneId) : void 0;
-	if (!a || a.suppressed && !editor) return [];
-	if (!b || b.id === a.id || b.suppressed) return [{
-		scene: a,
-		opacity: 1,
-		active: true
-	}];
-	const blend = Math.min(1, Math.max(0, show.mix?.blend ?? 0));
-	return [{
-		scene: a,
-		opacity: 1 - blend,
-		active: true
-	}, {
-		scene: b,
-		opacity: blend,
-		active: false
-	}].filter((layer) => layer.opacity > 0);
-}
-/**
-* Layer order is paint order, so a folder has to be one contiguous run or the
-* tree would claim a z-order the renderer does not have. Each folder's run sits
-* where its first member sat and members keep their relative order; loose
-* layers keep their own positions, so folders and loose layers still interleave.
-* Idempotent: a correctly grouped list comes back unchanged.
-*/
-function groupSurfaces(list) {
-	const out = [];
-	const placed = /* @__PURE__ */ new Set();
-	for (const surface of list) {
-		if (placed.has(surface.id)) continue;
-		if (!surface.folder) {
-			out.push(surface);
-			placed.add(surface.id);
-			continue;
-		}
-		for (const member of list) if (member.folder === surface.folder && !placed.has(member.id)) {
-			out.push(member);
-			placed.add(member.id);
-		}
-	}
-	return out;
-}
-//#endregion
 //#region src/timelines.ts
 var MAIN_TIMELINE = "main";
 var isClip = (t) => !!t?.board;
@@ -20649,6 +20658,45 @@ function runDocumentCommand(command, show, args) {
 		};
 	}
 	if (command === "map.show.inspect") return { result: describe(show) };
+	if (command === "map.output.player") {
+		if (!show.scenes.some((s) => s.id === args.scene_id)) throw Error("Scene not found. Inspect the show first.");
+		const deviceID = String(args.device_id ?? ""), name = String(args.name ?? "").trim();
+		if (!/^[A-Za-z0-9_-]{1,64}$/.test(deviceID)) throw Error("device_id must be a paired player ID.");
+		if (!name || name.length > 80) throw Error("Name the output in 1–80 characters.");
+		const existing = show.outputs.find((o) => o.kind === "edge" && o.deviceId === deviceID);
+		const outputs = existing ? show.outputs.map((o) => o === existing ? {
+			...o,
+			name,
+			sceneId: args.scene_id
+		} : o) : [...show.outputs, {
+			...newOutput(name, args.scene_id, "edge"),
+			deviceId: deviceID
+		}];
+		const next = normalizeDocument({
+			...show,
+			outputs
+		});
+		parseShow(serializeShow(next));
+		return {
+			result: describe(next),
+			document: next
+		};
+	}
+	if (command === "map.show.playback") {
+		if (![
+			"loop",
+			"once",
+			"continuous"
+		].includes(args.mode)) throw Error("Playback must be loop, once or continuous.");
+		const next = normalizeDocument({
+			...show,
+			playback: { mode: args.mode }
+		});
+		return {
+			result: describe(next),
+			document: next
+		};
+	}
 	if (command === "map.show.clip.add" || command === "map.show.cue.add") {
 		const next = normalizeDocument(command === "map.show.clip.add" ? addShowClip(show, args) : addShowCue(show, args));
 		parseShow(serializeShow(next));

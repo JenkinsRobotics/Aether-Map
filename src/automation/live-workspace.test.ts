@@ -32,8 +32,8 @@ function fixture() {
 
 describe('live Map agent operations', () => {
   it('lists only implemented tools, removing saved-file authority arguments', () => {
-    expect(mapAgentTools).toHaveLength(23);
-    expect(new Set(mapAgentTools.map(t => t.name)).size).toBe(23);
+    expect(mapAgentTools).toHaveLength(25);
+    expect(new Set(mapAgentTools.map(t => t.name)).size).toBe(25);
     for (const tool of mapAgentTools) {
       expect(tool.description).toBeTruthy();
       for (const key of ['app', 'id', 'expected_revision']) expect(tool.inputSchema.properties).not.toHaveProperty(key);
