@@ -210,7 +210,7 @@
   {
     "id": "map.scene.create",
     "title": "Create Map scene",
-    "description": "Add a named scene with explicit pixel artboard dimensions to an existing saved show. Preserves editor focus and output bindings. Maximum 256 scenes. Optional hotkey F1–F12 switches a player to this scene. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.",
+    "description": "Add a named scene with explicit pixel artboard dimensions to an existing saved show. Preserves editor focus and output bindings. Maximum 256 scenes. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -245,23 +245,6 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 16384
-        },
-        "hotkey": {
-          "type": "string",
-          "enum": [
-            "F1",
-            "F2",
-            "F3",
-            "F4",
-            "F5",
-            "F6",
-            "F7",
-            "F8",
-            "F9",
-            "F10",
-            "F11",
-            "F12"
-          ]
         }
       },
       "required": [
@@ -282,6 +265,72 @@
       "openWorldHint": false
     },
     "action": "create"
+  },
+  {
+    "id": "map.scene.hotkey",
+    "title": "Set Map scene hotkey",
+    "description": "Assign F1–F12 so pressing it on a player's keyboard switches that projector to this scene, or none to clear. The key moves from any other scene that had it. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.",
+    "action": "edit",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "enum": [
+            "map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scene_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "hotkey": {
+          "type": "string",
+          "enum": [
+            "F1",
+            "F2",
+            "F3",
+            "F4",
+            "F5",
+            "F6",
+            "F7",
+            "F8",
+            "F9",
+            "F10",
+            "F11",
+            "F12",
+            "none"
+          ]
+        }
+      },
+      "required": [
+        "app",
+        "id",
+        "expected_revision",
+        "scene_id",
+        "hotkey"
+      ],
+      "additionalProperties": false
+    },
+    "writes": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
   },
   {
     "id": "map.surface.create",
@@ -847,7 +896,7 @@
   {
     "id": "map.show.runprogram",
     "title": "Build Map program",
-    "description": "Run a version 1 JSON program containing 1\u201332 steps atomically. Each step has id, command, arguments. References {$ref:\"earlier.scene_id\"} resolve created scene/surface/clip/asset/track IDs. Optional assertions [{scene_id,time_s,layer_count}] must match actual Main composition before one commit. Failure saves nothing. Discover recipes and tools first. No arbitrary code or device playback.",
+    "description": "Run a version 1 JSON program containing 1–32 steps atomically. Each step has id, command, arguments. References {$ref:\"earlier.scene_id\"} resolve created scene/surface/clip/asset/track IDs. Optional assertions [{scene_id,time_s,layer_count}] must match actual Main composition before one commit. Failure saves nothing. Discover recipes and tools first. No arbitrary code or device playback.",
     "inputSchema": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "schema": 1,
   "app": "map",
   "entry": "runner.mjs",
-  "sha256": "900fd4eb1fdd1f552c1977dfc9ed76ee3a69eace78cc0ea5a170a3c68395e997",
+  "sha256": "79a7465c62e3ec31178afeae2afc4463a462b4bcd77305c934079e9abd4972a3",
   "commands": [
     {
       "id": "map.show.inspect",
@@ -211,7 +211,7 @@
     {
       "id": "map.scene.create",
       "title": "Create Map scene",
-      "description": "Add a named scene with explicit pixel artboard dimensions to an existing saved show. Preserves editor focus and output bindings. Maximum 256 scenes. Optional hotkey F1–F12 switches a player to this scene. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.",
+      "description": "Add a named scene with explicit pixel artboard dimensions to an existing saved show. Preserves editor focus and output bindings. Maximum 256 scenes. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -246,6 +246,54 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 16384
+          }
+        },
+        "required": [
+          "app",
+          "id",
+          "expected_revision",
+          "name",
+          "width_px",
+          "height_px"
+        ],
+        "additionalProperties": false
+      },
+      "writes": true,
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "id": "map.scene.hotkey",
+      "title": "Set Map scene hotkey",
+      "description": "Assign F1–F12 so pressing it on a player's keyboard switches that projector to this scene, or none to clear. The key moves from any other scene that had it. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "enum": [
+              "map"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "scene_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
           },
           "hotkey": {
             "type": "string",
@@ -261,7 +309,8 @@
               "F9",
               "F10",
               "F11",
-              "F12"
+              "F12",
+              "none"
             ]
           }
         },
@@ -269,9 +318,8 @@
           "app",
           "id",
           "expected_revision",
-          "name",
-          "width_px",
-          "height_px"
+          "scene_id",
+          "hotkey"
         ],
         "additionalProperties": false
       },

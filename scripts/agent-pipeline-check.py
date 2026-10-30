@@ -23,15 +23,17 @@ def created(result): return result.get("created", result)
 
 empty = (MAP / "service/tests/fixtures/automation-show.aethermap").read_text()
 docs = run("map.agent.docs", empty)[1]
-assert docs["total"] == 18, docs["total"]
+assert docs["total"] == 19, docs["total"]
 src = {s["kind"] for s in run("map.agent.docs", empty, topic="sources")[1]["sources"]}
 assert {"cast", "web"} <= src, src
 gallery = run("map.agent.docs", empty, topic="gallery", query="neon")[1]["items"][0]["id"]
 
 # --- Demo show: one backdrop across a wall, a cast screen, and a Disney+ scene.
 show = empty
-show, r = run("map.scene.create", show, name="Backdrop", width_px=1920, height_px=1080, hotkey="F1"); backdrop = created(r)["scene_id"]
-show, r = run("map.scene.create", show, name="Movie", width_px=1920, height_px=1080, hotkey="F2"); movie = created(r)["scene_id"]
+show, r = run("map.scene.create", show, name="Backdrop", width_px=1920, height_px=1080); backdrop = created(r)["scene_id"]
+show, _ = run("map.scene.hotkey", show, scene_id=backdrop, hotkey="F1")
+show, r = run("map.scene.create", show, name="Movie", width_px=1920, height_px=1080); movie = created(r)["scene_id"]
+show, _ = run("map.scene.hotkey", show, scene_id=movie, hotkey="F2")
 ids = {}
 for scene, label in ((backdrop, "b"), (movie, "m")):
     show, r = run("map.surface.create", show, scene_id=scene, name="Wall"); ids[label + "wall"] = created(r)["surface_id"]
@@ -82,4 +84,4 @@ s, _ = run("map.show.runprogram", s, program_json=json.dumps(recipe))
 
 missing = ({i["id"] for i in docs["items"]} | set(json.loads(json.dumps([c["id"] for c in json.load(open(MAP / "service/aether_map_service/automation-commands.json"))])))) - seen
 print("\n".join(log[-6:]))
-print(f"{len(seen)}/18 commands ran; missing: {sorted(missing) or 'none'}; {len(log)} calls")
+print(f"{len(seen)}/19 commands ran; missing: {sorted(missing) or 'none'}; {len(log)} calls")

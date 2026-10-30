@@ -3,7 +3,6 @@ import { newScene, type MapShow } from '../document';
 import { compoundSurfaces } from '../features/shape-groups';
 import { newFeature } from '../features/new-feature';
 import { sceneSize } from '../scene-size';
-import { isHotkey } from '../scene-hotkeys';
 
 export interface CreationArguments {
   name?: string;
@@ -11,7 +10,6 @@ export interface CreationArguments {
   scene_id?: string;
   width_px?: number;
   height_px?: number;
-  hotkey?: string;
 }
 function nameOf(value: unknown): string {
   if (typeof value !== 'string' || !value.trim() || value.length > 200 || Array.from(value).some(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127))
@@ -28,8 +26,7 @@ export function createInShow(command: string, show: MapShow, args: CreationArgum
   const name = nameOf(args.name);
   if (command === 'map.scene.create') {
     if (show.scenes.length >= 256) throw new Error('Scene creation exceeds the 256-scene automation limit.');
-    if (args.hotkey !== undefined && !isHotkey(args.hotkey)) throw new Error('Hotkey must be F1–F12.');
-    const scene = { ...newScene(name, { widthPx: dimension(args.width_px), heightPx: dimension(args.height_px) }), ...(args.hotkey ? { hotkey: args.hotkey } : {}) };
+    const scene = newScene(name, { widthPx: dimension(args.width_px), heightPx: dimension(args.height_px) });
     // Saved editor focus and physical output bindings must not change implicitly.
     return { show: { ...show, scenes: [...show.scenes, scene] }, created: { scene_id: scene.id } };
   }

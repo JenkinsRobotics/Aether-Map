@@ -32,13 +32,18 @@ function fixture() {
 
 describe('live Map agent operations', () => {
   it('lists only implemented tools, removing saved-file authority arguments', () => {
-    expect(mapAgentTools).toHaveLength(22);
-    expect(new Set(mapAgentTools.map(t => t.name)).size).toBe(22);
+    expect(mapAgentTools).toHaveLength(23);
+    expect(new Set(mapAgentTools.map(t => t.name)).size).toBe(23);
     for (const tool of mapAgentTools) {
       expect(tool.description).toBeTruthy();
       for (const key of ['app', 'id', 'expected_revision']) expect(tool.inputSchema.properties).not.toHaveProperty(key);
     }
     expect(JSON.stringify(mapAgentTools).length).toBeLessThan(64000);
+  });
+  it('sets a scene hotkey in the open editor', async () => {
+    const f = fixture();
+    await f.call('scene_hotkey', { scene_id: f.scene.id, hotkey: 'F3' });
+    expect(f.state.show.scenes.find(s => s.id === f.scene.id)?.hotkey).toBe('F3');
   });
   it('inspects unsaved content and selection in bounded pages without writing', async () => {
     const f = fixture();

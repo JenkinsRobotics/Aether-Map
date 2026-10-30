@@ -1,3 +1,4 @@
+import { isHotkey, type Hotkey } from '../scene-hotkeys';
 import { editSurfaceAutomation } from '../features/surface-automation';
 import { SURFACE_PARAMETERS, surfaceParameterBase } from '../features/surface-parameters';
 import { jsonObject } from '../ai/catalog';
@@ -124,6 +125,15 @@ export function runDocumentCommand(command: string, show: MapShow, args: Argumen
     const serialized = new TextDecoder().decode(serializeShow(next));
     parseShow(serialized);
     return { result: { ...describe(next), created: created.created }, document: next };
+  }
+  if (command === 'map.scene.hotkey') {
+    if (!show.scenes.some(s => s.id === args.scene_id)) throw Error('Scene not found. Inspect the show first.');
+    if (args.hotkey !== 'none' && !isHotkey(args.hotkey)) throw Error('Hotkey must be F1–F12 or none.');
+    // One key, one scene: assigning it here takes it from any other scene.
+    const next = normalize({ ...show, scenes: show.scenes.map(({ hotkey, ...s }) =>
+      s.id === args.scene_id ? (args.hotkey === 'none' ? s : { ...s, hotkey: args.hotkey as Hotkey }) : hotkey && hotkey !== args.hotkey ? { ...s, hotkey } : s) });
+    parseShow(serializeShow(next));
+    return { result: describe(next), document: next };
   }
   if (command === 'map.cube.pose') {
     const scene = show.scenes.find(s => s.id === args.scene_id);

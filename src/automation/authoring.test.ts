@@ -56,12 +56,16 @@ describe('saved scene and surface creation', () => {
 });
 
 describe('agent-built playback features', () => {
-  it('assigns a scene hotkey that survives a reopen, and refuses other keys', () => {
+  it('assigns a scene hotkey that survives a reopen, moves it between scenes and clears it', () => {
     const show = normalizeDocument(emptyShow());
-    const next = parseShow(runCommand('map.scene.create', encode(show), { name: 'Movie', width_px: 1920, height_px: 1080, hotkey: 'F2' }).content!);
-    expect(next.scenes[1].hotkey).toBe('F2');
-    expect((runCommand('map.show.inspect', encode(next), {}).result.scenes as {hotkey:string|null}[]).map(s => s.hotkey)).toEqual([null, 'F2']);
-    expect(() => createInShow('map.scene.create', show, { name: 'X', width_px: 10, height_px: 10, hotkey: 'Q' })).toThrow('Hotkey');
+    let text = runCommand('map.scene.create', encode(show), { name: 'Movie', width_px: 1920, height_px: 1080 }).content!;
+    const [main, movie] = parseShow(text).scenes.map(s => s.id);
+    text = runCommand('map.scene.hotkey', text, { scene_id: main, hotkey: 'F2' }).content!;
+    text = runCommand('map.scene.hotkey', text, { scene_id: movie, hotkey: 'F2' }).content!;
+    expect((runCommand('map.show.inspect', text, {}).result.scenes as {hotkey:string|null}[]).map(s => s.hotkey)).toEqual([null, 'F2']);
+    text = runCommand('map.scene.hotkey', text, { scene_id: movie, hotkey: 'none' }).content!;
+    expect(parseShow(text).scenes.map(s => s.hotkey)).toEqual([undefined, undefined]);
+    expect(() => runCommand('map.scene.hotkey', text, { scene_id: movie, hotkey: 'Q' })).toThrow();
   });
   it('creates Cast and Web window visuals that survive a reopen', () => {
     const show = normalizeDocument(emptyShow());
