@@ -8,7 +8,7 @@ const store = vi.hoisted(() => ({
   nowS: 0, error: '', setError: vi.fn(), refresh: vi.fn(), online: () => true,
 }));
 vi.mock('./use-map-devices', () => ({ useMapDevices: () => store, ago: () => '' }));
-vi.mock('./api', () => ({ hosted: true, installerURL: () => 'https://studio.test/api/map/install.sh', androidReceiverAvailable: vi.fn().mockResolvedValue(false), androidReceiverDownloadURL: () => '', installerDownloadURL: () => '', devices: {} }));
+vi.mock('./api', () => ({ library: { shows: async () => [] }, hosted: true, installerURL: () => 'https://studio.test/api/map/install.sh', androidReceiverAvailable: vi.fn().mockResolvedValue(false), androidReceiverDownloadURL: () => '', installerDownloadURL: () => '', devices: {} }));
 afterEach(cleanup);
 
 it('lists paired players on their own page, without an open show', () => {

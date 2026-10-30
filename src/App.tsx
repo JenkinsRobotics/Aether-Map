@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import {isLocalDocument} from '@aether/session/home/runtime';
 import { setVisualMotionBase } from "./visual-motion";
 import { useMidiAssignments } from './live/midi-assignments';
@@ -1830,11 +1831,12 @@ export default function App() {
       <Dialog open={exportOptions} title="Export options" onClose={() => setExportOptions(false)}>
         <ExportWorkspace show={show} mediaUrls={urls} documentID={file?.id ?? null} dirty={dirty} onExportProject={exportProject} onExportWireframe={exportWireframe} />
       </Dialog>
-      <Dialog open={managingDevices} title="Devices" onClose={() => setManagingDevices(false)}
+      {/* On the page root: inside the workspace it opened behind the side panels. */}
+      {createPortal(<div className="map-device-dialog"><Dialog open={managingDevices} title="Devices" onClose={() => setManagingDevices(false)}
         actions={<Button onClick={() => setManagingDevices(false)}>Done</Button>}>
         {/* With the show, so players can be deployed and mirrored from here. */}
         <DeviceManager show={show} documentID={file?.id ?? null} installerURL={installerURL()} dirty={dirty} />
-      </Dialog>
+      </Dialog></div>, document.body)}
       <OutputDialog
         open={choosingOutput}
         onClose={() => setChoosingOutput(false)}

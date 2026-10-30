@@ -9,8 +9,9 @@ const store = vi.hoisted(() => ({
   nowS: 0, error: '', setError: vi.fn(), refresh: vi.fn(), online: () => true,
 }));
 vi.mock('../use-map-devices', () => ({ useMapDevices: () => store, ago: () => '' }));
-vi.mock('../api', () => ({ hosted: true, androidReceiverAvailable: vi.fn(), androidReceiverDownloadURL: () => '/api/map/aether-map-receiver.apk', installerDownloadURL: () => '/installer', devices: { claim: vi.fn(), assign: vi.fn(), forget: vi.fn(), rename: vi.fn(), command: vi.fn() } }));
+vi.mock('../api', () => ({ hosted: true, library: { shows: vi.fn(async () => [{ id: 'cube', name: 'Cube demo.aethermap' }]) }, androidReceiverAvailable: vi.fn(), androidReceiverDownloadURL: () => '/api/map/aether-map-receiver.apk', installerDownloadURL: () => '/installer', devices: { claim: vi.fn(), assign: vi.fn(), forget: vi.fn(), rename: vi.fn(), command: vi.fn() } }));
 vi.mock('../live-cast', () => ({ mirrorDevice: vi.fn() }));
+vi.mock('../deploy-to-player', () => ({ deploySavedShow: vi.fn(async () => ['The show plays once and holds its last moment.']) }));
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(androidReceiverAvailable).mockResolvedValue(false); store.list = [{ id: 'pi', name: 'Porch', mine: true, claimed: true, document: null, seen: 0 }]; store.refresh.mockResolvedValue(undefined); });
 afterEach(cleanup);
 const mount = () => render(<DeviceManager documentID={null} dirty={false} installerURL="https://studio.test/api/map/install.sh" />);
@@ -151,4 +152,18 @@ it('changes Wi-Fi, host and permissions from the network', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }));
   await waitFor(() => expect(devices.command).toHaveBeenCalledWith('pi', 'set_permissions', { keep_display_awake: true, play_audio: false, allow_updates: true }));
   expect(dialog).toBeTruthy();
+});
+
+it('deploys a saved show from the Players page and names what each player runs', async () => {
+  const { deploySavedShow } = await import('../deploy-to-player');
+  mount();
+  fireEvent.click(await screen.findByRole('button', { name: 'Deploy a show…' }));
+  await waitFor(() => expect((screen.getByLabelText('Show to deploy') as HTMLSelectElement).value).toBe('cube'));
+  fireEvent.click(screen.getByRole('button', { name: 'Deploy' }));
+  await waitFor(() => expect(deploySavedShow).toHaveBeenCalledWith('cube', 'pi', 'Porch'));
+  expect(await screen.findByText('The show plays once and holds its last moment.')).toBeTruthy();
+  store.list = [{ ...store.list[0], document: 'cube' }];
+  cleanup(); mount();
+  expect(await screen.findByText(/playing Cube demo/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Open show' })).toBeTruthy();
 });

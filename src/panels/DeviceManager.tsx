@@ -1,8 +1,8 @@
 import { createPortal } from "react-dom";
 import "./DeviceManager.css";
 import { useEffect, useRef, useState } from "react";
-import { AetherIcon, Button, Dialog, EmptyState, FieldRow, IconButton, StatusDot, TextField } from "@aether/ui";
-import { devices, hosted, installerDownloadURL, androidReceiverAvailable, androidReceiverDownloadURL } from "../api";
+import { AetherIcon, Button, Dialog, EmptyState, FieldRow, IconButton, SelectField, StatusDot, TextField } from "@aether/ui";
+import { devices, hosted, library, installerDownloadURL, androidReceiverAvailable, androidReceiverDownloadURL } from "../api";
 import { ago, useMapDevices } from "../use-map-devices";
 import type { MapShow } from '../document';
 import { mirrorDevice, type CastStatus, type CastDiagnostics } from '../live-cast';
@@ -10,6 +10,7 @@ import { canDeployToDevice } from '../device-capabilities';
 import { PairDeviceForm } from './PairDeviceForm';
 import { deploymentReadiness } from '../deployment-readiness';
 import { DeviceRemote } from './DeviceRemote';
+import { deploySavedShow } from '../deploy-to-player';
 
 /**
  * The workspace's paired players: pairing, naming, forgetting, and deploying a
@@ -69,6 +70,12 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
     return () => { current = false; };
   }, [adding]);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  // Saved shows, to name what each player runs and to deploy one from here.
+  const [shows, setShows] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => { if (hosted) void library.shows().then(setShows).catch(() => {}); }, []);
+  const [choosing, setChoosing] = useState<{ id: string; name: string; file: string } | null>(null);
+  const [deployNotes, setDeployNotes] = useState<{ id: string; notes: string[] } | null>(null);
+  const showName = (id: string) => shows.find(f => f.id === id)?.name.replace(/\.aethermap$/i, '') ?? 'a saved show';
   const [nameDraft, setNameDraft] = useState("");
   const act = async (run: () => Promise<unknown>) => {
     try { await run(); await refresh(); setError(""); }
@@ -109,7 +116,7 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
                 </div>
                 <div className="map-device-meta">
                   {online(device) ? "Online" : `Last seen ${ago(device.seen, nowS)}`}
-                  {!standalone ? " · live receiver" : running ? " · assigned this show" : device.document ? " · assigned another show" : " · unassigned"}
+                  {!standalone ? " · live receiver" : running ? " · assigned this show" : device.document ? ` · playing ${showName(device.document)}` : " · unassigned"}
                 </div>
                 {!standalone && <p className="map-hint">Receives a live output while this computer is sharing. Saved shows require a standalone player.</p>}
                 {readiness?.output && <p className="map-hint">{readiness.output.name} · {show?.scenes.find(s=>s.id===readiness.output?.sceneId)?.name??'No scene'}</p>}
@@ -128,8 +135,12 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
                     onClick={() => void act(() => devices.assign(device.id, documentID))}>
                     {running ? "Assigned" : "Deploy this show"}
                   </Button>}
+                  {standalone && !documentID && <Button primary={!device.document} onClick={() => setChoosing({ id: device.id, name: device.name, file: device.document ?? shows[0]?.id ?? '' })}>
+                    {device.document ? "Change show…" : "Deploy a show…"}</Button>}
+                  {device.document && device.document !== documentID && <Button onClick={() => location.assign(`/map/index.html?document=${encodeURIComponent(device.document!)}`)}>Open show</Button>}
                   {device.document && <Button onClick={() => void act(() => devices.assign(device.id, null))}>Stop</Button>}
                 </div>
+                {deployNotes?.id === device.id && deployNotes.notes.map(message => <p className="map-hint" key={message}>{message}</p>)}
                 {device.status && <DeviceRemote device={{ ...device, status: device.status }}
                   send={(type, args = {}) => act(() => devices.command(device.id, type, args))} />}
                 {cast?.id === device.id && <p role="status" className="map-hint">{cast.status} · {cast.intoShow ? "Plays in the show's Cast surfaces; the rest of the show keeps running." : standalone ? "Ending mirroring returns this player to its assigned show." : "Keep the receiver app open on the TV."}</p>}
@@ -150,6 +161,16 @@ export function DeviceManager({ documentID, installerURL, dirty, show }: {
           so the right projector is obvious when you deploy.
         </p>
         <FieldRow label="Name"><TextField value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} /></FieldRow>
+      </Dialog>
+
+      <Dialog open={choosing !== null} title={`Deploy to ${choosing?.name ?? ''}`} onClose={() => setChoosing(null)}
+        actions={<><Button onClick={() => setChoosing(null)}>Cancel</Button>
+          <Button primary disabled={!choosing?.file} onClick={() => { const target = choosing; setChoosing(null);
+            if (target) void act(async () => setDeployNotes({ id: target.id, notes: await deploySavedShow(target.file, target.id, target.name) })); }}>Deploy</Button></>}>
+        <p className="map-dialog-lead">The player downloads the show and its media, then plays it on its own, offline and after restarts. A show without an output for this player plays its active scene.</p>
+        <FieldRow label="Show"><SelectField aria-label="Show to deploy" value={choosing?.file ?? ''}
+          options={shows.map(f => ({ value: f.id, label: f.name.replace(/\.aethermap$/i, '') }))}
+          onChange={e => setChoosing(c => c && { ...c, file: e.target.value })} /></FieldRow>
       </Dialog>
 
       <Dialog open={pairing} title="Pair a device" onClose={() => { if (!pairingBusy) setPairing(false); }}>

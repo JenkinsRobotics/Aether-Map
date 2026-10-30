@@ -34,6 +34,9 @@ export interface StoredFile {
 export const library = {
   read: (id: string, branch = "Main") => documentRequest<StoredFile>("map", "read", { app: "map", id, branch }),
   rename: (id: string, revision: number, name: string) => documentRequest<StoredFile>("map", "rename", { app: "map", id, expected_revision: revision, name }),
+  /** Saved Map shows this user can open (folders and other apps' files removed). */
+  shows: () => documentRequest<{ files: (StoredFile & { app: string; kind: string })[] }>("map", "list", { app: "map" })
+    .then(r => r.files.filter(f => f.app === "map" && f.kind === "file")),
 
   create: (name: string, bytes: Uint8Array, scope = "personal", parent?: string) =>
     documentRequest<StoredFile>("map", "create", {
