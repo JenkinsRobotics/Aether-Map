@@ -49,7 +49,7 @@ function describe(show: MapShow) {
   return {
     version: show.version, active_scene_id: show.activeSceneId,
     scenes: show.scenes.map(s => ({ id: s.id, name: s.name, duration_s: s.durationS,
-      suppressed: !!s.suppressed, artboard: s.artboard,
+      suppressed: !!s.suppressed, artboard: s.artboard, hotkey: s.hotkey ?? null,
       surfaces: s.surfaces.map(p => ({ id: p.id, name: p.name, enabled: p.enabled, locked: !!p.locked, corners: p.corners, folder: p.folder, group_shape: p.groupShape, ...surfaceAutomationSummary(p) })) })),
     timelines: show.timelines ?? [], tracks: show.tracks ?? [],
     show: describeShowTimeline(show),

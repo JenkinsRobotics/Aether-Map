@@ -54,3 +54,25 @@ describe('saved scene and surface creation', () => {
     expect(() => createInShow('map.scene.create', show, { name: 'Side', width_px: 100, height_px: 100 })).toThrow('limit');
   });
 });
+
+describe('agent-built playback features', () => {
+  it('assigns a scene hotkey that survives a reopen, and refuses other keys', () => {
+    const show = normalizeDocument(emptyShow());
+    const next = parseShow(runCommand('map.scene.create', encode(show), { name: 'Movie', width_px: 1920, height_px: 1080, hotkey: 'F2' }).content!);
+    expect(next.scenes[1].hotkey).toBe('F2');
+    expect((runCommand('map.show.inspect', encode(next), {}).result.scenes as {hotkey:string|null}[]).map(s => s.hotkey)).toEqual([null, 'F2']);
+    expect(() => createInShow('map.scene.create', show, { name: 'X', width_px: 10, height_px: 10, hotkey: 'Q' })).toThrow('Hotkey');
+  });
+  it('creates Cast and Web window visuals that survive a reopen', () => {
+    const show = normalizeDocument(emptyShow());
+    const scene_id = show.scenes[0].id;
+    let text = encode(show);
+    text = runCommand('map.visual.create', text, { scene_id, name: 'Phone', source_json: '{"kind":"cast"}' }).content!;
+    text = runCommand('map.visual.create', text, { scene_id, name: 'Movie', source_json: '{"kind":"web","url":"https://www.disneyplus.com"}' }).content!;
+    const reopened = parseShow(text);
+    const sources = reopened.visuals!.slice(-2).map(v => reopened.pool!.find(a => a.id === v.assetID)!.source);
+    expect(sources[0].cast).toBe(true);
+    expect(sources[1].web).toEqual({ url: 'https://www.disneyplus.com' });
+    expect(() => runCommand('map.visual.create', text, { scene_id, name: 'Bad', source_json: '{"kind":"web","url":"http://x.test"}' })).toThrow('https');
+  });
+});

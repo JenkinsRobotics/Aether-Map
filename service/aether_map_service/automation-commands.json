@@ -210,7 +210,7 @@
   {
     "id": "map.scene.create",
     "title": "Create Map scene",
-    "description": "Add a named scene with explicit pixel artboard dimensions to an existing saved show. Preserves editor focus and output bindings. Maximum 256 scenes. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.",
+    "description": "Add a named scene with explicit pixel artboard dimensions to an existing saved show. Preserves editor focus and output bindings. Maximum 256 scenes. Optional hotkey F1–F12 switches a player to this scene. Requires latest revision and records recoverable file history; open editors must reload. Does not deploy or play outputs.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -245,6 +245,23 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 16384
+        },
+        "hotkey": {
+          "type": "string",
+          "enum": [
+            "F1",
+            "F2",
+            "F3",
+            "F4",
+            "F5",
+            "F6",
+            "F7",
+            "F8",
+            "F9",
+            "F10",
+            "F11",
+            "F12"
+          ]
         }
       },
       "required": [

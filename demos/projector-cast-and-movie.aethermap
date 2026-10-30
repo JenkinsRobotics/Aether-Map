@@ -1,0 +1,695 @@
+{
+  "timelines": [],
+  "version": 7,
+  "pool": [
+    {
+      "id": "red",
+      "name": "Red",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "fill": "#ff0000"
+      }
+    },
+    {
+      "id": "pool29-f44wrv",
+      "name": "Backdrop",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "shader": {
+          "preset": "pulsing-border",
+          "colors": [
+            "#0dc1fd",
+            "#d915ef",
+            "#ff3f2ecc"
+          ],
+          "parameters": {
+            "fit": "contain",
+            "scale": 0.6,
+            "rotation": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "originX": 0.5,
+            "originY": 0.5,
+            "worldWidth": 0,
+            "worldHeight": 0,
+            "speed": 1,
+            "colorBack": "#000000",
+            "roundness": 0.25,
+            "thickness": 0.1,
+            "margin": 0,
+            "marginLeft": 0,
+            "marginRight": 0,
+            "marginTop": 0,
+            "marginBottom": 0,
+            "aspectRatio": "auto",
+            "softness": 0.75,
+            "intensity": 0.2,
+            "bloom": 0.25,
+            "spots": 5,
+            "spotSize": 0.5,
+            "pulse": 0.25,
+            "smoke": 0.3,
+            "smokeSize": 0.6
+          },
+          "time": {
+            "offsetS": 0,
+            "loopS": 15,
+            "direction": "forward",
+            "frozen": false
+          }
+        }
+      }
+    },
+    {
+      "id": "pool29-js2xwm",
+      "name": "Backdrop",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "shader": {
+          "preset": "pulsing-border",
+          "colors": [
+            "#0dc1fd",
+            "#d915ef",
+            "#ff3f2ecc"
+          ],
+          "parameters": {
+            "fit": "contain",
+            "scale": 0.6,
+            "rotation": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "originX": 0.5,
+            "originY": 0.5,
+            "worldWidth": 0,
+            "worldHeight": 0,
+            "speed": 1,
+            "colorBack": "#000000",
+            "roundness": 0.25,
+            "thickness": 0.1,
+            "margin": 0,
+            "marginLeft": 0,
+            "marginRight": 0,
+            "marginTop": 0,
+            "marginBottom": 0,
+            "aspectRatio": "auto",
+            "softness": 0.75,
+            "intensity": 0.2,
+            "bloom": 0.25,
+            "spots": 5,
+            "spotSize": 0.5,
+            "pulse": 0.25,
+            "smoke": 0.3,
+            "smokeSize": 0.6
+          },
+          "time": {
+            "offsetS": 0,
+            "loopS": 15,
+            "direction": "forward",
+            "frozen": false
+          }
+        }
+      }
+    },
+    {
+      "id": "pool29-hwquzq",
+      "name": "Phone cast",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "cast": true
+      }
+    },
+    {
+      "id": "pool29-szoxqb",
+      "name": "Disney+",
+      "source": {
+        "mediaId": null,
+        "rect": [
+          0,
+          0,
+          1920,
+          1080
+        ],
+        "web": {
+          "url": "https://www.disneyplus.com"
+        }
+      }
+    }
+  ],
+  "tracks": [
+    {
+      "id": "v1",
+      "name": "Visuals",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track-default-scene-audio",
+      "name": "A1",
+      "kind": "audio",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "scene"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track-default-sc29-hnsc2j-video",
+      "name": "V1",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "sc29-hnsc2j"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track-default-sc29-hnsc2j-audio",
+      "name": "A1",
+      "kind": "audio",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "sc29-hnsc2j"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track-default-sc29-pc11sm-video",
+      "name": "V1",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "sc29-pc11sm"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track-default-sc29-pc11sm-audio",
+      "name": "A1",
+      "kind": "audio",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "sc29-pc11sm"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-kti5vy",
+      "name": "Backdrop",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "sc29-hnsc2j",
+          "surfaceID": "s29-58ffk0"
+        },
+        {
+          "sceneID": "sc29-hnsc2j",
+          "surfaceID": "s29-no6yzp"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-ohjqr4",
+      "name": "Backdrop",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "sc29-pc11sm",
+          "surfaceID": "s29-8p5hp9"
+        },
+        {
+          "sceneID": "sc29-pc11sm",
+          "surfaceID": "s29-oywmmd"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-26rmim",
+      "name": "Phone cast",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "sc29-hnsc2j",
+          "surfaceID": "s29-58ffk0"
+        },
+        {
+          "sceneID": "sc29-hnsc2j",
+          "surfaceID": "s29-no6yzp"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    },
+    {
+      "id": "track30-nprrfu",
+      "name": "Disney+",
+      "kind": "video",
+      "volume": 1,
+      "solo": false,
+      "targets": [
+        {
+          "sceneID": "sc29-pc11sm",
+          "surfaceID": "s29-8p5hp9"
+        },
+        {
+          "sceneID": "sc29-pc11sm",
+          "surfaceID": "s29-oywmmd"
+        }
+      ],
+      "enabled": true,
+      "locked": false
+    }
+  ],
+  "visuals": [
+    {
+      "id": "clip",
+      "name": "Red",
+      "startS": 2,
+      "durationS": 10,
+      "inS": 0,
+      "loop": false,
+      "assetID": "red",
+      "trackID": "v1",
+      "targets": [
+        {
+          "sceneID": "scene"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#ff0000",
+      "opacity": 1
+    },
+    {
+      "id": "k31-vu01rk",
+      "name": "Backdrop",
+      "startS": 0,
+      "durationS": 60,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-f44wrv",
+      "trackID": "track30-kti5vy",
+      "targets": [
+        {
+          "sceneID": "sc29-hnsc2j",
+          "surfaceID": "s29-58ffk0"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#ff5c8a",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-8zrh9z",
+      "name": "Backdrop",
+      "startS": 0,
+      "durationS": 60,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-js2xwm",
+      "trackID": "track30-ohjqr4",
+      "targets": [
+        {
+          "sceneID": "sc29-pc11sm",
+          "surfaceID": "s29-8p5hp9"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#c7d3de",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-39rv8g",
+      "name": "Phone cast",
+      "startS": 0,
+      "durationS": 60,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-hwquzq",
+      "trackID": "track30-26rmim",
+      "targets": [
+        {
+          "sceneID": "sc29-hnsc2j",
+          "surfaceID": "s29-no6yzp"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#4c9dff",
+      "opacity": 1,
+      "continuous": true
+    },
+    {
+      "id": "k31-4uq4us",
+      "name": "Disney+",
+      "startS": 0,
+      "durationS": 60,
+      "inS": 0,
+      "loop": true,
+      "assetID": "pool29-szoxqb",
+      "trackID": "track30-nprrfu",
+      "targets": [
+        {
+          "sceneID": "sc29-pc11sm",
+          "surfaceID": "s29-oywmmd"
+        }
+      ],
+      "mapping": "repeat",
+      "color": "#ff8a3d",
+      "opacity": 1,
+      "continuous": true
+    }
+  ],
+  "output": {
+    "width": 1920,
+    "height": 1080
+  },
+  "outputs": [],
+  "shows": [
+    {
+      "id": "show-1",
+      "name": "Show 1",
+      "durationS": 50,
+      "tracks": [
+        {
+          "id": "track-scene",
+          "canvasID": "scene",
+          "clips": [
+            {
+              "id": "clip-scene",
+              "sceneID": "main",
+              "startS": 0,
+              "durationS": 50,
+              "inS": 0,
+              "loop": true
+            }
+          ]
+        },
+        {
+          "id": "track-sc29-hnsc2j",
+          "canvasID": "sc29-hnsc2j",
+          "clips": [
+            {
+              "id": "clip-sc29-hnsc2j",
+              "sceneID": "main",
+              "startS": 0,
+              "durationS": 60,
+              "inS": 0,
+              "loop": true
+            }
+          ]
+        },
+        {
+          "id": "track-sc29-pc11sm",
+          "canvasID": "sc29-pc11sm",
+          "clips": [
+            {
+              "id": "clip-sc29-pc11sm",
+              "sceneID": "main",
+              "startS": 0,
+              "durationS": 60,
+              "inS": 0,
+              "loop": true
+            }
+          ]
+        }
+      ],
+      "cues": []
+    }
+  ],
+  "surfaceLook": {
+    "device": {
+      "pattern": "checker",
+      "primary": "#5b5bd6",
+      "secondary": "#7b7be6",
+      "border": "#ffffff",
+      "sections": 6,
+      "opacity": 1,
+      "pinSizePx": 9
+    },
+    "external": {
+      "pattern": "checker",
+      "primary": "#000000",
+      "secondary": "#ffffff",
+      "border": "#ffffff",
+      "sections": 6,
+      "opacity": 1,
+      "pinSizePx": 0
+    }
+  },
+  "media": [],
+  "unassignedSurfaces": [],
+  "scenes": [
+    {
+      "id": "scene",
+      "name": "Main scene",
+      "artboard": {
+        "widthPx": 1920,
+        "heightPx": 1080
+      },
+      "durationS": 50,
+      "surfaces": []
+    },
+    {
+      "id": "sc29-hnsc2j",
+      "name": "Backdrop",
+      "hotkey": "F1",
+      "artboard": {
+        "widthPx": 1920,
+        "heightPx": 1080
+      },
+      "durationS": 60,
+      "surfaces": [
+        {
+          "id": "s29-58ffk0",
+          "name": "Wall",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#4c9dff",
+          "corners": [
+            [
+              0,
+              0
+            ],
+            [
+              1920,
+              0
+            ],
+            [
+              1920,
+              1080
+            ],
+            [
+              0,
+              1080
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s29-no6yzp",
+          "name": "Screen",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#ff8a3d",
+          "corners": [
+            [
+              560,
+              300
+            ],
+            [
+              1360,
+              300
+            ],
+            [
+              1360,
+              750
+            ],
+            [
+              560,
+              750
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        }
+      ]
+    },
+    {
+      "id": "sc29-pc11sm",
+      "name": "Movie",
+      "hotkey": "F2",
+      "artboard": {
+        "widthPx": 1920,
+        "heightPx": 1080
+      },
+      "durationS": 60,
+      "surfaces": [
+        {
+          "id": "s29-8p5hp9",
+          "name": "Wall",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#4c9dff",
+          "corners": [
+            [
+              0,
+              0
+            ],
+            [
+              1920,
+              0
+            ],
+            [
+              1920,
+              1080
+            ],
+            [
+              0,
+              1080
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        },
+        {
+          "id": "s29-oywmmd",
+          "name": "Screen",
+          "enabled": true,
+          "kind": "surface",
+          "color": "#ff8a3d",
+          "corners": [
+            [
+              560,
+              300
+            ],
+            [
+              1360,
+              300
+            ],
+            [
+              1360,
+              750
+            ],
+            [
+              560,
+              750
+            ]
+          ],
+          "source": {
+            "mediaId": null,
+            "rect": [
+              0,
+              0,
+              648,
+              648
+            ]
+          },
+          "masks": [],
+          "opacity": 1,
+          "cues": [],
+          "clips": []
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene",
+  "playback": {
+    "mode": "once"
+  }
+}

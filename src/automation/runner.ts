@@ -1,10 +1,12 @@
-import { readFileSync } from 'node:fs';
 import { stdin, stdout } from 'node:process';
 import { runCommand } from './commands';
 import { projectExport } from './project-export';
 // Fixed one-request worker. No paths, modules or commands are chosen by input.
 try {
-  const request = JSON.parse(readFileSync(stdin.fd, 'utf8'));
+  // A sync read of a pipe fails EAGAIN when the writer is slower than us.
+  const chunks: Buffer[] = [];
+  for await (const chunk of stdin) chunks.push(chunk);
+  const request = JSON.parse(Buffer.concat(chunks).toString('utf8'));
   if (request.service && request.service !== '/api/map/project-export') throw new Error('Unknown Map service.');
   const result = request.service ? { result: projectExport(request.arguments) } : runCommand(request.command, request.content, request.arguments);
   const encoded = JSON.stringify(result);

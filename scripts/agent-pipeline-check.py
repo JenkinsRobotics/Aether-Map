@@ -1,0 +1,85 @@
+"""Run with `python3 scripts/agent-pipeline-check.py` after `npm run build:automation`.
+Drive every Map agent command through the built product worker (runner.mjs),
+the same process Studio's command gateway runs. Builds a demo show, then
+exercises the remaining commands on a scratch copy."""
+import json, subprocess, sys
+from pathlib import Path
+
+MAP = Path(__file__).resolve().parents[1]
+RUNNER = MAP / "service/aether_map_service/runtime/runner.mjs"
+seen, log = set(), []
+
+def run(cmd, content, **args):
+    seen.add(cmd)
+    out = subprocess.run(["node", "--max-old-space-size=256", str(RUNNER)], capture_output=True, text=True, timeout=10,
+                         input=json.dumps({"command": cmd, "content": content, "arguments": args}))
+    reply = json.loads(out.stdout)
+    if "error" in reply:
+        raise SystemExit(f"FAIL {cmd} {args}: {reply['error']}")
+    log.append(f"ok  {cmd}")
+    return reply.get("content") or content, reply["result"]
+
+def created(result): return result.get("created", result)
+
+empty = (MAP / "service/tests/fixtures/automation-show.aethermap").read_text()
+docs = run("map.agent.docs", empty)[1]
+assert docs["total"] == 18, docs["total"]
+src = {s["kind"] for s in run("map.agent.docs", empty, topic="sources")[1]["sources"]}
+assert {"cast", "web"} <= src, src
+gallery = run("map.agent.docs", empty, topic="gallery", query="neon")[1]["items"][0]["id"]
+
+# --- Demo show: one backdrop across a wall, a cast screen, and a Disney+ scene.
+show = empty
+show, r = run("map.scene.create", show, name="Backdrop", width_px=1920, height_px=1080, hotkey="F1"); backdrop = created(r)["scene_id"]
+show, r = run("map.scene.create", show, name="Movie", width_px=1920, height_px=1080, hotkey="F2"); movie = created(r)["scene_id"]
+ids = {}
+for scene, label in ((backdrop, "b"), (movie, "m")):
+    show, r = run("map.surface.create", show, scene_id=scene, name="Wall"); ids[label + "wall"] = created(r)["surface_id"]
+    show, _ = run("map.surface.bounds", show, scene_id=scene, surface_id=ids[label + "wall"], x_px=0, y_px=0, width_px=1920, height_px=1080)
+    show, r = run("map.surface.create", show, scene_id=scene, name="Screen"); ids[label + "screen"] = created(r)["surface_id"]
+    show, _ = run("map.surface.bounds", show, scene_id=scene, surface_id=ids[label + "screen"], x_px=560, y_px=300, width_px=800, height_px=450)
+
+def visual(show, scene, name, source, surfaces):
+    show, r = run("map.visual.create", show, scene_id=scene, name=name, source_json=json.dumps(source))
+    clip = created(r)["clip_id"]
+    show, _ = run("map.visual.edit", show, clip_id=clip, changes_json=json.dumps({"targets": [{"scene_id": scene, "surface_id": s} for s in surfaces]}))
+    return show, clip
+
+show, wash_b = visual(show, backdrop, "Backdrop", {"kind": "gallery", "id": gallery}, [ids["bwall"]])
+show, wash_m = visual(show, movie, "Backdrop", {"kind": "gallery", "id": gallery}, [ids["mwall"]])
+show, _ = visual(show, backdrop, "Phone cast", {"kind": "cast"}, [ids["bscreen"]])
+show, _ = visual(show, movie, "Disney+", {"kind": "web", "url": "https://www.disneyplus.com"}, [ids["mscreen"]])
+show, _ = run("map.surface.animate", show, scene_id=backdrop, surface_id=ids["bscreen"], changes_json=json.dumps({"bases": {"opacity": 1}}))
+
+for scene in (backdrop, movie):
+    for t in (0, 30):
+        _, v = run("map.show.verify", show, scene_id=scene, time_s=t)
+        assert v["valid"] and v["layer_count"] >= 2, v
+    _, e = run("map.show.evaluate", show, scene_id=scene, time_s=5)
+_, inspected = run("map.show.inspect", show)
+scenes = {s["name"]: s for s in inspected["scenes"]}
+assert scenes["Backdrop"].get("hotkey") == "F1" and scenes["Movie"].get("hotkey") == "F2", "hotkey missing from inspect"
+Path(sys.argv[1] if len(sys.argv) > 1 else MAP / "demos/projector-cast-and-movie.aethermap").write_text(show)
+
+# --- Scratch copy: every remaining command.
+s = show
+s, r = run("map.surface.create", s, scene_id=backdrop, name="Cube", shape="cube")
+s, _ = run("map.cube.pose", s, scene_id=backdrop, surface_id=created(r)["surface_id"], mode="rotate", y_degrees=20)
+s, _ = run("map.surface.rotate", s, scene_id=backdrop, surface_id=ids["bscreen"], delta_degrees=5)
+asset = next(c for c in run("map.show.inspect", s)[1]["clips"] if c["id"] == wash_b)
+s, _ = run("map.visual.edit", s, clip_id=wash_b, changes_json=json.dumps({"continuous": False, "duration_s": 60}))
+s, _ = run("map.clip.edit", s, clip_id=wash_b, action="split", time_s=30)
+s, _ = run("map.clip.edit", s, clip_id=wash_m, action="duplicate")
+clips = run("map.show.inspect", s)[1]["clips"]
+moved = next(c for c in clips if c["id"] != wash_b and c.get("name") == "Backdrop")
+s, _ = run("map.clip.move", s, clip_id=moved["id"], track_id=moved["track_id"], start_s=moved["start_s"] + 1)
+s, _ = run("map.asset.place", s, asset_id=asset["asset_id"], track_id=asset["track_id"], start_s=200)
+canvas = run("map.show.inspect", s)[1]["show"]["tracks"][1]["canvas_id"]
+s, _ = run("map.show.clip.add", s, canvas_id=canvas, scene_id="main", start_s=60, duration_s=60, loop="yes")
+s, _ = run("map.show.cue.add", s, name="Go to movie", trigger="go", cue_action="play")
+recipe = run("map.agent.docs", empty, topic="recipes")[1]["recipe"]
+s, _ = run("map.show.runprogram", s, program_json=json.dumps(recipe))
+
+missing = ({i["id"] for i in docs["items"]} | set(json.loads(json.dumps([c["id"] for c in json.load(open(MAP / "service/aether_map_service/automation-commands.json"))])))) - seen
+print("\n".join(log[-6:]))
+print(f"{len(seen)}/18 commands ran; missing: {sorted(missing) or 'none'}; {len(log)} calls")

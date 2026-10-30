@@ -41,7 +41,13 @@ export function visualSourceSpec(show: MapShow, value: unknown): Surface['source
       if (!media || media.kind === 'audio') throw Error('Choose an existing image or video media ID. Import the file first.');
       return { ...source, mediaId: media.id, rect: [0, 0, media.width, media.height] };
     }
-    default: throw Error('Source kind must be gallery, color, text or media.');
+    case 'cast': object(spec, ['kind']); return { ...source, cast: true };
+    case 'web': {
+      object(spec, ['kind', 'url']);
+      if (typeof spec.url !== 'string' || !/^https:\/\/\S{1,2040}$/.test(spec.url)) throw Error('Web address must be an https:// URL without spaces.');
+      return { ...source, web: { url: spec.url } };
+    }
+    default: throw Error('Source kind must be gallery, color, text, media, cast or web.');
   }
 }
 
