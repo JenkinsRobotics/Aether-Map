@@ -303,7 +303,7 @@ const elements = {code:{},status:{},detail:{},'pairing-qr':{removeAttribute(){}}
 const context = {
   fetch: async () => ({json: async () => state}), setTimeout: () => {},
   window: {dispatchEvent() {}, addEventListener() {}}, CustomEvent: class {}, encodeURIComponent,
-  document: {
+  document: { addEventListener() {},
     getElementById: id => elements[id], querySelector: () => ({}),
     createElement: () => ({style:{}, getAttribute() {return this.url;},
       set src(value) {this.url=value; navigations.push(value);}}),

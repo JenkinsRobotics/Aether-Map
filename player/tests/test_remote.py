@@ -289,7 +289,7 @@ const elements = {code:{},status:{},detail:{},'pairing-qr':{removeAttribute(){}}
 const context = {
   fetch: async () => ({json: async () => state}), setTimeout: () => {}, location: {reload() {reloads++;}},
   window: {dispatchEvent() {}, addEventListener() {}}, CustomEvent: class {}, encodeURIComponent,
-  document: {
+  document: { addEventListener() {},
     getElementById: id => elements[id], querySelector: () => ({}),
     createElement: () => ({style:{}, remove() {delete elements[this.id];}}),
     body: {dataset:{}, append(node) {elements[node.id]=node;}},

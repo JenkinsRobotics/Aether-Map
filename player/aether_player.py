@@ -830,11 +830,18 @@ permissions:['Continue setup on your phone','Open the address below to finish se
 let reloadMark,webWindow='null',home=false;
 // The show reports its web window; the player opens it over that rectangle.
 // Hotkeys arrive the moment they are pressed; the show picks the scene.
-(async function hotkeys(after){for(;;){try{const h=await(await fetch('/hotkey?after='+after,{cache:'no-store'})).json();if(typeof h.id!=='number')throw 0;
-if(h.key==='Escape'){home=!home;if(home){webWindow=JSON.stringify({window:null});
+// A key can arrive twice, from the keyboard device and from this page; act once.
+let lastKey={key:'',at:0};
+function pressed(key){const now=Date.now();if(key===lastKey.key&&now-lastKey.at<400)return;lastKey={key,at:now};
+if(key==='Escape'){home=!home;if(home){webWindow=JSON.stringify({window:null});
 fetch('/web-window',{method:'POST',headers:{'Content-Type':'application/json'},body:webWindow}).catch(()=>{});}}
-else if(h.key&&!home)document.getElementById('saved-show')?.contentWindow?.postMessage({aetherHotkey:h.key},location.origin);after=h.id;}
+else if(!home)document.getElementById('saved-show')?.contentWindow?.postMessage({aetherHotkey:key},location.origin);}
+(async function hotkeys(after){for(;;){try{const h=await(await fetch('/hotkey?after='+after,{cache:'no-store'})).json();if(typeof h.id!=='number')throw 0;
+if(h.key)pressed(h.key);after=h.id;}
 catch{await new Promise(r=>setTimeout(r,2000));}}})(-1);
+// Without keyboard-device access (an older install), the focused page still hears keys.
+const browserKey=e=>{if(e.repeat||!(e.key==='Escape'||/^F([1-9]|1[0-2])$/.test(e.key)))return;e.preventDefault();pressed(e.key);};
+document.addEventListener('keydown',browserKey,true);
 window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||!('aetherWebWindow' in e.data))return;
 const w=e.data.aetherWebWindow,r=devicePixelRatio||1;
 const body=JSON.stringify({window:w&&{url:w.url,x:Math.round(w.x*r),y:Math.round(w.y*r),width:Math.round(w.width*r),height:Math.round(w.height*r)}});
@@ -878,6 +885,8 @@ if(step!=='done'){
   let frame=document.getElementById('saved-show');
   const url='/index.html?output=1'+(s.outputID?'&outputID='+encodeURIComponent(s.outputID):'')+'&release='+encodeURIComponent(s.generation||'');
   if(!frame){frame=document.createElement('iframe');frame.id='saved-show';frame.title='Assigned show';
+    // Keys typed while the show itself has focus.
+    frame.addEventListener?.('load',()=>{try{frame.contentWindow.addEventListener('keydown',browserKey,true);}catch{}});
     frame.allow='autoplay';frame.style.cssText='position:fixed;inset:0;width:100%;height:100%;border:0;background:black';
     document.body.append(frame);}
   // Retain the latest release without restarting a saved show behind live video.

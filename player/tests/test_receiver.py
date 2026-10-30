@@ -327,7 +327,7 @@ const context = {
   fetch: async (url, options) => { if (options) posts.push([url, JSON.parse(options.body)]); return {json: async () => ({})}; },
   setTimeout: () => {}, encodeURIComponent, location: {origin: 'http://127.0.0.1:8777'}, devicePixelRatio: 2,
   window: {dispatchEvent() {}, addEventListener(name, fn) { listeners[name] = fn; }}, CustomEvent: class {},
-  document: {getElementById: () => ({removeAttribute() {}}), querySelector: () => ({}), body: {dataset: {}}},
+  document: {addEventListener() {}, getElementById: () => ({removeAttribute() {}}), querySelector: () => ({}), body: {dataset: {}}},
 };
 vm.runInNewContext(script, context);
 const show = {url: 'https://www.disneyplus.com/', x: 100, y: 50, width: 480, height: 270};
@@ -445,7 +445,8 @@ const context = {
   setTimeout: (fn, ms) => { if (ms === 2000) polls.push(fn); else setTimeout(fn, 0); }, encodeURIComponent,
   location: {origin: 'http://127.0.0.1:8777', port: '8777'}, devicePixelRatio: 1,
   window: {dispatchEvent() {}, addEventListener() {}}, CustomEvent: class {},
-  document: {getElementById: id => id === 'saved-show' ? els[id] : el(id), querySelector: () => el('h1'), body: {dataset: {}, append(e) { els[e.id] = e; }},
+  document: {addEventListener(name, fn) { if (name === 'keydown') context.keydown = fn; },
+    getElementById: id => id === 'saved-show' ? els[id] : el(id), querySelector: () => el('h1'), body: {dataset: {}, append(e) { els[e.id] = e; }},
     createElement: () => ({style:{}, dataset:{}, getAttribute() { return this.src; }, remove() { delete els[this.id]; }})},
 };
 const tick = () => new Promise(r => setTimeout(r, 5));
@@ -455,8 +456,15 @@ const poll = async () => { const fn = polls.shift(); fn(); await tick(); };
   const before = !!els['saved-show'];
   keys.shift()({id: 1, key: 'Escape'}); await tick(); await poll();
   const stopped = {frame: !!els['saved-show'], status: els.status.textContent, name: els.detail.textContent, web: posts.at(-1)};
+  await new Promise(r => setTimeout(r, 450));
   keys.shift()({id: 2, key: 'Escape'}); await tick(); await poll();
-  console.log(JSON.stringify({before, stopped, resumed: !!els['saved-show']}));
+  const resumed = !!els['saved-show'];
+  // The same press also reaching the page counts once; a keyboard with no device access still works.
+  context.keydown({key: 'Escape', preventDefault() {}}); await poll();
+  const deduped = !!els['saved-show'];
+  await new Promise(r => setTimeout(r, 450));
+  context.keydown({key: 'Escape', preventDefault() {}}); await poll();
+  console.log(JSON.stringify({before, stopped, resumed, deduped, pageStops: !els['saved-show']}));
 })();
 '''
 
@@ -471,4 +479,4 @@ def test_escape_on_the_player_keyboard_stops_the_show_for_the_home_screen_and_ba
         "before": True,
         "stopped": {"frame": False, "status": "Show stopped. Press Esc to start it again.", "name": "Porch",
                     "web": ["/web-window", {"window": None}]},
-        "resumed": True}
+        "resumed": True, "deduped": True, "pageStops": True}
