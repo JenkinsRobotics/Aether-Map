@@ -145,7 +145,7 @@ export function DeviceManager({ documentID, installerURL, dirty, show, onRoute }
                   {standalone && show && (live?.deviceID === device.id
                     ? <Button onClick={stopLiveEdit}>End live</Button>
                     : <Button disabled={!documentID || !online(device) || !!readiness?.blockers.length} onClick={() => goLive(device.id, running)}>Go live</Button>)}
-                  {standalone && <Button disabled={!documentID || dirty || running || !!readiness?.blockers.length}
+                  {standalone && documentID && <Button disabled={dirty || running || !!readiness?.blockers.length}
                     onClick={() => void act(() => devices.assign(device.id, documentID))}>
                     {running ? "Assigned" : "Deploy this show"}
                   </Button>}

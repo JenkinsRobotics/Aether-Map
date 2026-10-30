@@ -158,6 +158,7 @@ it('changes Wi-Fi, host and permissions from the network', async () => {
 it('deploys a saved show from the Players page and names what each player runs', async () => {
   const { deploySavedShow } = await import('../deploy-to-player');
   mount();
+  expect(screen.queryByRole('button', { name: 'Deploy this show' })).toBeNull();
   fireEvent.click(await screen.findByRole('button', { name: 'Deploy a show…' }));
   await waitFor(() => expect((screen.getByLabelText('Show to deploy') as HTMLSelectElement).value).toBe('cube'));
   fireEvent.click(screen.getByRole('button', { name: 'Deploy' }));
