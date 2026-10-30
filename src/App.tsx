@@ -1199,6 +1199,7 @@ export default function App() {
       onOpenClip: (id: string) => { setOpenClipID(id); enterMode('content'); },
       onNewClip: (bin?: string) => { newClip(bin); enterMode('content'); },
       onImport: (bin?: string) => openMediaPicker({ kind: 'pool', bin }, 'image/*,video/*,audio/*'),
+      onFiles: (files: File[]) => { mediaIntent.current = { kind: 'pool' }; void files.reduce((done, file) => done.then(() => addMedia(file)), Promise.resolve<unknown>(undefined)); },
       onGallery: addVisual,
       onRemoveClip: (id: string) => { edit(s => removeTimeline(s, id)); if (id === openClip?.id) setOpenClipID(null); if (id === scenePickID) setScenePickID(null); },
       add: mode === 'content' || mode === 'visualization' ? { label: mode === 'content' ? 'Add to clip' : 'Add to scene', run: (id: string) => { const asset = show.pool?.find(a => a.id === id); if (asset) addSceneVisual(asset.source, asset.name, asset.id); } } : undefined,

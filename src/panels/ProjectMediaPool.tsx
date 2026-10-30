@@ -23,11 +23,13 @@ const keep = (key: string, value: string) => { try { localStorage.setItem(key, v
  * thumbnails. The gallery is where new things come from; this is what you have.
  */
 // ponytail: borrows the shared Files browser's classes (aui-tab-browser*) so both side panels look alike.
-export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewClip, onImport, onGallery, onRemoveClip, add, cleanup, browse, documents, rootLabel = 'Master' }: {
+export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewClip, onImport, onFiles, onGallery, onRemoveClip, add, cleanup, browse, documents, rootLabel = 'Master' }: {
   show: MapShow; urls: Record<string, string>; edit: (change: (show: MapShow) => MapShow) => void;
   /** A single pick: an asset shows its properties; a clip is picked to place. */
   onPick: (ref: PoolRef) => void; onOpenClip: (id: string) => void;
   onNewClip: (bin?: string) => void; onImport: (bin?: string) => void; onGallery: () => void; onRemoveClip: (id: string) => void;
+  /** Image, video and audio files dropped from the computer, imported as Import does. */
+  onFiles?: (files: File[]) => void;
   /** Puts an asset into what is open: "Add to clip" or "Add to scene". */
   add?: { label: string; run: (assetID: string) => void };
   /** Deletes stored files no saved show uses (hosted); ready once saved. */
@@ -191,7 +193,15 @@ export function ProjectMediaPool({ show, urls, edit, onPick, onOpenClip, onNewCl
         onBlur={e => rename(key, e.target.value)} onKeyDown={e => { if (e.key === 'Enter') rename(key, e.currentTarget.value); if (e.key === 'Escape') setRenaming(null); e.stopPropagation(); }} />
     : <strong>{name}</strong>;
 
-  const pool = <section className="aui-tab-browser map-project-pool" data-view={view} aria-label="Media pool"
+  const fromComputer = onFiles ? {
+    onDragOver: (event: DragEvent) => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } },
+    onDrop: (event: DragEvent) => {
+      const files = [...event.dataTransfer.files].filter(f => /^(image|video|audio)\//.test(f.type));
+      if (!event.dataTransfer.types.includes('Files')) return;
+      event.preventDefault(); if (files.length) onFiles(files);
+    },
+  } : {};
+  const pool = <section {...fromComputer} className="aui-tab-browser map-project-pool" data-view={view} aria-label="Media pool"
     onKeyDown={event => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || !(event.target instanceof Element)
         || !event.target.matches('.aui-tab-browser-row')) return;

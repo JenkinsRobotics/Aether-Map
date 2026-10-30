@@ -128,3 +128,11 @@ it('lists, opens, creates and renames the shows and scenes it is given', () => {
   fireEvent.keyDown(field, { key: 'Enter', target: { value: 'Opening' } });
   expect(documents.onRename).toHaveBeenCalledWith(documents.entries[0], 'Opening');
 });
+
+it('imports media files dropped from the computer and ignores anything else', () => {
+  const onFiles = vi.fn();
+  render(<ProjectMediaPool show={start()} urls={{}} edit={() => {}} {...actions()} onFiles={onFiles} />);
+  const video = new File(['v'], 'Halloween.mp4', { type: 'video/mp4' }), note = new File(['n'], 'notes.txt', { type: 'text/plain' });
+  fireEvent.drop(screen.getByLabelText('Media pool'), { dataTransfer: { types: ['Files'], files: [video, note] } });
+  expect(onFiles).toHaveBeenCalledWith([video]);
+});
