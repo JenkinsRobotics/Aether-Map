@@ -24,3 +24,15 @@ it('warns when a deployed show will not repeat on its own',()=>{
   show.playback={mode:'continuous'};
   expect(deploymentReadiness(show,'pi').notes.join()).toMatch(/goes dark.*Loop/i);
 });
+it('warns that a low-power player draws generators black, including agent-made visuals', async () => {
+  const { runCommand } = await import('./automation/commands');
+  const { parseShow, serializeShow } = await import('./show-file');
+  const base = emptyShow(); base.outputs[0] = { ...base.outputs[0], kind: 'edge', deviceId: 'pi' };
+  const text = runCommand('map.visual.create', new TextDecoder().decode(serializeShow(base)),
+    { scene_id: base.outputs[0].sceneId!, name: 'Swirl', source_json: '{"kind":"gallery","id":"swirl:2"}' }).content!;
+  const show = parseShow(text);
+  const pi2 = { model: 'Raspberry Pi 2 Model B Rev 1.1' } as never, pi5 = { model: 'Raspberry Pi 5 Model B Rev 1.0' } as never;
+  expect(deploymentReadiness(show, 'pi', pi2).notes.join()).toMatch(/Raspberry Pi 2.*cannot draw generators/);
+  expect(deploymentReadiness(show, 'pi', pi5).notes.join()).not.toMatch(/generators/);
+  expect(deploymentReadiness(show, 'pi').notes.join()).not.toMatch(/generators/);
+});

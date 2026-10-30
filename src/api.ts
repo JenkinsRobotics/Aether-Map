@@ -139,6 +139,8 @@ export interface DeviceStatus {
   permissions: Partial<Record<'keep_display_awake' | 'play_audio' | 'allow_updates', boolean>>;
   last_error: string;
   update_pending: boolean;
+  /** The show page's own report; null until it sends one (older players omit it). */
+  render?: { fps: number; webgl: boolean; error: string; age_s: number } | null;
 }
 
 export type DeviceCommandType = 'sync' | 'update' | 'restart' | 'reboot' | 'reload' | 'identify' | 'logs' | 'set_server' | 'set_permissions' | 'add_wifi';

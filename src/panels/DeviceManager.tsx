@@ -113,7 +113,7 @@ export function DeviceManager({ documentID, installerURL, dirty, show, onRoute }
           {mine.map((device) => {
             const standalone = canDeployToDevice(device);
             const running = standalone && !!documentID && device.document === documentID;
-            const readiness = show && standalone ? deploymentReadiness(show,device.id) : null;
+            const readiness = show && standalone ? deploymentReadiness(show, device.id, device.status) : null;
             return (
               <li key={device.id} className="map-device">
                 <div className="map-device-head">
@@ -183,7 +183,7 @@ export function DeviceManager({ documentID, installerURL, dirty, show, onRoute }
       <Dialog open={choosing !== null} title={`Deploy to ${choosing?.name ?? ''}`} onClose={() => setChoosing(null)}
         actions={<><Button onClick={() => setChoosing(null)}>Cancel</Button>
           <Button primary disabled={!choosing?.file} onClick={() => { const target = choosing; setChoosing(null);
-            if (target) void act(async () => setDeployNotes({ id: target.id, notes: await deploySavedShow(target.file, target.id, target.name) })); }}>Deploy</Button></>}>
+            if (target) void act(async () => setDeployNotes({ id: target.id, notes: await deploySavedShow(target.file, target.id, target.name, list.find(d => d.id === target.id)?.status) })); }}>Deploy</Button></>}>
         <p className="map-dialog-lead">The player downloads the show and its media, then plays it on its own, offline and after restarts. A show without an output for this player plays its active scene.</p>
         <FieldRow label="Show"><SelectField aria-label="Show to deploy" value={choosing?.file ?? ''}
           options={shows.map(f => ({ value: f.id, label: f.name.replace(/\.aethermap$/i, '') }))}

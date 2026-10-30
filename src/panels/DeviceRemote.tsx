@@ -31,6 +31,17 @@ function details(status: DeviceStatus): string {
   ].filter(Boolean).join(" · ");
 }
 
+/** What the screen is doing, from the show page itself. Older players send nothing. */
+export function displayState(status: DeviceStatus): string | null {
+  const render = status.render;
+  if (render === undefined) return null;
+  if (!status.show.id) return null;
+  if (render === null) return 'Display · no report from the show page yet';
+  if (render.age_s > 60) return `Display · not drawing (last report ${duration(render.age_s)} ago). Try Restart player.`;
+  return ['Display · drawing', `${render.fps} fps`, !render.webgl && 'WebGL unavailable, so generators draw black',
+    render.error && `page error: ${render.error}`].filter(Boolean).join(' · ');
+}
+
 export function DeviceRemote({ device, send }: {
   device: MapDevice & { status: DeviceStatus };
   send: (type: DeviceCommandType, args?: Record<string, unknown>) => Promise<void>;
@@ -54,6 +65,7 @@ export function DeviceRemote({ device, send }: {
   return (
     <>
       <div className="map-device-meta" aria-label={`${device.name} details`}>{details(status)}</div>
+      {displayState(status) && <p className="map-hint" aria-label={`${device.name} display`}>{displayState(status)}</p>}
       {status.last_error && <p className="map-hint">{status.last_error}</p>}
       {latest && <p className="map-hint" role="status" aria-label={`${device.name} last command`}>
         {LABEL[latest.type] ?? latest.type} · {result()}</p>}

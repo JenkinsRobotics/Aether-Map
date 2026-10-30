@@ -623,7 +623,30 @@ def device_status(config: dict) -> dict:
         "permissions": config.get("permissions") or {},
         "last_error": next((line for line in reversed(RECENT_LOG) if any(word in line for word in problems)), ""),
         "update_pending": (INSTALL_DIR / ".update-pending").exists(),
+        "render": render_health(),
     }
+
+
+# The show page's own report of what it draws; None until it has sent one.
+RENDER = {"report": None, "at": 0.0}
+
+
+def valid_render_health(report) -> dict:
+    """A frame rate, WebGL support and the page's last error; anything else is refused."""
+    if not isinstance(report, dict) or set(report) != {"fps", "webgl", "error"}:
+        raise ValueError("render health")
+    fps, webgl, error = report["fps"], report["webgl"], report["error"]
+    if isinstance(fps, bool) or not isinstance(fps, (int, float)) or not 0 <= fps <= 1000:
+        raise ValueError("fps")
+    if not isinstance(webgl, bool) or not isinstance(error, str) or len(error) > 300:
+        raise ValueError("render health")
+    return {"fps": round(fps), "webgl": webgl, "error": error}
+
+
+def render_health():
+    if RENDER["report"] is None:
+        return None
+    return {**RENDER["report"], "age_s": int(time.monotonic() - RENDER["at"])}
 
 
 def player_flags(config: dict) -> dict:
@@ -844,6 +867,9 @@ catch{await new Promise(r=>setTimeout(r,2000));}}})(-1);
 // Without keyboard-device access (an older install), the focused page still hears keys.
 const browserKey=e=>{if(e.repeat||!(e.key==='Escape'||/^F([1-9]|1[0-2])$/.test(e.key)))return;e.preventDefault();pressed(e.key);};
 document.addEventListener('keydown',browserKey,true);
+// The show reports whether it is drawing; the player passes that to Studio.
+window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||!e.data.aetherHealth)return;
+fetch('/render-health',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(e.data.aetherHealth)}).catch(()=>{});});
 window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||!('aetherWebWindow' in e.data))return;
 const w=e.data.aetherWebWindow,r=devicePixelRatio||1;
 const body=JSON.stringify({window:w&&{url:w.url,x:Math.round(w.x*r),y:Math.round(w.y*r),width:Math.round(w.width*r),height:Math.round(w.height*r)}});
@@ -980,6 +1006,20 @@ class ShowHandler(SimpleHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/cast":
             self._cast(write=True)
+            return
+        if path == "/render-health":
+            if not self._local() or not self._same_origin():
+                self.send_error(403)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 1024:
+                    raise ValueError()
+                RENDER.update(report=valid_render_health(json.loads(self.rfile.read(length))), at=time.monotonic())
+            except (ValueError, UnicodeDecodeError):
+                self.send_error(400)
+                return
+            self._json({"ok": True})
             return
         if path == "/web-window":
             if not self._local() or not self._same_origin():

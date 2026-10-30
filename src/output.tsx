@@ -9,6 +9,7 @@ import { sceneSize } from "./scene-size";
 import { useEffect, useId, useRef, useState } from "react";
 import { outputForHotkey, sceneForHotkey } from "./scene-hotkeys";
 import { liveShowMessage } from "./live/live-edit";
+import { startRenderHealth } from "./render-health";
 import { sourcePictureStyle, alphaProjectionStyle, placementProjectionStyle } from "./source-picture";
 import { clipStyle } from "./mask/clip";
 import { OutlineEdge, outlineEdged } from "./features/SurfaceGrid";
@@ -134,6 +135,11 @@ export function OutputView() {
       setTransport({ playing: true, timeS: 0, anchorMs: Date.now() });
       setSource("deployed");
     });
+  }, [session]);
+  // A deployed show tells its player whether it is actually drawing.
+  useEffect(() => {
+    if (session || parent === window) return;
+    return startRenderHealth(health => parent.postMessage({ aetherHealth: health }, location.origin));
   }, [session]);
   useEffect(() => {
     if (session) return;

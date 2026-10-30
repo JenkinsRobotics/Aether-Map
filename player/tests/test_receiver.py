@@ -480,3 +480,23 @@ def test_escape_on_the_player_keyboard_stops_the_show_for_the_home_screen_and_ba
         "stopped": {"frame": False, "status": "Show stopped. Press Esc to start it again.", "name": "Porch",
                     "web": ["/web-window", {"window": None}]},
         "resumed": True, "deduped": True, "pageStops": True}
+
+
+def test_the_show_page_reports_what_it_draws_and_status_carries_it(kiosk, monkeypatch):
+    url, config, _requests = kiosk
+    monkeypatch.setattr(player, "RENDER", {"report": None, "at": 0.0})
+    assert player.device_status({**config, "show_dir": config["show_dir"]})["render"] is None
+    post = lambda body, **headers: urlopen(Request(url + "/render-health", data=json.dumps(body).encode(), method="POST",
+                                                   headers={"Content-Type": "application/json", **headers}))
+    assert json.load(post({"fps": 23.6, "webgl": False, "error": ""})) == {"ok": True}
+    render = player.device_status(config)["render"]
+    assert render["fps"] == 24 and render["webgl"] is False and render["age_s"] >= 0
+    for bad in ({"fps": 24}, {"fps": True, "webgl": True, "error": ""}, {"fps": 24, "webgl": True, "error": "x" * 301},
+                {"fps": 24, "webgl": True, "error": "", "extra": 1}):
+        with pytest.raises(HTTPError) as refused:
+            post(bad)
+        assert refused.value.code == 400
+    with pytest.raises(HTTPError) as foreign:
+        post({"fps": 24, "webgl": True, "error": ""}, Origin="https://evil.test")
+    assert foreign.value.code == 403
+    assert "aetherHealth" in player.PLAYER_START_PAGE

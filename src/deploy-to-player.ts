@@ -1,5 +1,5 @@
 import { newOutput, type MapShow } from './document';
-import { devices, library, fromBase64 } from './api';
+import { devices, library, fromBase64, type DeviceStatus } from './api';
 import { parseShow, serializeShow } from './show-file';
 import { deploymentReadiness } from './deployment-readiness';
 
@@ -12,11 +12,11 @@ export function routeToPlayer(show: MapShow, deviceID: string, deviceName: strin
 
 /** Deploy a saved show without opening it: add the player's output when it has
  * none (a new saved revision, like an editor save), then assign it. */
-export async function deploySavedShow(fileID: string, deviceID: string, deviceName: string): Promise<string[]> {
+export async function deploySavedShow(fileID: string, deviceID: string, deviceName: string, status?: DeviceStatus | null): Promise<string[]> {
   const file = await library.read(fileID);
   const show = parseShow(fromBase64(file.data_base64 ?? ''));
   const routed = routeToPlayer(show, deviceID, deviceName);
-  const { blockers, notes } = deploymentReadiness(routed, deviceID);
+  const { blockers, notes } = deploymentReadiness(routed, deviceID, status);
   if (blockers.length) throw new Error(blockers.join(' '));
   if (routed !== show) await library.save(file.id, file.revision, serializeShow(routed));
   await devices.assign(deviceID, file.id);

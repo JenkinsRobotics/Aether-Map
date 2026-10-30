@@ -162,7 +162,7 @@ it('deploys a saved show from the Players page and names what each player runs',
   fireEvent.click(await screen.findByRole('button', { name: 'Deploy a show…' }));
   await waitFor(() => expect((screen.getByLabelText('Show to deploy') as HTMLSelectElement).value).toBe('cube'));
   fireEvent.click(screen.getByRole('button', { name: 'Deploy' }));
-  await waitFor(() => expect(deploySavedShow).toHaveBeenCalledWith('cube', 'pi', 'Porch'));
+  await waitFor(() => expect(deploySavedShow).toHaveBeenCalledWith('cube', 'pi', 'Porch', undefined));
   expect(await screen.findByText('The show plays once and holds its last moment.')).toBeTruthy();
   store.list = [{ ...store.list[0], document: 'cube' }];
   cleanup(); mount();
@@ -184,4 +184,14 @@ it('adds an output for an unrouted player, then deploys and goes live with the o
   fireEvent.click(screen.getByRole('button', { name: 'Go live' }));
   await waitFor(() => expect(startLiveEdit).toHaveBeenCalledWith('pi', routed));
   expect(devices.assign).toHaveBeenCalledWith('pi', 'doc');
+});
+
+it('says whether the screen is drawing, from the show page report', async () => {
+  const { displayState } = await import('./DeviceRemote');
+  const status = { show: { id: 'cube', revision: 4 }, model: 'Raspberry Pi 2' } as Parameters<typeof displayState>[0];
+  expect(displayState({ ...status, render: undefined })).toBeNull();
+  expect(displayState({ ...status, render: null })).toMatch(/no report/);
+  expect(displayState({ ...status, render: { fps: 24, webgl: true, error: '', age_s: 5 } })).toBe('Display · drawing · 24 fps');
+  expect(displayState({ ...status, render: { fps: 0, webgl: false, error: 'context lost', age_s: 5 } })).toMatch(/WebGL unavailable.*context lost/);
+  expect(displayState({ ...status, render: { fps: 24, webgl: true, error: '', age_s: 600 } })).toMatch(/not drawing.*Restart player/);
 });
